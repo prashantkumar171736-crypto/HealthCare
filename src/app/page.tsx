@@ -1,65 +1,111 @@
-import Image from "next/image";
+import { getDb } from "@/lib/db";
+import SearchBar from "@/components/SearchBar";
+import Link from "next/link";
 
-export default function Home() {
+export const revalidate = 3600; // Cache page for 1 hour
+
+export default async function Home() {
+  let categories = [];
+  let stats = { categoriesCount: 15, diseasesCount: 105, libraryCount: 7 };
+
+  try {
+    const db = await getDb();
+    categories = await db.collection("categories").find({}).toArray();
+    stats.categoriesCount = categories.length;
+    stats.diseasesCount = await db.collection("diseases").countDocuments({});
+    stats.libraryCount = await db.collection("library").countDocuments({});
+  } catch (error) {
+    console.error("Home Page DB Query Error:", error);
+    // Fallback static categories list in case database is connection-throttled
+    categories = [
+      { slug: "cancer", name: "Cancer", icon: "🩺", description: "Learn about different types of cancer, their causes, stages, treatments, and prevention." },
+      { slug: "heart-diseases", name: "Heart Diseases", icon: "❤️", description: "Information on cardiovascular conditions, heart attacks, prevention, and lifestyle." },
+      { slug: "diabetes", name: "Diabetes", icon: "🍬", description: "Understanding Type 1, Type 2, and Gestational diabetes, management, and glucose tracking." },
+      { slug: "respiratory-diseases", name: "Respiratory Diseases", icon: "🫁", description: "Insights into conditions affecting the lungs and airways, from asthma to COPD." }
+    ];
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div>
+      {/* 1. Hero Section */}
+      <section className="hero">
+        <div className="container">
+          <h1 className="hero-title">Your Trusted Health Education Resource</h1>
+          <p className="hero-subtitle">
+            Learn about diseases, symptoms, treatments, prevention, and healthy living from peer-reviewed medical information.
           </p>
+          <div className="hero-actions">
+            <Link href="/diseases" className="btn btn-primary">
+              Explore Diseases
+            </Link>
+            <Link href="/donate" className="btn btn-accent btn-accent-glow">
+              Donate ❤️
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      {/* 2. Search Section */}
+      <section style={{ padding: "1rem 0 3rem" }}>
+        <div className="container text-center">
+          <h2 style={{ fontSize: "1.75rem", marginBottom: "1.5rem" }}>Search Any Disease</h2>
+          <SearchBar />
         </div>
-      </main>
+      </section>
+
+      {/* 3. Disease Categories Grid */}
+      <section className="categories-section" style={{ backgroundColor: "var(--surface)", borderTop: "1px solid var(--border)" }}>
+        <div className="container">
+          <h2 className="section-title">Disease Categories</h2>
+          <p className="section-subtitle">
+            Browse our comprehensive collection of health guides and resources categorized by medical areas.
+          </p>
+
+          <div className="grid-3">
+            {categories.map((category) => (
+              <Link
+                key={category.slug}
+                href={`/diseases/category/${category.slug}`}
+                className="category-card"
+              >
+                <div className="category-icon-wrapper">
+                  {category.icon}
+                </div>
+                <h3 className="category-title">{category.name}</h3>
+                <p className="category-desc">{category.description}</p>
+                <span className="category-link">
+                  View Diseases
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Stats Section */}
+      <section className="stats-section">
+        <div className="container stats-grid">
+          <div className="stat-item">
+            <span className="stat-number">{stats.categoriesCount}+</span>
+            <span className="stat-label">Medical Categories</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-number">{stats.diseasesCount}+</span>
+            <span className="stat-label">Disease Articles</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-number">{stats.libraryCount}+</span>
+            <span className="stat-label">Library Guides</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-number">100%</span>
+            <span className="stat-label">Free & Accessible</span>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

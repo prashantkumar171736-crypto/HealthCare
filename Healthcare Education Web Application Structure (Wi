@@ -1,0 +1,300 @@
+Healthcare Education Web Application Structure (With Donate)
+Vision
+I need to build a web application using vercel, github and mongodb connection.
+
+Create a clean, trustworthy, and easy-to-navigate healthcare education platform where users can learn about diseases, treatments, prevention, and healthy living. The website remains completely free, with an optional donation system to support maintenance and content creation.
+
+Sitemap
+Home
+│
+├── Disease Categories
+│   ├── Cancer
+│   ├── Heart Diseases
+│   ├── Diabetes
+│   ├── Respiratory Diseases
+│   ├── Infectious Diseases
+│   ├── Neurological Disorders
+│   ├── Mental Health
+│   ├── Skin Diseases
+│   ├── Kidney Diseases
+│   ├── Digestive Diseases
+│   ├── Eye Diseases
+│   ├── Bone & Joint Diseases
+│   ├── Blood Disorders
+│   ├── Autoimmune Diseases
+│   └── Rare Diseases
+│
+├── Disease A-Z
+│
+├── Health Library
+│   ├── Symptoms Guide
+│   ├── Treatments Guide
+│   ├── Medications Guide
+│   ├── Medical Tests
+│   └── Prevention Guide
+│
+├── Health Tips
+│
+├── FAQ
+│
+├── About Us
+│
+├── Donate
+│
+├── Privacy Policy
+│
+├── Terms & Conditions
+│
+└── Medical Disclaimer
+Navigation Bar
+LOGO
+
+Home
+Diseases
+Health Library
+Health Tips
+FAQ
+About
+Donate ❤️
+
+[ Search ]
+
+Keep the Donate ❤️ button highlighted in the navbar.
+
+Home Page Layout
+1. Hero Section
+Your Trusted Health Education Resource
+
+Learn about diseases, symptoms, treatments,
+prevention, and healthy living.
+
+[ Explore Diseases ]
+[ Donate ❤️ ]
+2. Search Section
+Search Any Disease
+
+[ Search Input ]
+
+Examples:
+Cancer
+Diabetes
+Asthma
+Dengue
+Heart Attack
+3. Disease Categories Grid
+🩺 Cancer
+❤️ Heart Disease
+🩸 Blood Disorders
+🧠 Neurological Disorders
+
+🫁 Respiratory Diseases
+🍬 Diabetes
+👁 Eye Diseases
+🦴 Bone Disorders
+
+🧬 Autoimmune Diseases
+🦠 Infectious Diseases
+🧑‍⚕️ Mental Health
+🩹 Skin Diseases
+
+Each card opens a dedicated category page.
+
+Category Page Example
+Cancer Category
+Cancer
+
+Introduction
+
+Types of Cancer
+
+• Breast Cancer
+• Lung Cancer
+• Blood Cancer
+• Skin Cancer
+• Brain Cancer
+• Colon Cancer
+• Liver Cancer
+• Pancreatic Cancer
+
+Each disease links to its own page.
+
+Disease Detail Page
+
+Example:
+
+/ diseases / lung-cancer
+Sections
+Overview
+
+What is Lung Cancer?
+
+Symptoms
+Persistent cough
+Chest pain
+Weight loss
+Causes
+Smoking
+Pollution
+Genetics
+Risk Factors
+Diagnosis
+Treatment Options
+Prevention
+Frequently Asked Questions
+References
+Related Diseases
+COPD
+Asthma
+Bronchitis
+Share Article
+
+Facebook
+WhatsApp
+LinkedIn
+Twitter
+
+
+---
+
+# Health Library
+
+Instead of only disease pages, create educational resources.
+
+### Symptoms Guide
+
+```text
+Chest Pain
+Fever
+Headache
+Weight Loss
+Fatigue
+Medical Tests
+Blood Test
+CT Scan
+MRI
+Biopsy
+ECG
+Treatment Guides
+Chemotherapy
+Radiation Therapy
+Surgery
+Physical Therapy
+Donate Page
+Hero
+Support Free Healthcare Education
+
+Your contribution helps us maintain
+and expand this educational platform.
+
+[ Donate Now ]
+Donation Options
+₹50
+₹100
+₹250
+₹500
+₹1000
+
+Custom Amount
+Payment Methods
+UPI
+Google Pay
+PhonePe
+Paytm
+Cards
+Net Banking
+Transparency Section
+Donations help us:
+
+✓ Create educational content
+✓ Maintain servers
+✓ Improve website performance
+✓ Add new disease information
+✓ Keep information free for everyone
+Footer
+Quick Links
+------------
+Home
+Disease Categories
+Health Library
+Health Tips
+Donate
+
+Legal
+------------
+Privacy Policy
+Terms & Conditions
+Medical Disclaimer
+
+Follow Us
+------------
+Instagram
+Facebook
+LinkedIn
+YouTube
+Recommended Next.js Folder Structure
+src
+│
+├── app
+│   ├── page.tsx
+│   │
+│   ├── diseases
+│   │   ├── page.tsx
+│   │   ├── [category]
+│   │   │   └── page.tsx
+│   │   └── [slug]
+│   │       └── page.tsx
+│   │
+│   ├── health-library
+│   │   ├── symptoms
+│   │   ├── treatments
+│   │   ├── tests
+│   │   └── medications
+│   │
+│   ├── donate
+│   │   └── page.tsx
+│   │
+│   ├── about
+│   ├── faq
+│   ├── privacy-policy
+│   ├── terms
+│   └── disclaimer
+│
+├── components
+│   ├── Navbar.tsx
+│   ├── Footer.tsx
+│   ├── SearchBar.tsx
+│   ├── DiseaseCard.tsx
+│   ├── CategoryCard.tsx
+│   ├── DonateButton.tsx
+│   └── ArticleCard.tsx
+│
+├── data
+│   ├── categories.json
+│   └── diseases.json
+│
+├── lib
+├── hooks
+└── styles
+Future Enhancements
+Disease comparison tool
+Symptom checker
+Multi-language support (English, Hindi, Gujarati)
+AI-powered health education assistant
+User bookmarks
+Disease prevalence statistics
+Printable PDF articles
+Donation leaderboard (optional)
+Recommended MVP (Launch Version)
+
+✅ Home Page
+✅ Search Diseases
+✅ 15 Disease Categories
+✅ 100+ Disease Pages
+✅ Health Library
+✅ Donate Page (Razorpay/UPI)
+✅ FAQ
+✅ About Us
+✅ SEO Optimization
+✅ Mobile Responsive Design
+
+This structure is professional, scalable, SEO-friendly, and suitable for growing into a large healthcare knowledge platform.
