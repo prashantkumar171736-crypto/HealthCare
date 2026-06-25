@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import PostEditor from "./PostEditor";
 
 interface KPI {
   totalViews: number;
@@ -68,7 +69,7 @@ export default function DashboardClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [clearing, setClearing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts">("overview");
   const router = useRouter();
 
   const fetchStats = async () => {
@@ -255,6 +256,12 @@ export default function DashboardClient() {
             onClick={() => setActiveTab("system")}
           >
             ⚙️ Server Monitoring
+          </button>
+          <button
+            className={`nav-item ${activeTab === "posts" ? "active" : ""}`}
+            onClick={() => setActiveTab("posts")}
+          >
+            📝 Add Post
           </button>
         </nav>
 
@@ -524,6 +531,12 @@ export default function DashboardClient() {
                 <p>Client Local Time: {new Date().toLocaleTimeString()}</p>
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === "posts" && (
+          <div className="panel-card full-panel">
+            <PostEditor />
           </div>
         )}
       </main>
