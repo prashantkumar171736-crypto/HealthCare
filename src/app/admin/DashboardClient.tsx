@@ -77,8 +77,10 @@ export default function DashboardClient() {
         router.push("/admin/login");
         return;
       }
-      if (!res.ok) throw new Error("Failed to load statistics");
       const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to load statistics");
+      }
       setData(json);
     } catch (err: any) {
       setError(err.message || "An error occurred while fetching dashboard data.");

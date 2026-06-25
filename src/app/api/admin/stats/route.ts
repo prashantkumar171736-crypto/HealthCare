@@ -151,9 +151,9 @@ export async function GET() {
       })),
       systemHealth,
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Failed to compile admin stats:", err);
-    return NextResponse.json({ error: "Failed to gather statistics" }, { status: 500 });
+    return NextResponse.json({ error: `Failed to gather statistics: ${err.message || err}` }, { status: 500 });
   }
 }
 
