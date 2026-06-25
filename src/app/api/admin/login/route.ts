@@ -1,3 +1,4 @@
+import "@/lib/env";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import crypto from "crypto";

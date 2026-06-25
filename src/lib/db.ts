@@ -1,3 +1,4 @@
+import "@/lib/env";
 import { MongoClient } from "mongodb";
 
 // NOTE: Do NOT validate MONGODB_URI at module level — that would throw during
