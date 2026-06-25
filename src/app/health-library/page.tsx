@@ -35,10 +35,10 @@ export default async function HealthLibraryPage() {
     ];
   }
 
-  const serializedItems = items.map(item => ({
+  const serializedItems = (items as Array<Record<string, any>>).map(item => ({
     ...item,
     _id: item._id?.toString() || item.slug,
-  })) as any;
+  }));
 
   return (
     <div style={{ backgroundColor: "var(--background)", minHeight: "80vh" }}>
