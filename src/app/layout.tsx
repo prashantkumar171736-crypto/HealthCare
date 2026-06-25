@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { LanguageProvider } from "@/context/LanguageContext";
+import Tracker from "@/components/Tracker";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,6 +33,7 @@ export default function RootLayout({
     <html lang="en" dir="ltr" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
         <LanguageProvider>
+          <Tracker />
           <Navbar />
           <main style={{ flex: 1 }}>{children}</main>
           <Footer />
@@ -40,3 +42,4 @@ export default function RootLayout({
     </html>
   );
 }
+
