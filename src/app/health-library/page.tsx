@@ -36,8 +36,11 @@ export default async function HealthLibraryPage() {
   }
 
   const serializedItems = (items as Array<Record<string, any>>).map(item => ({
-    ...item,
-    _id: item._id?.toString() || item.slug,
+    type: item.type as string,
+    slug: item.slug as string,
+    title: item.title as string,
+    description: item.description as string,
+    content: item.content as string,
   }));
 
   return (
