@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface SearchResult {
   name: string;
@@ -10,18 +11,24 @@ interface SearchResult {
   categories: string[];
 }
 
-export default function SearchBar({ placeholder = "Search any disease (e.g. Cancer, Asthma, Diabetes)..." }) {
+export default function SearchBar({
+  placeholder = "Search any disease (e.g. Cancer, Asthma, Diabetes)...",
+}) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { lang, setLangFromText, isTranslating } = useLanguage();
 
   // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
@@ -29,7 +36,7 @@ export default function SearchBar({ placeholder = "Search any disease (e.g. Canc
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fetch results when query changes
+  // Detect language and fetch search results when query changes
   useEffect(() => {
     if (query.trim().length === 0) {
       setResults([]);
@@ -38,6 +45,9 @@ export default function SearchBar({ placeholder = "Search any disease (e.g. Canc
     }
 
     const delayDebounce = setTimeout(async () => {
+      // Detect language from what the user typed
+      setLangFromText(query);
+
       setIsLoading(true);
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
@@ -51,10 +61,10 @@ export default function SearchBar({ placeholder = "Search any disease (e.g. Canc
       } finally {
         setIsLoading(false);
       }
-    }, 300); // 300ms debounce
+    }, 350);
 
     return () => clearTimeout(delayDebounce);
-  }, [query]);
+  }, [query, setLangFromText]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,10 +79,20 @@ export default function SearchBar({ placeholder = "Search any disease (e.g. Canc
     router.push(`/diseases?search=${encodeURIComponent(example)}`);
   };
 
+  const isNonEnglish = lang.code !== "en";
+
   return (
     <div ref={containerRef} className="search-wrapper">
       <form onSubmit={handleSubmit} className="search-input-group">
-        <svg className="search-icon" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="20" height="20">
+        <svg
+          className="search-icon"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+        >
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
@@ -83,15 +103,45 @@ export default function SearchBar({ placeholder = "Search any disease (e.g. Canc
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query.trim().length > 0 && setIsOpen(true)}
+          style={{ fontFamily: "inherit" }}
         />
-        {isLoading && (
+        {(isLoading || isTranslating) && (
           <div style={{ marginRight: "1rem", color: "var(--text-light)" }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ animation: "spin 1s linear infinite" }}>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              style={{ animation: "spin 1s linear infinite" }}
+            >
               <circle cx="12" cy="12" r="10" strokeDasharray="40 20" />
             </svg>
           </div>
         )}
       </form>
+
+      {/* Language detected badge */}
+      {isNonEnglish && query.trim().length > 0 && (
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.4rem",
+            marginTop: "0.5rem",
+            padding: "0.25rem 0.75rem",
+            borderRadius: "999px",
+            background: "var(--primary-light)",
+            color: "var(--primary)",
+            fontSize: "0.78rem",
+            fontWeight: 600,
+            animation: "fadeIn 0.3s ease",
+          }}
+        >
+          🌐 {lang.name} detected
+        </div>
+      )}
 
       {/* Autocomplete Dropdown */}
       {isOpen && results.length > 0 && (
@@ -115,25 +165,75 @@ export default function SearchBar({ placeholder = "Search any disease (e.g. Canc
         </div>
       )}
 
-      {isOpen && results.length === 0 && query.trim() !== "" && !isLoading && (
-        <div className="search-results-dropdown" style={{ padding: "1rem", color: "var(--text-muted)", fontSize: "0.95rem" }}>
-          No disease found for &quot;{query}&quot;. Press Enter to view full index.
-        </div>
-      )}
+      {isOpen &&
+        results.length === 0 &&
+        query.trim() !== "" &&
+        !isLoading && (
+          <div
+            className="search-results-dropdown"
+            style={{
+              padding: "1rem",
+              color: "var(--text-muted)",
+              fontSize: "0.95rem",
+            }}
+          >
+            No disease found for &quot;{query}&quot;. Press Enter to view full
+            index.
+          </div>
+        )}
 
       <div className="search-examples">
         Try searching:
-        <span className="search-example-link" onClick={() => handleExampleClick("Cancer")}>Cancer</span>,
-        <span className="search-example-link" onClick={() => handleExampleClick("Heart Attack")}>Heart Attack</span>,
-        <span className="search-example-link" onClick={() => handleExampleClick("Diabetes")}>Diabetes</span>,
-        <span className="search-example-link" onClick={() => handleExampleClick("Asthma")}>Asthma</span>,
-        <span className="search-example-link" onClick={() => handleExampleClick("Dengue")}>Dengue</span>
+        <span
+          className="search-example-link"
+          onClick={() => handleExampleClick("Cancer")}
+        >
+          Cancer
+        </span>
+        ,
+        <span
+          className="search-example-link"
+          onClick={() => handleExampleClick("Heart Attack")}
+        >
+          Heart Attack
+        </span>
+        ,
+        <span
+          className="search-example-link"
+          onClick={() => handleExampleClick("Diabetes")}
+        >
+          Diabetes
+        </span>
+        ,
+        <span
+          className="search-example-link"
+          onClick={() => handleExampleClick("Asthma")}
+        >
+          Asthma
+        </span>
+        ,
+        <span
+          className="search-example-link"
+          onClick={() => handleExampleClick("Dengue")}
+        >
+          Dengue
+        </span>
       </div>
 
       <style jsx global>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        :root {
+          --font-content: var(--font-geist-sans), 'Inter', sans-serif;
+        }
+        body, * {
+          font-family: var(--font-content) !important;
         }
       `}</style>
     </div>

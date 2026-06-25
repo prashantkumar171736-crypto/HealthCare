@@ -1,6 +1,32 @@
+"use client";
+
 import Link from "next/link";
+import { useTranslation } from "@/hooks/useTranslation";
+
+const FOOTER_STRINGS = {
+  brandDesc: "Your trusted healthcare education platform. Empowering everyone with accurate, peer-reviewed medical information.",
+  quickLinks: "Quick Links",
+  home: "Home",
+  diseaseIndex: "Disease Index",
+  healthLibrary: "Health Library",
+  healthTips: "Health Tips",
+  faqs: "FAQs",
+  donate: "Donate",
+  legal: "Legal",
+  privacy: "Privacy Policy",
+  terms: "Terms & Conditions",
+  disclaimer: "Medical Disclaimer",
+  contact: "Contact",
+  contactDesc: "Have feedback or questions?",
+  emailUs: "Email Us",
+  medicalDisclaimerTitle: "Medical Disclaimer:",
+  medicalDisclaimerText: "The content provided on HealthEdu is for educational and informational purposes only. It is not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition. Never disregard professional medical advice or delay in seeking it because of something you have read on this website.",
+  rightsReserved: "All rights reserved. Built for Healthcare Education.",
+};
 
 export default function Footer() {
+  const { t } = useTranslation(FOOTER_STRINGS);
+
   return (
     <footer className="footer-wrapper">
       <div className="container footer-grid">
@@ -10,7 +36,7 @@ export default function Footer() {
             <span>⚕️</span> HealthEdu
           </h3>
           <p className="text-muted" style={{ fontSize: "0.9rem", marginBottom: "1.5rem" }}>
-            Your trusted healthcare education platform. Empowering everyone with accurate, peer-reviewed medical information.
+            {t("brandDesc")}
           </p>
           <div className="footer-socials">
             <a href="https://instagram.com" className="footer-social-link" target="_blank" rel="noreferrer" aria-label="Instagram">
@@ -41,47 +67,47 @@ export default function Footer() {
 
         {/* Col 2: Quick Links */}
         <div>
-          <h4 className="footer-col-title">Quick Links</h4>
+          <h4 className="footer-col-title">{t("quickLinks")}</h4>
           <ul className="footer-links">
-            <li><Link href="/">Home</Link></li>
-            <li><Link href="/diseases">Disease Index</Link></li>
-            <li><Link href="/health-library">Health Library</Link></li>
-            <li><Link href="/health-tips">Health Tips</Link></li>
-            <li><Link href="/faq">FAQs</Link></li>
-            <li><Link href="/donate">Donate ❤️</Link></li>
+            <li><Link href="/">{t("home")}</Link></li>
+            <li><Link href="/diseases">{t("diseaseIndex")}</Link></li>
+            <li><Link href="/health-library">{t("healthLibrary")}</Link></li>
+            <li><Link href="/health-tips">{t("healthTips")}</Link></li>
+            <li><Link href="/faq">{t("faqs")}</Link></li>
+            <li><Link href="/donate">{t("donate")} ❤️</Link></li>
           </ul>
         </div>
 
         {/* Col 3: Legal */}
         <div>
-          <h4 className="footer-col-title">Legal</h4>
+          <h4 className="footer-col-title">{t("legal")}</h4>
           <ul className="footer-links">
-            <li><Link href="/privacy-policy">Privacy Policy</Link></li>
-            <li><Link href="/terms">Terms & Conditions</Link></li>
-            <li><Link href="/disclaimer">Medical Disclaimer</Link></li>
+            <li><Link href="/privacy-policy">{t("privacy")}</Link></li>
+            <li><Link href="/terms">{t("terms")}</Link></li>
+            <li><Link href="/disclaimer">{t("disclaimer")}</Link></li>
           </ul>
         </div>
 
         {/* Col 4: Platform */}
         <div>
-          <h4 className="footer-col-title">Contact</h4>
+          <h4 className="footer-col-title">{t("contact")}</h4>
           <p className="text-muted" style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-            Have feedback or questions?
+            {t("contactDesc")}
           </p>
           <a href="mailto:info@healthedu.org" className="btn btn-secondary btn-sm" style={{ marginTop: "0.5rem" }}>
-            Email Us
+            {t("emailUs")}
           </a>
         </div>
       </div>
 
       <div className="container">
         <div className="footer-disclaimer">
-          <p style={{ fontWeight: "600", marginBottom: "0.5rem" }}>⚠️ Medical Disclaimer:</p>
+          <p style={{ fontWeight: "600", marginBottom: "0.5rem" }}>⚠️ {t("medicalDisclaimerTitle")}</p>
           <p>
-            The content provided on HealthEdu is for educational and informational purposes only. It is not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition. Never disregard professional medical advice or delay in seeking it because of something you have read on this website.
+            {t("medicalDisclaimerText")}
           </p>
           <p style={{ marginTop: "1rem" }}>
-            © {new Date().getFullYear()} HealthEdu. All rights reserved. Built for Healthcare Education.
+            © {new Date().getFullYear()} HealthEdu. {t("rightsReserved")}
           </p>
         </div>
       </div>
