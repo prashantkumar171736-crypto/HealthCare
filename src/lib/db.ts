@@ -8,11 +8,9 @@ let cachedClient: MongoClient | null = null;
 let cachedClientPromise: Promise<MongoClient> | null = null;
 
 function getClientPromise(): Promise<MongoClient> {
-  if (!process.env.MONGODB_URI) {
-    throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
-  }
-
-  const uri = process.env.MONGODB_URI;
+  const uri =
+    process.env.MONGODB_URI ||
+    "mongodb+srv://healthcare:1994%40prashant@cluster0.ry3iuxp.mongodb.net/healthcare?retryWrites=true&w=majority&appName=Cluster0";
 
   if (process.env.NODE_ENV === "development") {
     // In development mode, use a global variable so that the value
