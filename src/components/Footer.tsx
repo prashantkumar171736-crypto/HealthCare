@@ -22,6 +22,7 @@ const FOOTER_STRINGS = {
   medicalDisclaimerTitle: "Medical Disclaimer:",
   medicalDisclaimerText: "The content provided on HealthEdu is for educational and informational purposes only. It is not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition. Never disregard professional medical advice or delay in seeking it because of something you have read on this website.",
   rightsReserved: "All rights reserved. Built for Healthcare Education.",
+  adminPortal: "Admin Portal",
 };
 
 export default function Footer() {
@@ -85,6 +86,7 @@ export default function Footer() {
             <li><Link href="/privacy-policy">{t("privacy")}</Link></li>
             <li><Link href="/terms">{t("terms")}</Link></li>
             <li><Link href="/disclaimer">{t("disclaimer")}</Link></li>
+            <li><Link href="/admin">🛡️ {t("adminPortal")}</Link></li>
           </ul>
         </div>
 
