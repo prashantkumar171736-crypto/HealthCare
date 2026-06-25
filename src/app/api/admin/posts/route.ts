@@ -23,6 +23,16 @@ export async function GET() {
 
   try {
     const db = await getDb();
+
+    // Migration logic: generate slugs for older posts that do not have one
+    const postsWithoutSlug = await db.collection("posts").find({ slug: { $exists: false } }).toArray();
+    if (postsWithoutSlug.length > 0) {
+      for (const p of postsWithoutSlug) {
+        const generatedSlug = slugify(p.title);
+        await db.collection("posts").updateOne({ _id: p._id }, { $set: { slug: generatedSlug } });
+      }
+    }
+
     const posts = await db
       .collection("posts")
       .find({})
@@ -33,6 +43,18 @@ export async function GET() {
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
+
+function slugify(text: string) {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-") // Replace spaces with -
+    .replace(/[^\w\-]+/g, "") // Remove all non-word chars
+    .replace(/\-\-+/g, "-") // Replace multiple - with single -
+    .replace(/^-+/, "") // Trim - from start of text
+    .replace(/-+$/, ""); // Trim - from end of text
 }
 
 /** POST /api/admin/posts — Create a new post */
@@ -56,9 +78,11 @@ export async function POST(req: NextRequest) {
     const now = new Date();
     const letter = title.trim()[0].toUpperCase();
     const category = /^[A-Z]$/.test(letter) ? letter : "#";
+    const slug = slugify(title);
 
     const result = await db.collection("posts").insertOne({
       title: title.trim(),
+      slug,
       content,
       category,
       createdAt: now,
@@ -66,7 +90,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      { message: "Post uploaded successfully", id: result.insertedId.toString(), category },
+      { message: "Post uploaded successfully", id: result.insertedId.toString(), category, slug },
       { status: 201 }
     );
   } catch (err: any) {

@@ -22,40 +22,99 @@ export default async function DiseasesPage({
   let categories: { slug: string; name: string }[] = [];
   let errorMessage = "";
 
+  const slugify = (text: string) => {
+    return text
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/[^\w\-]+/g, "")
+      .replace(/\-\-+/g, "-")
+      .replace(/^-+/, "")
+      .replace(/-+$/, "");
+  };
+
+  const stripHtml = (html: string) => {
+    return html.replace(/<[^>]*>/g, "");
+  };
+
   try {
     const db = await getDb();
     categories = await db.collection("categories").find({}).project({ slug: 1, name: 1 }).toArray() as any;
 
+    let diseaseList: DiseaseItem[] = [];
+    let postList: any[] = [];
+
     if (searchQuery) {
-      // Perform database text / regex search
+      // Perform database text / regex search on diseases
       const criteria = {
         $or: [
           { name: { $regex: searchQuery, $options: "i" } },
           { overview: { $regex: searchQuery, $options: "i" } },
         ],
       };
-      diseases = await db.collection("diseases")
+      diseaseList = await db.collection("diseases")
         .find(criteria)
         .project({ name: 1, slug: 1, categories: 1, overview: 1 })
         .toArray() as any;
+
+      // Search posts
+      const postCriteria = {
+        $or: [
+          { title: { $regex: searchQuery, $options: "i" } },
+          { content: { $regex: searchQuery, $options: "i" } }
+        ]
+      };
+      postList = await db.collection("posts")
+        .find(postCriteria)
+        .project({ title: 1, slug: 1, category: 1, content: 1 })
+        .toArray();
     } else if (selectedLetter) {
       // Filter by first letter
       const criteria = {
         name: { $regex: `^${selectedLetter}`, $options: "i" },
       };
-      diseases = await db.collection("diseases")
+      diseaseList = await db.collection("diseases")
         .find(criteria)
         .project({ name: 1, slug: 1, categories: 1, overview: 1 })
         .sort({ name: 1 })
         .toArray() as any;
+
+      // Filter posts by letter category
+      const postCriteria = {
+        category: selectedLetter.toUpperCase(),
+      };
+      postList = await db.collection("posts")
+        .find(postCriteria)
+        .project({ title: 1, slug: 1, category: 1, content: 1 })
+        .toArray();
     } else {
       // Show all diseases
-      diseases = await db.collection("diseases")
+      diseaseList = await db.collection("diseases")
         .find({})
         .project({ name: 1, slug: 1, categories: 1, overview: 1 })
         .sort({ name: 1 })
         .toArray() as any;
+
+      // Fetch all posts
+      postList = await db.collection("posts")
+        .find({})
+        .project({ title: 1, slug: 1, category: 1, content: 1 })
+        .toArray();
     }
+
+    // Map posts to unified DiseaseItem structure
+    const mappedPosts = postList.map((post: any) => ({
+      name: post.title,
+      slug: post.slug || slugify(post.title),
+      categories: ["articles"],
+      overview: stripHtml(post.content).substring(0, 160) + "...",
+    }));
+
+    // Combine and sort alphabetically
+    diseases = [...diseaseList, ...mappedPosts].sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
   } catch (error) {
     console.error("Diseases Page Error:", error);
     errorMessage = "Failed to load diseases from database.";
@@ -63,11 +122,11 @@ export default async function DiseasesPage({
 
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
-  // Map category slugs to names for quick badge rendering
+  // Map category slugs to names for quick badge rendering, with articles fallback
   const categoryMap = categories.reduce((acc, cat) => {
     acc[cat.slug] = cat.name;
     return acc;
-  }, {} as Record<string, string>);
+  }, { "articles": "Articles" } as Record<string, string>);
 
   return (
     <div className="container" style={{ padding: "3rem 1.5rem" }}>
