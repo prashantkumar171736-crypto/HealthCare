@@ -47,6 +47,8 @@ interface SystemHealth {
   serverUptime: number;
   memoryUsed: number;
   memoryTotal: number;
+  nodeVersion: string;
+  platform: string;
 }
 
 interface StatsResponse {
@@ -511,9 +513,9 @@ export default function DashboardClient() {
               </div>
               <div className="health-box">
                 <h3>Server Environment</h3>
-                <p>Node version: <code>{process.version}</code></p>
-                <p>Memory Heap Uptime: <code>{Math.round(process.uptime())}s</code></p>
-                <p>Platform Host: <code>{process.platform}</code></p>
+                <p>Node version: <code>{data.systemHealth.nodeVersion || "N/A"}</code></p>
+                <p>Server Uptime: <code>{Math.round(data.systemHealth.serverUptime || 0)}s</code></p>
+                <p>Platform Host: <code>{data.systemHealth.platform || "N/A"}</code></p>
               </div>
               <div className="health-box">
                 <h3>Client Reachability Tracker</h3>

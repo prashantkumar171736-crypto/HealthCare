@@ -121,6 +121,8 @@ export async function GET() {
       serverUptime: process.uptime(),
       memoryUsed: Math.round(memory.heapUsed / 1024 / 1024), // MB
       memoryTotal: Math.round(memory.heapTotal / 1024 / 1024), // MB
+      nodeVersion: process.version,
+      platform: process.platform,
     };
 
     return NextResponse.json({
