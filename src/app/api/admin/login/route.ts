@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const { username, password } = await request.json();
 
     const expectedUsername = process.env.ADMIN_USERNAME || "admin";
-    const expectedPassword = process.env.ADMIN_PASSWORD || "admin123";
+    const expectedPassword = process.env.ADMIN_PASSWORD || "admin";
 
     if (username === expectedUsername && password === expectedPassword) {
       const hash = getSessionHash(username);
