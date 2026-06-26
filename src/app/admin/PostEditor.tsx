@@ -41,6 +41,7 @@ export default function PostEditor() {
   const [savedSelection, setSavedSelection] = useState<Range | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
 
   // ── Fetch posts ────────────────────────────────────────────────────────────
   const fetchPosts = useCallback(async () => {
@@ -240,6 +241,63 @@ graph TD
     }
   };
 
+  // ── Update post (edit mode) ────────────────────────────────────────────────
+  const handleUpdatePost = async () => {
+    if (!editingPost) return;
+    const content = editorRef.current?.innerHTML || "";
+    if (!title.trim()) {
+      setUploadMsg({ type: "error", text: "Please enter a post title." });
+      return;
+    }
+    if (!content.trim() || content === "<br>" || content === "<p><br></p>") {
+      setUploadMsg({ type: "error", text: "Please add some content to the post." });
+      return;
+    }
+
+    setUploading(true);
+    setUploadMsg(null);
+    try {
+      const res = await fetch(`/api/admin/posts?id=${editingPost._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title.trim(), content }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUploadMsg({
+          type: "success",
+          text: `✅ Post updated! Now categorized under section "${data.category}".`,
+        });
+        setEditingPost(null);
+        setTitle("");
+        if (editorRef.current) editorRef.current.innerHTML = "";
+        fetchPosts();
+      } else {
+        setUploadMsg({ type: "error", text: data.error || "Update failed." });
+      }
+    } catch {
+      setUploadMsg({ type: "error", text: "Network error. Please try again." });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // ── Load post into editor for editing ──────────────────────────────────────
+  const handleEditPost = (post: Post) => {
+    setEditingPost(post);
+    setTitle(post.title);
+    // Switch to editor view first, then set content after mount
+    setActiveView("editor");
+    setUploadMsg(null);
+    // Use a short timeout to let the editor mount before setting innerHTML
+    setTimeout(() => {
+      if (editorRef.current) {
+        editorRef.current.innerHTML = post.content;
+        editorRef.current.focus();
+      }
+    }, 50);
+  };
+
   // ── Delete post ────────────────────────────────────────────────────────────
   const handleDeletePost = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this post?")) return;
@@ -292,12 +350,31 @@ graph TD
         {/* ── EDITOR PANEL ── */}
         {activeView === "editor" && (
           <div className="editor-panel">
+            {/* Edit mode banner */}
+            {editingPost && (
+              <div className="edit-mode-banner">
+                <span>✏️ Editing: <strong>{editingPost.title}</strong></span>
+                <button
+                  className="btn-cancel-edit"
+                  onClick={() => {
+                    setEditingPost(null);
+                    setTitle("");
+                    if (editorRef.current) editorRef.current.innerHTML = "";
+                    setUploadMsg(null);
+                  }}
+                >
+                  ✕ Cancel Edit
+                </button>
+              </div>
+            )}
             <div className="editor-section-header">
-              <div className="editor-section-icon">📝</div>
+              <div className="editor-section-icon">{editingPost ? "✏️" : "📝"}</div>
               <div>
-                <h2 className="editor-section-title">Create New Post</h2>
+                <h2 className="editor-section-title">{editingPost ? "Edit Post" : "Create New Post"}</h2>
                 <p className="editor-section-sub">
-                  Write rich documentation-style content with full formatting support.
+                  {editingPost
+                    ? "Make your changes below and click Update Post to save."
+                    : "Write rich documentation-style content with full formatting support."}
                 </p>
               </div>
             </div>
@@ -493,22 +570,39 @@ graph TD
               </div>
             )}
 
-            {/* Upload button */}
+            {/* Upload / Update button */}
             <div className="editor-actions">
-              <button
-                id="btn-upload-post"
-                className="btn-upload-post"
-                onClick={handleUploadPost}
-                disabled={uploading}
-              >
-                {uploading ? (
-                  <>
-                    <span className="btn-spinner" /> Uploading…
-                  </>
-                ) : (
-                  <>📤 Upload Post</>
-                )}
-              </button>
+              {editingPost ? (
+                <button
+                  id="btn-update-post"
+                  className="btn-upload-post btn-update-post"
+                  onClick={handleUpdatePost}
+                  disabled={uploading}
+                >
+                  {uploading ? (
+                    <>
+                      <span className="btn-spinner" /> Updating…
+                    </>
+                  ) : (
+                    <>💾 Update Post</>
+                  )}
+                </button>
+              ) : (
+                <button
+                  id="btn-upload-post"
+                  className="btn-upload-post"
+                  onClick={handleUploadPost}
+                  disabled={uploading}
+                >
+                  {uploading ? (
+                    <>
+                      <span className="btn-spinner" /> Uploading…
+                    </>
+                  ) : (
+                    <>📤 Upload Post</>
+                  )}
+                </button>
+              )}
               <button
                 id="btn-clear-editor"
                 className="btn-clear-editor"
@@ -516,6 +610,7 @@ graph TD
                   setTitle("");
                   if (editorRef.current) editorRef.current.innerHTML = "";
                   setUploadMsg(null);
+                  setEditingPost(null);
                 }}
               >
                 🗑️ Clear
@@ -608,6 +703,14 @@ graph TD
                                 title={expandedPost === post._id ? "Collapse" : "Expand"}
                               >
                                 {expandedPost === post._id ? "▲ Collapse" : "▼ Expand"}
+                              </button>
+                              <button
+                                className="btn-edit-post"
+                                id={`btn-edit-${post._id}`}
+                                onClick={() => handleEditPost(post)}
+                                title="Edit post"
+                              >
+                                ✏️ Edit
                               </button>
                               <button
                                 className="btn-delete-post"
@@ -1289,6 +1392,69 @@ graph TD
         }
 
         .btn-delete-post:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-edit-post {
+          padding: 0.4rem 0.9rem;
+          background: rgba(59,130,246,0.1);
+          border: 1px solid rgba(59,130,246,0.3);
+          border-radius: 6px;
+          color: #93c5fd;
+          font-size: 0.8rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s;
+          white-space: nowrap;
+        }
+
+        .btn-edit-post:hover {
+          background: rgba(59,130,246,0.2);
+          border-color: #3b82f6;
+          color: #bfdbfe;
+        }
+
+        /* ─── Edit mode banner ───────────────────────────────── */
+        .edit-mode-banner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          padding: 0.75rem 1.25rem;
+          background: rgba(59,130,246,0.08);
+          border: 1px solid rgba(59,130,246,0.25);
+          border-radius: 10px;
+          color: #93c5fd;
+          font-size: 0.9rem;
+          margin-bottom: 1.25rem;
+          animation: fadeSlide 0.25s ease;
+        }
+
+        .btn-cancel-edit {
+          padding: 0.35rem 0.85rem;
+          background: rgba(239,68,68,0.1);
+          border: 1px solid rgba(239,68,68,0.25);
+          border-radius: 6px;
+          color: #f87171;
+          font-size: 0.8rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+
+        .btn-cancel-edit:hover {
+          background: rgba(239,68,68,0.2);
+          border-color: #ef4444;
+        }
+
+        .btn-update-post {
+          background: linear-gradient(135deg, #3b82f6, #6366f1) !important;
+          box-shadow: 0 4px 14px rgba(59,130,246,0.35) !important;
+        }
+
+        .btn-update-post:hover {
+          box-shadow: 0 6px 20px rgba(59,130,246,0.5) !important;
+        }
 
         /* ─── Post content (doc-style) ───────────────────────── */
         .az-post-content {

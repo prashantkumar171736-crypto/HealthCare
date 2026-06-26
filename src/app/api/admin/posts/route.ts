@@ -98,6 +98,57 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/** PUT /api/admin/posts?id=<objectId> — Update an existing post */
+export async function PUT(req: NextRequest) {
+  if (!(await authenticate())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "Post ID is required" }, { status: 400 });
+    }
+
+    const body = await req.json();
+    const { title, content } = body;
+
+    if (!title || typeof title !== "string" || title.trim().length === 0) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 });
+    }
+    if (!content || typeof content !== "string" || content.trim().length === 0) {
+      return NextResponse.json({ error: "Content is required" }, { status: 400 });
+    }
+
+    const db = await getDb();
+    const letter = title.trim()[0].toUpperCase();
+    const category = /^[A-Z]$/.test(letter) ? letter : "#";
+    const slug = slugify(title);
+
+    const result = await db.collection("posts").updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          title: title.trim(),
+          slug,
+          content,
+          category,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: "Post updated successfully", category, slug });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
 /** DELETE /api/admin/posts?id=<objectId> — Delete a post */
 export async function DELETE(req: NextRequest) {
   if (!(await authenticate())) {
