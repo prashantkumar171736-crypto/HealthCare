@@ -46,11 +46,17 @@ export default async function DiseasesPage({
     let postList: any[] = [];
 
     if (searchQuery) {
+      const words = searchQuery.trim().split(/\s+/).filter(Boolean);
       // Perform database text / regex search on diseases
       const criteria = {
         $or: [
           { name: { $regex: searchQuery, $options: "i" } },
           { overview: { $regex: searchQuery, $options: "i" } },
+          ...words.flatMap(word => [
+            { name: { $regex: word, $options: "i" } },
+            { overview: { $regex: word, $options: "i" } },
+            { categories: { $regex: word, $options: "i" } }
+          ])
         ],
       };
       diseaseList = await db.collection("diseases")
@@ -62,7 +68,11 @@ export default async function DiseasesPage({
       const postCriteria = {
         $or: [
           { title: { $regex: searchQuery, $options: "i" } },
-          { content: { $regex: searchQuery, $options: "i" } }
+          { content: { $regex: searchQuery, $options: "i" } },
+          ...words.flatMap(word => [
+            { title: { $regex: word, $options: "i" } },
+            { content: { $regex: word, $options: "i" } }
+          ])
         ]
       };
       postList = await db.collection("posts")
@@ -111,10 +121,47 @@ export default async function DiseasesPage({
       overview: stripHtml(post.content).substring(0, 160) + "...",
     }));
 
-    // Combine and sort alphabetically
-    diseases = [...diseaseList, ...mappedPosts].sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
+    // Combine and sort by relevance if there is a search query, else alphabetically
+    if (searchQuery) {
+      const words = searchQuery.trim().split(/\s+/).filter(Boolean);
+      const scored = [...diseaseList, ...mappedPosts].map((item: any) => {
+        let score = 0;
+        const lowerQuery = searchQuery.toLowerCase();
+        const lowerName = item.name.toLowerCase();
+        const lowerOverview = (item.overview || "").toLowerCase();
+
+        // Exact match on full query
+        if (lowerName.includes(lowerQuery)) {
+          score += 100;
+        } else if (lowerOverview.includes(lowerQuery)) {
+          score += 50;
+        }
+
+        // Individual word matches
+        words.forEach(word => {
+          const lowerWord = word.toLowerCase();
+          if (lowerName.includes(lowerWord)) {
+            score += 15;
+          }
+          if (lowerOverview.includes(lowerWord)) {
+            score += 5;
+          }
+          if (item.categories && item.categories.some((c: string) => c.toLowerCase().includes(lowerWord))) {
+            score += 8;
+          }
+        });
+
+        return { item, score };
+      });
+
+      diseases = scored
+        .sort((a, b) => b.score - a.score || a.item.name.localeCompare(b.item.name))
+        .map(r => r.item);
+    } else {
+      diseases = [...diseaseList, ...mappedPosts].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+    }
   } catch (error) {
     console.error("Diseases Page Error:", error);
     errorMessage = "Failed to load diseases from database.";
