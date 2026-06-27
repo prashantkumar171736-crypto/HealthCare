@@ -158,7 +158,9 @@ export default function DonatePage() {
                                             {showResult && donationAmount !== null && (
                       <div className="modal-overlay" onClick={() => setShowResult(false)}>
                         <div className="modal-content" onClick={e => e.stopPropagation()}>
+                          <div className="animated-emoji">🎉</div>
                           <h2>Thank you for donating</h2>
+                          <div className="folded-hands">🙏</div>
                           <p className="text-muted">Your support helps keep our educational platform free.</p>
                           {hasQRCode && (
                             <img src={donationConfig?.qrCodeBase64} alt="Payment QR Code" className="qr-image" />
@@ -251,6 +253,38 @@ export default function DonatePage() {
           margin-bottom: 1rem;
         }
 
+        .animated-emoji {
+          font-size: 3.5rem;
+          margin-bottom: 0.5rem;
+          display: inline-block;
+          animation: bounceCelebrate 1.5s ease-in-out infinite;
+        }
+
+        .folded-hands {
+          font-size: 2.2rem;
+          margin: 0.5rem 0;
+          display: inline-block;
+          animation: pulseHands 2s ease-in-out infinite;
+        }
+
+        @keyframes bounceCelebrate {
+          0%, 100% {
+            transform: translateY(0) scale(1) rotate(0deg);
+          }
+          50% {
+            transform: translateY(-15px) scale(1.15) rotate(15deg);
+          }
+        }
+
+        @keyframes pulseHands {
+          0%, 100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.1);
+          }
+        }
+
         .modal-content .btn {
           margin-top: 1rem;
         }
@@ -258,8 +292,8 @@ export default function DonatePage() {
         .qr-image {
           display: block;
           margin: 1.25rem auto 0.5rem;
-          width: 260px;
-          height: 260px;
+          width: 360px;
+          height: 360px;
           object-fit: contain;
           border-radius: 12px;
           background: #ffffff;
