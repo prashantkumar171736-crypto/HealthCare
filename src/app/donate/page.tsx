@@ -12,13 +12,15 @@ interface DonationConfig {
 }
 
 export default function DonatePage() {
+  const [donationAmount, setDonationAmount] = useState<number | null>(null);
+  const [showResult, setShowResult] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(250);
   const [customAmount, setCustomAmount] = useState<string>("");
 
 
   const [donationConfig, setDonationConfig] = useState<DonationConfig | null>(null);
 
-  const [showResult, setShowResult] = useState(false);
+
 
 
   const presets = [50, 100, 250, 500, 1000];
