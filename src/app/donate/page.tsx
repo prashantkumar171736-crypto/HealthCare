@@ -14,8 +14,7 @@ interface DonationConfig {
 export default function DonatePage() {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(250);
   const [customAmount, setCustomAmount] = useState<string>("");
-  const [showModal, setShowModal] = useState(false);
-  const [paymentStep, setPaymentStep] = useState<"pending" | "processing" | "success">("pending");
+
 
   const [donationConfig, setDonationConfig] = useState<DonationConfig | null>(null);
 
@@ -51,20 +50,10 @@ export default function DonatePage() {
       alert("Please select or enter a valid donation amount.");
       return;
     }
-    setPaymentStep("pending");
-    setShowModal(true);
-    // Auto-start payment verification after a short delay so the QR
-    // is visible briefly, then move to the processing/success states.
-    setTimeout(() => {
-      setPaymentStep("processing");
-      setTimeout(() => setPaymentStep("success"), 4000);
-    }, 3000);
+    alert(`Thank you for donating ₹${finalAmt}!`);
   };
 
-  const resetFlow = () => {
-    setShowModal(false);
-    setPaymentStep("pending");
-  };
+
 
   const hasConfig = donationConfig && (
     donationConfig.upiId ||
@@ -198,87 +187,6 @@ export default function DonatePage() {
         </div>
       </div>
 
-      {/* Simulated Payment Sheet Modal */}
-      {showModal && (
-        <div className="payment-modal-overlay">
-          <div className="payment-modal">
-            
-            {/* Header */}
-            <div className="payment-modal-header">
-              <h3 style={{ fontSize: "1.1rem", margin: 0 }}>Secure Donation Checkout</h3>
-              <button onClick={resetFlow} className="payment-close-btn" style={{ color: "var(--primary)" }}>×</button>
-            </div>
-
-            {/* Body */}
-            <div className="payment-modal-body">
-              {paymentStep === "pending" && (
-                <div>
-                  <p className="text-muted" style={{ fontSize: "0.95rem" }}>
-                    You are donating <strong style={{ color: "var(--text-main)" }}>₹{getFinalAmount()}</strong> to HealthEdu Foundation.
-                  </p>
-
-                  <div className="upi-qr-wrapper">
-                    {hasQRCode ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={donationConfig!.qrCodeBase64}
-                        alt="Payment QR Code"
-                        style={{ width: "100%", height: "100%", objectFit: "contain", background: "white", padding: "8px", borderRadius: "6px" }}
-                      />
-                    ) : (
-                      <div style={{ border: "2px solid #000", padding: "10px", width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: "0.7rem", fontWeight: "bold", textTransform: "uppercase" }}>Scan &amp; Pay</span>
-                        <span style={{ fontSize: "3.5rem" }}>📱</span>
-                        <span style={{ fontSize: "0.6rem", wordBreak: "break-all", color: "var(--text-muted)" }}>
-                          {hasUPI ? donationConfig!.upiId : "donate@healthedu"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  {hasUPI && (
-                    <p style={{ fontSize: "0.85rem", textAlign: "center", color: "var(--text-muted)", marginBottom: "0.5rem" }}>
-                      UPI ID: <strong style={{ color: "var(--text-main)" }}>{donationConfig!.upiId}</strong>
-                    </p>
-                  )}
-                  <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.5rem" }}>
-                    Scan the QR code with any UPI app (GPay, PhonePe, Paytm) to complete your payment.
-                  </p>
-                  <p style={{ fontSize: "0.8rem", color: "var(--primary)", fontWeight: "600" }}>
-                    ⏳ Waiting for payment confirmation…
-                  </p>
-                </div>
-              )}
-
-              {paymentStep === "processing" && (
-                <div style={{ padding: "3rem 0" }}>
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="3" style={{ animation: "spin 1s linear infinite", marginBottom: "1.5rem" }}>
-                    <circle cx="12" cy="12" r="10" strokeDasharray="40 20" />
-                  </svg>
-                  <h3>Verifying Payment...</h3>
-                  <p className="text-muted" style={{ fontSize: "0.9rem", marginTop: "0.5rem" }}>
-                    Verifying transaction authenticity and secure token routing. Please do not close this window.
-                  </p>
-                </div>
-              )}
-
-              {paymentStep === "success" && (
-                <div style={{ padding: "2.5rem 0 1rem" }}>
-                  <div className="payment-success-icon">🎉</div>
-                  <h2 style={{ color: "var(--success)", fontSize: "1.75rem", marginBottom: "0.5rem" }}>Thank You!</h2>
-                  <h3 style={{ fontSize: "1.2rem", fontWeight: "600", marginBottom: "1rem" }}>Donation of ₹{getFinalAmount()} Successful</h3>
-                  <p className="text-muted" style={{ fontSize: "0.95rem", padding: "0 1rem", marginBottom: "2rem" }}>
-                    We have sent a simulated tax-deductible receipt to your session log. Your support is instrumental in keeping this educational tool completely free.
-                  </p>
-                  <button onClick={resetFlow} className="btn btn-secondary btn-block">
-                    Close Window
-                  </button>
-                </div>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
       
       <style jsx global>{`
         @keyframes spin {
