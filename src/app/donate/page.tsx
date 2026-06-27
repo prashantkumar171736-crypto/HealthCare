@@ -136,7 +136,7 @@ export default function DonatePage() {
                     placeholder="Enter custom amount"
                     value={customAmount}
                     onChange={(e) => handleCustomAmountChange(e.target.value)}
-                    min="10"
+
                   />
                 </div>
               </div>
