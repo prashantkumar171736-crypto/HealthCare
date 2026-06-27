@@ -17,6 +17,7 @@ export default function DonatePage() {
 
 
   const [donationConfig, setDonationConfig] = useState<DonationConfig | null>(null);
+  const [showResult, setShowResult] = useState(false);
 
   const presets = [50, 100, 250, 500, 1000];
 
@@ -51,6 +52,7 @@ export default function DonatePage() {
       return;
     }
     alert(`Thank you for donating ₹${finalAmt}!`);
+    setShowResult(true);
   };
 
 
@@ -145,6 +147,19 @@ export default function DonatePage() {
                 Donate ₹{getFinalAmount()} Now
               </button>
             </form>
+            {showResult && (
+              <div className="payment-result" style={{ marginTop: "2rem", textAlign: "center" }}>
+                {hasQRCode ? (
+                  <img
+                    src={donationConfig!.qrCodeBase64}
+                    alt="Payment QR Code"
+                    style={{ width: "200px", height: "200px", objectFit: "contain", background: "white", padding: "8px", borderRadius: "6px" }}
+                  />
+                ) : (
+                  <p className="text-muted">QR code not available.</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Transparency Card */}
