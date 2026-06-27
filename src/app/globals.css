@@ -1090,8 +1090,8 @@ h4 { font-size: 1.25rem; }
   background-color: #ffffff;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  width: 200px;
-  height: 200px;
+  width: 280px;
+  height: 280px;
   display: flex;
   align-items: center;
   justify-content: center;
