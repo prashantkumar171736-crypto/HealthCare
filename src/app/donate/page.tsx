@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import QRCode from "qrcode";
 
 interface DonationConfig {
   bankName: string;
@@ -16,6 +17,7 @@ export default function DonatePage() {
   const [showResult, setShowResult] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(250);
   const [customAmount, setCustomAmount] = useState<string>("");
+  const [generatedQRCode, setGeneratedQRCode] = useState<string>("");
 
 
   const [donationConfig, setDonationConfig] = useState<DonationConfig | null>(null);
@@ -23,7 +25,7 @@ export default function DonatePage() {
 
 
 
-  const presets = [50, 100, 250, 500, 1000];
+  const presets = [5, 11, 21, 51, 101];
 
   useEffect(() => {
     fetch("/api/donation-settings")
@@ -48,15 +50,30 @@ export default function DonatePage() {
     setCustomAmount(val);
   };
 
-  const handlePaySubmit = (e: React.FormEvent) => {
+  const handlePaySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalAmt = getFinalAmount();
     if (finalAmt <= 0) {
       alert("Please select or enter a valid donation amount.");
       return;
     }
-    // alert(`Thank you for donating ₹${finalAmt}!`);
     setDonationAmount(finalAmt);
+
+    const upiId = donationConfig?.upiId || "";
+    if (upiId) {
+      const recipientName = donationConfig?.accountHolder || "Healthcare";
+      const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(recipientName)}&am=${finalAmt}&cu=INR`;
+      try {
+        const qrDataUrl = await QRCode.toDataURL(upiUrl, { width: 360, margin: 2 });
+        setGeneratedQRCode(qrDataUrl);
+      } catch (err) {
+        console.error("Failed to generate UPI QR Code:", err);
+        setGeneratedQRCode(donationConfig?.qrCodeBase64 || "");
+      }
+    } else {
+      setGeneratedQRCode(donationConfig?.qrCodeBase64 || "");
+    }
+
     setShowResult(true);
   };
 
@@ -75,7 +92,7 @@ export default function DonatePage() {
     donationConfig.ifscCode
   );
 
-  const hasQRCode = donationConfig?.qrCodeBase64;
+  const hasQRCode = generatedQRCode || donationConfig?.qrCodeBase64;
   const hasUPI = donationConfig?.upiId;
 
   return (
@@ -163,7 +180,7 @@ export default function DonatePage() {
                           <div className="folded-hands">🙏</div>
                           <p className="text-muted">Your support helps keep our educational platform free.</p>
                           {hasQRCode && (
-                            <img src={donationConfig?.qrCodeBase64} alt="Payment QR Code" className="qr-image" />
+                            <img src={generatedQRCode || donationConfig?.qrCodeBase64} alt="Payment QR Code" className="qr-image" />
                           )}
                           <button className="btn btn-primary" onClick={() => setShowResult(false)}>Close</button>
                         </div>
