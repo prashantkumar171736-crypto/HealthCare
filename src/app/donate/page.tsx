@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import QRCode from "qrcode";
 
 interface DonationConfig {
   bankName: string;
@@ -50,7 +49,7 @@ export default function DonatePage() {
     setCustomAmount(val);
   };
 
-  const handlePaySubmit = async (e: React.FormEvent) => {
+  const handlePaySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const finalAmt = getFinalAmount();
     if (finalAmt <= 0) {
@@ -62,14 +61,9 @@ export default function DonatePage() {
     const upiId = donationConfig?.upiId || "";
     if (upiId) {
       const recipientName = donationConfig?.accountHolder || "Healthcare";
-      const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(recipientName)}&am=${finalAmt}&cu=INR`;
-      try {
-        const qrDataUrl = await QRCode.toDataURL(upiUrl, { width: 360, margin: 2 });
-        setGeneratedQRCode(qrDataUrl);
-      } catch (err) {
-        console.error("Failed to generate UPI QR Code:", err);
-        setGeneratedQRCode(donationConfig?.qrCodeBase64 || "");
-      }
+      const upiUrl = `upi://pay?pa=${upiId}&pn=${recipientName}&am=${finalAmt}&cu=INR`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&data=${encodeURIComponent(upiUrl)}`;
+      setGeneratedQRCode(qrUrl);
     } else {
       setGeneratedQRCode(donationConfig?.qrCodeBase64 || "");
     }
