@@ -17,7 +17,9 @@ export default function DonatePage() {
 
 
   const [donationConfig, setDonationConfig] = useState<DonationConfig | null>(null);
+
   const [showResult, setShowResult] = useState(false);
+
 
   const presets = [50, 100, 250, 500, 1000];
 
@@ -52,6 +54,7 @@ export default function DonatePage() {
       return;
     }
     alert(`Thank you for donating ₹${finalAmt}!`);
+    setDonationAmount(finalAmt);
     setShowResult(true);
   };
 
@@ -147,22 +150,19 @@ export default function DonatePage() {
                 Donate ₹{getFinalAmount()} Now
               </button>
             </form>
-            {showResult && (
-              <div className="payment-result" style={{ marginTop: "2rem", textAlign: "center" }}>
-                {hasQRCode ? (
-                  <img
-                    src={donationConfig!.qrCodeBase64}
-                    alt="Payment QR Code"
-                    style={{ width: "200px", height: "200px", objectFit: "contain", background: "white", padding: "8px", borderRadius: "6px" }}
-                  />
-                ) : (
-                  <p className="text-muted">QR code not available.</p>
-                )}
-              </div>
-            )}
+
           </div>
 
-          {/* Transparency Card */}
+                        {showResult && donationAmount !== null && (
+                <div className="modal-overlay" onClick={() => setShowResult(false)}>
+                  <div className="modal-content" onClick={e => e.stopPropagation()}>
+                    <h2>Thank you for donating ₹{donationAmount}!</h2>
+                    <p className="text-muted">Your support helps keep our educational platform free.</p>
+                    <button className="btn btn-primary" onClick={() => setShowResult(false)}>Close</button>
+                  </div>
+                </div>
+              )}
+            {/* Transparency Card */}
           <div className="transparency-card">
             <h3 style={{ fontSize: "1.3rem", marginBottom: "1rem" }}>Where Your Funds Go</h3>
             <p className="text-muted" style={{ fontSize: "0.95rem" }}>
@@ -216,6 +216,38 @@ export default function DonatePage() {
           border-radius: 14px;
           padding: 1.5rem;
           margin-bottom: 1.5rem;
+        }
+
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .modal-content {
+          background: var(--surface);
+          padding: 2rem 2rem;
+          border-radius: var(--radius-lg);
+          box-shadow: var(--shadow-lg);
+          text-align: center;
+          max-width: 90%;
+          max-height: 80%;
+          overflow: auto;
+        }
+
+        .modal-content h2 {
+          margin-bottom: 1rem;
+        }
+
+        .modal-content .btn {
+          margin-top: 1rem;
         }
 
         .bank-details-header {
