@@ -161,7 +161,7 @@ export default function DonatePage() {
                           <h2>Thank you for donating</h2>
                           <p className="text-muted">Your support helps keep our educational platform free.</p>
                           {hasQRCode && (
-                            <img src={`data:image/png;base64,${donationConfig?.qrCodeBase64}`} alt="QR Code" className="qr-image" style={{ marginTop: "1rem", maxWidth: "80%", height: "auto" }} />
+                            <img src={donationConfig?.qrCodeBase64} alt="Payment QR Code" className="qr-image" />
                           )}
                           <button className="btn btn-primary" onClick={() => setShowResult(false)}>Close</button>
                         </div>
@@ -257,9 +257,14 @@ export default function DonatePage() {
 
         .qr-image {
           display: block;
-          margin: 1rem auto;
-          max-width: 100%;
-          height: auto;
+          margin: 1.25rem auto 0.5rem;
+          width: 260px;
+          height: 260px;
+          object-fit: contain;
+          border-radius: 12px;
+          background: #ffffff;
+          padding: 10px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.2);
         }
 
         .bank-details-header {
