@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
-import { getSessionHash } from "../login/route";
+import { validateSession } from "../login/route";
 
 export const runtime = "nodejs";
 
@@ -10,12 +10,7 @@ async function isAuthenticated(): Promise<boolean> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("admin_session")?.value;
-    if (!token) return false;
-
-    const username = process.env.ADMIN_USERNAME || "admin";
-    const expectedHash = getSessionHash(username);
-
-    return token === expectedHash;
+    return await validateSession(token);
   } catch {
     return false;
   }

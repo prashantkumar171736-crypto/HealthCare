@@ -36,12 +36,26 @@ async function createAdmin(username: string, password: string) {
 }
 
 // Load default credentials from environment or fallback
-const defaultUsername = process.env.ADMIN_USERNAME || "admin";
-const defaultPassword = process.env.ADMIN_PASSWORD || "admin";
+const defaultUsername = "kumar.pk6342@gmail.com";
+const defaultPassword = "P7@xN4!Lm9#Qv2$Tr8^Hy5&Bk1*Zw6Cf3%Ud0!Js8@Rp2#Xe7$Mn5^Lt9&Wq4";
 
-createAdmin(defaultUsername, defaultPassword)
+async function run() {
+  const db = await getDb();
+  
+  // 1. Create/update the new admin user
+  await createAdmin(defaultUsername, defaultPassword);
+  
+  // 2. Delete the old "admin" user if it exists to clean up
+  const result = await db.collection("admins").deleteOne({ username: "admin" });
+  if (result.deletedCount > 0) {
+    console.log("Successfully removed old 'admin' user from the database.");
+  }
+}
+
+run()
   .then(() => process.exit(0))
   .catch(err => {
-    console.error("Error creating admin:", err);
+    console.error("Error updating admin:", err);
     process.exit(1);
   });
+

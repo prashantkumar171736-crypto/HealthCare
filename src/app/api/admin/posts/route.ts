@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionHash } from "../login/route";
+import { validateSession } from "../login/route";
 import { getDb } from "@/lib/db";
 import { ObjectId } from "mongodb";
 
@@ -10,9 +10,7 @@ export const dynamic = "force-dynamic";
 async function authenticate(): Promise<boolean> {
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get("admin_session")?.value;
-  const username = process.env.ADMIN_USERNAME || "admin";
-  const expectedHash = getSessionHash(username);
-  return !!(sessionToken && sessionToken === expectedHash);
+  return await validateSession(sessionToken);
 }
 
 /** GET /api/admin/posts — List all posts, sorted by title A-Z */

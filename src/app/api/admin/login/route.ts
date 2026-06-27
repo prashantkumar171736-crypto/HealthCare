@@ -14,6 +14,35 @@ export function getSessionHash(username: string) {
     .digest("hex");
 }
 
+export async function validateSession(sessionToken: string | undefined): Promise<boolean> {
+  if (!sessionToken) return false;
+  try {
+    const db = await getDb();
+    const admins = await db.collection("admins").find({}, { projection: { username: 1 } }).toArray();
+
+    for (const admin of admins) {
+      if (admin.username) {
+        const expectedHash = getSessionHash(admin.username);
+        if (sessionToken === expectedHash) {
+          return true;
+        }
+      }
+    }
+
+    // Fallback: check if no admins are in the database yet
+    if (admins.length === 0) {
+      const username = process.env.ADMIN_USERNAME || "admin";
+      const expectedHash = getSessionHash(username);
+      return sessionToken === expectedHash;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+
 /**
  * POST /api/admin/login
  * Validates admin credentials using MongoDB and sets an HTTP-only session cookie.

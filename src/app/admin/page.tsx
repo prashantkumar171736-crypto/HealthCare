@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getSessionHash } from "../api/admin/login/route";
+import { validateSession } from "../api/admin/login/route";
 import DashboardClient from "./DashboardClient";
 
 export const runtime = "nodejs";
@@ -14,11 +14,10 @@ export default async function AdminPage() {
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get("admin_session")?.value;
 
-  const username = process.env.ADMIN_USERNAME || "admin";
-  const expectedHash = getSessionHash(username);
+  const isValid = await validateSession(sessionToken);
 
   // Authenticate session, redirect to login if invalid
-  if (!sessionToken || sessionToken !== expectedHash) {
+  if (!isValid) {
     redirect("/admin/login");
   }
 
