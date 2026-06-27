@@ -55,7 +55,7 @@ export default function DonatePage() {
       alert("Please select or enter a valid donation amount.");
       return;
     }
-    alert(`Thank you for donating ₹${finalAmt}!`);
+    // alert(`Thank you for donating ₹${finalAmt}!`);
     setDonationAmount(finalAmt);
     setShowResult(true);
   };
@@ -155,15 +155,18 @@ export default function DonatePage() {
 
           </div>
 
-                        {showResult && donationAmount !== null && (
-                <div className="modal-overlay" onClick={() => setShowResult(false)}>
-                  <div className="modal-content" onClick={e => e.stopPropagation()}>
-                    <h2>Thank you for donating ₹{donationAmount}!</h2>
-                    <p className="text-muted">Your support helps keep our educational platform free.</p>
-                    <button className="btn btn-primary" onClick={() => setShowResult(false)}>Close</button>
-                  </div>
-                </div>
-              )}
+                                            {showResult && donationAmount !== null && (
+                      <div className="modal-overlay" onClick={() => setShowResult(false)}>
+                        <div className="modal-content" onClick={e => e.stopPropagation()}>
+                          <h2>Thank you for donating</h2>
+                          <p className="text-muted">Your support helps keep our educational platform free.</p>
+                          {hasQRCode && (
+                            <img src={`data:image/png;base64,${donationConfig?.qrCodeBase64}`} alt="QR Code" className="qr-image" style={{ marginTop: "1rem", maxWidth: "80%", height: "auto" }} />
+                          )}
+                          <button className="btn btn-primary" onClick={() => setShowResult(false)}>Close</button>
+                        </div>
+                      </div>
+                    )}
             {/* Transparency Card */}
           <div className="transparency-card">
             <h3 style={{ fontSize: "1.3rem", marginBottom: "1rem" }}>Where Your Funds Go</h3>
@@ -250,6 +253,13 @@ export default function DonatePage() {
 
         .modal-content .btn {
           margin-top: 1rem;
+        }
+
+        .qr-image {
+          display: block;
+          margin: 1rem auto;
+          max-width: 100%;
+          height: auto;
         }
 
         .bank-details-header {
