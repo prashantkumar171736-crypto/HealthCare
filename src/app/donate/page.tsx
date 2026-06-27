@@ -1,25 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+interface DonationConfig {
+  bankName: string;
+  accountHolder: string;
+  accountNumber: string;
+  ifscCode: string;
+  upiId: string;
+  qrCodeBase64: string;
+}
 
 export default function DonatePage() {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(250);
   const [customAmount, setCustomAmount] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("upi");
   
-  // Modal states
   const [showModal, setShowModal] = useState(false);
   const [paymentStep, setPaymentStep] = useState<"pending" | "processing" | "success">("pending");
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
 
+  const [donationConfig, setDonationConfig] = useState<DonationConfig | null>(null);
+
   const presets = [50, 100, 250, 500, 1000];
 
+  useEffect(() => {
+    fetch("/api/donation-settings")
+      .then((r) => r.json())
+      .then((data) => setDonationConfig(data))
+      .catch(() => setDonationConfig(null));
+  }, []);
+
   const getFinalAmount = () => {
-    if (selectedAmount !== null) {
-      return selectedAmount;
-    }
+    if (selectedAmount !== null) return selectedAmount;
     const amt = parseFloat(customAmount);
     return isNaN(amt) ? 0 : amt;
   };
@@ -47,9 +62,7 @@ export default function DonatePage() {
 
   const startSimulatedPayment = () => {
     setPaymentStep("processing");
-    setTimeout(() => {
-      setPaymentStep("success");
-    }, 2000); // 2s processing simulation
+    setTimeout(() => setPaymentStep("success"), 2000);
   };
 
   const resetFlow = () => {
@@ -60,7 +73,21 @@ export default function DonatePage() {
     setCardCvv("");
   };
 
-  const upiQrString = `upi://pay?pa=donate@healthedu&pn=HealthEdu%20Foundation&am=${getFinalAmount()}&cu=INR`;
+  const hasConfig = donationConfig && (
+    donationConfig.upiId ||
+    donationConfig.qrCodeBase64 ||
+    donationConfig.accountNumber
+  );
+
+  const hasBankDetails = donationConfig && (
+    donationConfig.accountHolder ||
+    donationConfig.accountNumber ||
+    donationConfig.bankName ||
+    donationConfig.ifscCode
+  );
+
+  const hasQRCode = donationConfig?.qrCodeBase64;
+  const hasUPI = donationConfig?.upiId;
 
   return (
     <div style={{ backgroundColor: "var(--background)", minHeight: "80vh", padding: "4rem 0" }}>
@@ -132,6 +159,18 @@ export default function DonatePage() {
 
                   <button
                     type="button"
+                    onClick={() => setPaymentMethod("bank")}
+                    className={`payment-method-btn ${paymentMethod === "bank" ? "active" : ""}`}
+                  >
+                    <span className="payment-method-icon">🏦</span>
+                    <div style={{ textAlign: "left" }}>
+                      <p style={{ fontWeight: "600", fontSize: "0.95rem" }}>Bank Transfer / NEFT</p>
+                      <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: 0 }}>Direct bank deposit</p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setPaymentMethod("card")}
                     className={`payment-method-btn ${paymentMethod === "card" ? "active" : ""}`}
                   >
@@ -144,9 +183,60 @@ export default function DonatePage() {
                 </div>
               </div>
 
-              <button type="submit" className="btn btn-accent btn-accent-glow btn-block" style={{ padding: "1rem" }}>
-                Donate ₹{getFinalAmount()} Now
-              </button>
+              {/* Bank Transfer Details (inline) */}
+              {paymentMethod === "bank" && (
+                <div className="bank-details-inline">
+                  <div className="bank-details-header">
+                    <span>🏦</span>
+                    <h3>Bank Transfer Details</h3>
+                  </div>
+                  {hasBankDetails ? (
+                    <div className="bank-details-grid">
+                      {donationConfig.accountHolder && (
+                        <div className="bank-detail-row">
+                          <span className="bank-detail-label">Account Holder</span>
+                          <span className="bank-detail-value">{donationConfig.accountHolder}</span>
+                        </div>
+                      )}
+                      {donationConfig.bankName && (
+                        <div className="bank-detail-row">
+                          <span className="bank-detail-label">Bank Name</span>
+                          <span className="bank-detail-value">{donationConfig.bankName}</span>
+                        </div>
+                      )}
+                      {donationConfig.accountNumber && (
+                        <div className="bank-detail-row">
+                          <span className="bank-detail-label">Account Number</span>
+                          <span className="bank-detail-value bank-detail-mono">{donationConfig.accountNumber}</span>
+                        </div>
+                      )}
+                      {donationConfig.ifscCode && (
+                        <div className="bank-detail-row">
+                          <span className="bank-detail-label">IFSC Code</span>
+                          <span className="bank-detail-value bank-detail-mono">{donationConfig.ifscCode}</span>
+                        </div>
+                      )}
+                      {donationConfig.upiId && (
+                        <div className="bank-detail-row">
+                          <span className="bank-detail-label">UPI ID</span>
+                          <span className="bank-detail-value bank-detail-mono">{donationConfig.upiId}</span>
+                        </div>
+                      )}
+                      <p className="bank-ref-note">
+                        💡 Please use <strong>₹{getFinalAmount()}</strong> as the transfer amount and mention your name in the remarks/reference field.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="bank-details-empty">Bank details not configured yet. Please use UPI or Card to donate.</p>
+                  )}
+                </div>
+              )}
+
+              {paymentMethod !== "bank" && (
+                <button type="submit" className="btn btn-accent btn-accent-glow btn-block" style={{ padding: "1rem" }}>
+                  Donate ₹{getFinalAmount()} Now
+                </button>
+              )}
             </form>
           </div>
 
@@ -212,15 +302,30 @@ export default function DonatePage() {
                   {paymentMethod === "upi" ? (
                     <div>
                       <div className="upi-qr-wrapper">
-                        {/* A clean mock QR Code block */}
-                        <div style={{ border: "2px solid #000", padding: "10px", width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontSize: "0.7rem", fontWeight: "bold", textTransform: "uppercase" }}>Scan & Pay</span>
-                          <span style={{ fontSize: "3.5rem" }}>📱</span>
-                          <span style={{ fontSize: "0.6rem", wordBreak: "break-all", color: "var(--text-muted)" }}>donate@healthedu</span>
-                        </div>
+                        {hasQRCode ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={donationConfig!.qrCodeBase64}
+                            alt="Payment QR Code"
+                            style={{ width: "100%", height: "100%", objectFit: "contain", background: "white", padding: "8px", borderRadius: "6px" }}
+                          />
+                        ) : (
+                          <div style={{ border: "2px solid #000", padding: "10px", width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: "0.7rem", fontWeight: "bold", textTransform: "uppercase" }}>Scan & Pay</span>
+                            <span style={{ fontSize: "3.5rem" }}>📱</span>
+                            <span style={{ fontSize: "0.6rem", wordBreak: "break-all", color: "var(--text-muted)" }}>
+                              {hasUPI ? donationConfig!.upiId : "donate@healthedu"}
+                            </span>
+                          </div>
+                        )}
                       </div>
+                      {hasUPI && (
+                        <p style={{ fontSize: "0.85rem", textAlign: "center", color: "var(--text-muted)", marginBottom: "0.5rem" }}>
+                          UPI ID: <strong style={{ color: "var(--text-main)" }}>{donationConfig!.upiId}</strong>
+                        </p>
+                      )}
                       <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.5rem" }}>
-                        Scan this mock QR code with any UPI app (GPay, PhonePe, Paytm) or click the button below to simulate payment authorization.
+                        Scan the QR code with any UPI app (GPay, PhonePe, Paytm) then click the button below after completing payment.
                       </p>
                     </div>
                   ) : (
@@ -271,7 +376,7 @@ export default function DonatePage() {
                   )}
 
                   <button onClick={startSimulatedPayment} className="btn btn-primary btn-block">
-                    Authorize Simulated Payment
+                    {paymentMethod === "upi" ? "I Have Paid via UPI" : "Authorize Payment"}
                   </button>
                 </div>
               )}
@@ -281,7 +386,7 @@ export default function DonatePage() {
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="3" style={{ animation: "spin 1s linear infinite", marginBottom: "1.5rem" }}>
                     <circle cx="12" cy="12" r="10" strokeDasharray="40 20" />
                   </svg>
-                  <h3>Contacting Bank Server...</h3>
+                  <h3>Verifying Payment...</h3>
                   <p className="text-muted" style={{ fontSize: "0.9rem", marginTop: "0.5rem" }}>
                     Verifying transaction authenticity and secure token routing. Please do not close this window.
                   </p>
@@ -311,6 +416,90 @@ export default function DonatePage() {
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+
+        /* Bank Details Inline Block */
+        .bank-details-inline {
+          background: linear-gradient(135deg, rgba(0, 200, 150, 0.06) 0%, rgba(59, 130, 246, 0.06) 100%);
+          border: 1px solid rgba(0, 200, 150, 0.2);
+          border-radius: 14px;
+          padding: 1.5rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .bank-details-header {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          margin-bottom: 1.25rem;
+        }
+
+        .bank-details-header span {
+          font-size: 1.4rem;
+        }
+
+        .bank-details-header h3 {
+          font-size: 1.1rem;
+          font-weight: 700;
+          color: var(--text-main);
+          margin: 0;
+        }
+
+        .bank-details-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .bank-detail-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.65rem 0.85rem;
+          background: rgba(255, 255, 255, 0.04);
+          border-radius: 8px;
+          gap: 1rem;
+        }
+
+        .bank-detail-label {
+          font-size: 0.8rem;
+          color: var(--text-muted);
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          white-space: nowrap;
+        }
+
+        .bank-detail-value {
+          font-size: 0.9rem;
+          color: var(--text-main);
+          font-weight: 600;
+          text-align: right;
+        }
+
+        .bank-detail-mono {
+          font-family: monospace;
+          font-size: 0.95rem;
+          letter-spacing: 0.05em;
+          color: #00c896;
+        }
+
+        .bank-ref-note {
+          font-size: 0.82rem;
+          color: var(--text-muted);
+          margin-top: 0.75rem;
+          padding: 0.75rem;
+          background: rgba(0, 200, 150, 0.06);
+          border-radius: 8px;
+          line-height: 1.5;
+        }
+
+        .bank-details-empty {
+          text-align: center;
+          color: var(--text-muted);
+          font-style: italic;
+          font-size: 0.9rem;
+          padding: 1rem 0;
         }
       `}</style>
     </div>
