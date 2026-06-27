@@ -3,20 +3,12 @@
 import { useEffect, useState } from "react";
 
 interface DonationConfig {
-  bankName: string;
-  accountHolder: string;
-  accountNumber: string;
-  ifscCode: string;
   upiId: string;
   qrCodeBase64: string;
 }
 
 export default function DonationSettings() {
   const [settings, setSettings] = useState<DonationConfig>({
-    bankName: "",
-    accountHolder: "",
-    accountNumber: "",
-    ifscCode: "",
     upiId: "",
     qrCodeBase64: "",
   });
@@ -86,7 +78,7 @@ export default function DonationSettings() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        setMessage("Donation & Bank Details updated successfully!");
+        setMessage("UPI & QR Code settings updated successfully!");
       } else {
         setError(data.error || "Failed to save settings.");
       }
@@ -103,9 +95,9 @@ export default function DonationSettings() {
 
   return (
     <div className="donation-settings-container">
-      <h2 className="section-title">💰 Donation & Bank Account Settings</h2>
+      <h2 className="section-title">💰 Donation & UPI Settings</h2>
       <p className="section-desc">
-        Configure the Bank Account and payment QR Code details that users will see on the public donation page.
+        Configure the UPI ID and payment QR Code that users will see on the public donation page.
       </p>
 
       {message && <div className="alert-success">{message}</div>}
@@ -113,60 +105,10 @@ export default function DonationSettings() {
 
       <form onSubmit={handleSubmit} className="settings-form">
         <div className="form-grid">
-          {/* Left Column: Bank Details */}
           <div className="form-column">
-            <h3>Bank Account Information</h3>
-            
-            <div className="form-group">
-              <label htmlFor="accountHolder">Account Holder Name</label>
-              <input
-                type="text"
-                id="accountHolder"
-                name="accountHolder"
-                value={settings.accountHolder}
-                onChange={handleChange}
-                placeholder="e.g. HealthEdu Foundation"
-              />
-            </div>
+            <h3>UPI & QR Code Details</h3>
 
             <div className="form-group">
-              <label htmlFor="bankName">Bank Name</label>
-              <input
-                type="text"
-                id="bankName"
-                name="bankName"
-                value={settings.bankName}
-                onChange={handleChange}
-                placeholder="e.g. State Bank of India"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="accountNumber">Account Number</label>
-              <input
-                type="text"
-                id="accountNumber"
-                name="accountNumber"
-                value={settings.accountNumber}
-                onChange={handleChange}
-                placeholder="e.g. 100029384918"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="ifscCode">IFSC Code / Bank Identifier</label>
-              <input
-                type="text"
-                id="ifscCode"
-                name="ifscCode"
-                value={settings.ifscCode}
-                onChange={handleChange}
-                placeholder="e.g. SBIN0001234"
-              />
-            </div>
-
-            <div className="form-group" style={{ marginTop: "2rem" }}>
-              <h3>UPI & QR Code Details</h3>
               <label htmlFor="upiId">UPI ID / Address</label>
               <input
                 type="text"

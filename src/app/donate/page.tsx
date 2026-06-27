@@ -14,13 +14,8 @@ interface DonationConfig {
 export default function DonatePage() {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(250);
   const [customAmount, setCustomAmount] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<string>("upi");
-  
   const [showModal, setShowModal] = useState(false);
   const [paymentStep, setPaymentStep] = useState<"pending" | "processing" | "success">("pending");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
 
   const [donationConfig, setDonationConfig] = useState<DonationConfig | null>(null);
 
@@ -68,9 +63,6 @@ export default function DonatePage() {
   const resetFlow = () => {
     setShowModal(false);
     setPaymentStep("pending");
-    setCardNumber("");
-    setCardExpiry("");
-    setCardCvv("");
   };
 
   const hasConfig = donationConfig && (
@@ -141,14 +133,14 @@ export default function DonatePage() {
                 </div>
               </div>
 
-              {/* Payment Methods */}
+              {/* Payment Method: UPI only */}
               <div className="payment-method-selector">
-                <label className="form-label" style={{ marginBottom: "1rem" }}>Choose Payment Method</label>
+                <label className="form-label" style={{ marginBottom: "1rem" }}>Payment Method</label>
                 <div className="payment-methods-grid">
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod("upi")}
-                    className={`payment-method-btn ${paymentMethod === "upi" ? "active" : ""}`}
+                    className="payment-method-btn active"
+                    style={{ cursor: "default" }}
                   >
                     <span className="payment-method-icon">📱</span>
                     <div style={{ textAlign: "left" }}>
@@ -156,87 +148,12 @@ export default function DonatePage() {
                       <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: 0 }}>GPay, PhonePe, Paytm</p>
                     </div>
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("bank")}
-                    className={`payment-method-btn ${paymentMethod === "bank" ? "active" : ""}`}
-                  >
-                    <span className="payment-method-icon">🏦</span>
-                    <div style={{ textAlign: "left" }}>
-                      <p style={{ fontWeight: "600", fontSize: "0.95rem" }}>Bank Transfer / NEFT</p>
-                      <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: 0 }}>Direct bank deposit</p>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("card")}
-                    className={`payment-method-btn ${paymentMethod === "card" ? "active" : ""}`}
-                  >
-                    <span className="payment-method-icon">💳</span>
-                    <div style={{ textAlign: "left" }}>
-                      <p style={{ fontWeight: "600", fontSize: "0.95rem" }}>Credit / Debit Card</p>
-                      <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: 0 }}>Visa, MasterCard, Rupay</p>
-                    </div>
-                  </button>
                 </div>
               </div>
 
-              {/* Bank Transfer Details (inline) */}
-              {paymentMethod === "bank" && (
-                <div className="bank-details-inline">
-                  <div className="bank-details-header">
-                    <span>🏦</span>
-                    <h3>Bank Transfer Details</h3>
-                  </div>
-                  {hasBankDetails ? (
-                    <div className="bank-details-grid">
-                      {donationConfig.accountHolder && (
-                        <div className="bank-detail-row">
-                          <span className="bank-detail-label">Account Holder</span>
-                          <span className="bank-detail-value">{donationConfig.accountHolder}</span>
-                        </div>
-                      )}
-                      {donationConfig.bankName && (
-                        <div className="bank-detail-row">
-                          <span className="bank-detail-label">Bank Name</span>
-                          <span className="bank-detail-value">{donationConfig.bankName}</span>
-                        </div>
-                      )}
-                      {donationConfig.accountNumber && (
-                        <div className="bank-detail-row">
-                          <span className="bank-detail-label">Account Number</span>
-                          <span className="bank-detail-value bank-detail-mono">{donationConfig.accountNumber}</span>
-                        </div>
-                      )}
-                      {donationConfig.ifscCode && (
-                        <div className="bank-detail-row">
-                          <span className="bank-detail-label">IFSC Code</span>
-                          <span className="bank-detail-value bank-detail-mono">{donationConfig.ifscCode}</span>
-                        </div>
-                      )}
-                      {donationConfig.upiId && (
-                        <div className="bank-detail-row">
-                          <span className="bank-detail-label">UPI ID</span>
-                          <span className="bank-detail-value bank-detail-mono">{donationConfig.upiId}</span>
-                        </div>
-                      )}
-                      <p className="bank-ref-note">
-                        💡 Please use <strong>₹{getFinalAmount()}</strong> as the transfer amount and mention your name in the remarks/reference field.
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="bank-details-empty">Bank details not configured yet. Please use UPI or Card to donate.</p>
-                  )}
-                </div>
-              )}
-
-              {paymentMethod !== "bank" && (
-                <button type="submit" className="btn btn-accent btn-accent-glow btn-block" style={{ padding: "1rem" }}>
-                  Donate ₹{getFinalAmount()} Now
-                </button>
-              )}
+              <button type="submit" className="btn btn-accent btn-accent-glow btn-block" style={{ padding: "1rem" }}>
+                Donate ₹{getFinalAmount()} Now
+              </button>
             </form>
           </div>
 
@@ -298,85 +215,36 @@ export default function DonatePage() {
                   <p className="text-muted" style={{ fontSize: "0.95rem" }}>
                     You are donating <strong style={{ color: "var(--text-main)" }}>₹{getFinalAmount()}</strong> to HealthEdu Foundation.
                   </p>
-                  
-                  {paymentMethod === "upi" ? (
-                    <div>
-                      <div className="upi-qr-wrapper">
-                        {hasQRCode ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img
-                            src={donationConfig!.qrCodeBase64}
-                            alt="Payment QR Code"
-                            style={{ width: "100%", height: "100%", objectFit: "contain", background: "white", padding: "8px", borderRadius: "6px" }}
-                          />
-                        ) : (
-                          <div style={{ border: "2px solid #000", padding: "10px", width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontSize: "0.7rem", fontWeight: "bold", textTransform: "uppercase" }}>Scan & Pay</span>
-                            <span style={{ fontSize: "3.5rem" }}>📱</span>
-                            <span style={{ fontSize: "0.6rem", wordBreak: "break-all", color: "var(--text-muted)" }}>
-                              {hasUPI ? donationConfig!.upiId : "donate@healthedu"}
-                            </span>
-                          </div>
-                        )}
+
+                  <div className="upi-qr-wrapper">
+                    {hasQRCode ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={donationConfig!.qrCodeBase64}
+                        alt="Payment QR Code"
+                        style={{ width: "100%", height: "100%", objectFit: "contain", background: "white", padding: "8px", borderRadius: "6px" }}
+                      />
+                    ) : (
+                      <div style={{ border: "2px solid #000", padding: "10px", width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "0.7rem", fontWeight: "bold", textTransform: "uppercase" }}>Scan &amp; Pay</span>
+                        <span style={{ fontSize: "3.5rem" }}>📱</span>
+                        <span style={{ fontSize: "0.6rem", wordBreak: "break-all", color: "var(--text-muted)" }}>
+                          {hasUPI ? donationConfig!.upiId : "donate@healthedu"}
+                        </span>
                       </div>
-                      {hasUPI && (
-                        <p style={{ fontSize: "0.85rem", textAlign: "center", color: "var(--text-muted)", marginBottom: "0.5rem" }}>
-                          UPI ID: <strong style={{ color: "var(--text-main)" }}>{donationConfig!.upiId}</strong>
-                        </p>
-                      )}
-                      <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.5rem" }}>
-                        Scan the QR code with any UPI app (GPay, PhonePe, Paytm) then click the button below after completing payment.
-                      </p>
-                    </div>
-                  ) : (
-                    <div style={{ margin: "1.5rem 0", textAlign: "left" }}>
-                      <div className="form-group">
-                        <label className="form-label">Cardholder Name</label>
-                        <input type="text" className="form-control" placeholder="John Doe" required />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Card Number</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          placeholder="4111 2222 3333 4444"
-                          maxLength={19}
-                          value={cardNumber}
-                          onChange={(e) => setCardNumber(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="grid-2" style={{ gap: "1rem" }}>
-                        <div className="form-group">
-                          <label className="form-label">Expiry Date</label>
-                          <input
-                            type="text"
-                            className="form-control"
-                            placeholder="MM/YY"
-                            maxLength={5}
-                            value={cardExpiry}
-                            onChange={(e) => setCardExpiry(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">CVV</label>
-                          <input
-                            type="password"
-                            className="form-control"
-                            placeholder="123"
-                            maxLength={3}
-                            value={cardCvv}
-                            onChange={(e) => setCardCvv(e.target.value)}
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    )}
+                  </div>
+                  {hasUPI && (
+                    <p style={{ fontSize: "0.85rem", textAlign: "center", color: "var(--text-muted)", marginBottom: "0.5rem" }}>
+                      UPI ID: <strong style={{ color: "var(--text-main)" }}>{donationConfig!.upiId}</strong>
+                    </p>
                   )}
+                  <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.5rem" }}>
+                    Scan the QR code with any UPI app (GPay, PhonePe, Paytm) then click the button below after completing payment.
+                  </p>
 
                   <button onClick={startSimulatedPayment} className="btn btn-primary btn-block">
-                    {paymentMethod === "upi" ? "I Have Paid via UPI" : "Authorize Payment"}
+                    I Have Paid via UPI
                   </button>
                 </div>
               )}
