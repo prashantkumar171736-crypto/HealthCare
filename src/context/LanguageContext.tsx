@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { detectLanguage, DetectedLanguage, ENGLISH_LANG } from "@/lib/detectLanguage";
+import { detectLanguage, DetectedLanguage, ENGLISH_LANG, LANG_MAP } from "@/lib/detectLanguage";
 
 const STORAGE_KEY = "healthedu_lang";
 
@@ -9,6 +9,7 @@ interface LanguageContextValue {
   lang: DetectedLanguage;
   setLangFromText: (text: string) => void;
   resetToEnglish: () => void;
+  setLangByCode: (code: string) => void;
   isTranslating: boolean;
   translate: (texts: string[]) => Promise<string[]>;
 }
@@ -16,6 +17,7 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue>({
   lang: ENGLISH_LANG,
   setLangFromText: () => {},
+  setLangByCode: () => {},
   resetToEnglish: () => {},
   isTranslating: false,
   translate: async (t) => t,
@@ -147,8 +149,21 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     [lang.code]
   );
 
+  const setLangByCode = useCallback((code: string) => {
+    const found = LANG_MAP.find((l) => l.code === code);
+    if (!found) return;
+    setLang((prev) => {
+      if (prev.code === found.code) return prev;
+      applyLang(found);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(found));
+      } catch {}
+      return found;
+    });
+  }, []);
+
   return (
-    <LanguageContext.Provider value={{ lang, setLangFromText, resetToEnglish, isTranslating, translate }}>
+    <LanguageContext.Provider value={{ lang, setLangFromText, setLangByCode, resetToEnglish, isTranslating, translate }}>
       {children}
     </LanguageContext.Provider>
   );

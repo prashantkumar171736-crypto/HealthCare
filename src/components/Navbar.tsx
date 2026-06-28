@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
+import { LANG_MAP } from "@/lib/detectLanguage";
 import { useTranslation } from "@/hooks/useTranslation";
 
 const NAV_STRINGS = {
@@ -20,7 +21,7 @@ const NAV_STRINGS = {
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
-  const { lang, resetToEnglish, isTranslating } = useLanguage();
+  const { lang, setLangByCode, resetToEnglish, isTranslating } = useLanguage();
   const { t } = useTranslation(NAV_STRINGS);
 
   const toggleMenu = () => setIsOpen(!isOpen);
@@ -41,9 +42,21 @@ export default function Navbar() {
     <>
       <header className="navbar-wrapper">
         <div className="container navbar">
-          <Link href="/" className="logo" onClick={closeMenu}>
-            <span>⚕️</span> HealthEdu
-          </Link>
+          <div className="logo-wrapper" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <Link href="/" className="logo" onClick={closeMenu}>
+              <span>⚕️</span> HealthEdu
+            </Link>
+            <select value={lang.code} onChange={(e) => setLangByCode(e.target.value)} style={{
+              padding: "0.2rem",
+              borderRadius: "4px",
+              border: "1px solid var(--primary)",
+              background: "var(--primary-light)"
+            }}>
+              {LANG_MAP.map((l) => (
+                <option key={l.code} value={l.code}>{l.name}</option>
+              ))}
+            </select>
+          </div>
 
           {/* Desktop Nav Links */}
           <nav>
@@ -148,9 +161,21 @@ export default function Navbar() {
       />
       <div className={`mobile-drawer ${isOpen ? "open" : ""}`}>
         <div className="mobile-drawer-header">
-          <Link href="/" className="logo" onClick={closeMenu}>
-            <span>⚕️</span> HealthEdu
-          </Link>
+          <div className="logo-wrapper" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <Link href="/" className="logo" onClick={closeMenu}>
+              <span>⚕️</span> HealthEdu
+            </Link>
+            <select value={lang.code} onChange={(e) => setLangByCode(e.target.value)} style={{
+              padding: "0.2rem",
+              borderRadius: "4px",
+              border: "1px solid var(--primary)",
+              background: "var(--primary-light)"
+            }}>
+              {LANG_MAP.map((l) => (
+                <option key={l.code} value={l.code}>{l.name}</option>
+              ))}
+            </select>
+          </div>
           <button
             className="mobile-menu-toggle"
             onClick={closeMenu}
