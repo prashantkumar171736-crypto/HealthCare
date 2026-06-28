@@ -46,12 +46,21 @@ export default function Navbar() {
             <Link href="/" className="logo" onClick={closeMenu}>
               <span>⚕️</span> HealthEdu
             </Link>
-            <select value={lang.code} onChange={(e) => setLangByCode(e.target.value)} style={{
-              padding: "0.2rem",
-              borderRadius: "4px",
-              border: "1px solid var(--primary)",
-              background: "var(--primary-light)"
-            }}>
+            <select
+              data-no-translate
+              value={lang.code}
+              onChange={(e) => setLangByCode(e.target.value)}
+              style={{
+                padding: "0.25rem 0.5rem",
+                borderRadius: "6px",
+                border: "1.5px solid var(--primary)",
+                background: "var(--primary-light)",
+                color: "var(--primary)",
+                fontWeight: 600,
+                fontSize: "0.82rem",
+                cursor: "pointer",
+              }}
+            >
               {LANG_MAP.map((l) => (
                 <option key={l.code} value={l.code}>{l.name}</option>
               ))}
@@ -165,12 +174,21 @@ export default function Navbar() {
             <Link href="/" className="logo" onClick={closeMenu}>
               <span>⚕️</span> HealthEdu
             </Link>
-            <select value={lang.code} onChange={(e) => setLangByCode(e.target.value)} style={{
-              padding: "0.2rem",
-              borderRadius: "4px",
-              border: "1px solid var(--primary)",
-              background: "var(--primary-light)"
-            }}>
+            <select
+              data-no-translate
+              value={lang.code}
+              onChange={(e) => setLangByCode(e.target.value)}
+              style={{
+                padding: "0.25rem 0.5rem",
+                borderRadius: "6px",
+                border: "1.5px solid var(--primary)",
+                background: "var(--primary-light)",
+                color: "var(--primary)",
+                fontWeight: 600,
+                fontSize: "0.82rem",
+                cursor: "pointer",
+              }}
+            >
               {LANG_MAP.map((l) => (
                 <option key={l.code} value={l.code}>{l.name}</option>
               ))}

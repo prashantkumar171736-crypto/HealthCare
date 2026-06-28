@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { LanguageProvider } from "@/context/LanguageContext";
 import Tracker from "@/components/Tracker";
+import PageTranslator from "@/components/PageTranslator";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default function RootLayout({
       <body style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
         <LanguageProvider>
           <Tracker />
+          <PageTranslator />
           <Navbar />
           <main style={{ flex: 1 }}>{children}</main>
           <Footer />
