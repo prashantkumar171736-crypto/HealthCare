@@ -13,11 +13,11 @@ interface DiseaseData {
   slug: string;
   categories: string[];
   overview: string;
-  symptoms: string[];
-  causes: string[];
-  riskFactors: string[];
+  symptoms: string | string[];
+  causes: string | string[];
+  riskFactors: string | string[];
   diagnosis: string;
-  treatmentOptions: string[];
+  treatmentOptions: string | string[];
   prevention: string;
   faq: FAQItem[];
   references: string[];
@@ -117,14 +117,18 @@ export default function DiseaseDetailClient({
           {/* Symptoms Section */}
           <section className={`disease-section ${activeTab === "symptoms" ? "active" : ""}`}>
             <h2>Common Symptoms</h2>
-            <p>
+            <p style={{ marginBottom: "1.5rem" }}>
               Symptoms of {disease.name} can range from mild to severe, and they may vary significantly from person to person. Common symptoms include:
             </p>
-            <ul className="disease-list">
-              {disease.symptoms.map((symptom, idx) => (
-                <li key={idx}>✨ {symptom}</li>
-              ))}
-            </ul>
+            {typeof disease.symptoms === "string" ? (
+              <div className="doc-content" dangerouslySetInnerHTML={{ __html: disease.symptoms }} />
+            ) : (
+              <ul className="disease-list">
+                {disease.symptoms.map((symptom, idx) => (
+                  <li key={idx}>✨ {symptom}</li>
+                ))}
+              </ul>
+            )}
             <div style={{ backgroundColor: "var(--accent-light)", padding: "1.25rem", borderRadius: "var(--radius-lg)", borderLeft: "4px solid var(--accent)", marginTop: "2rem" }}>
               <p style={{ color: "var(--accent-hover)", fontWeight: "600", marginBottom: "0.5rem" }}>⚠️ When to see a doctor:</p>
               <p style={{ fontSize: "0.95rem", margin: 0, color: "var(--text-main)" }}>
@@ -136,59 +140,75 @@ export default function DiseaseDetailClient({
           {/* Causes Section */}
           <section className={`disease-section ${activeTab === "causes" ? "active" : ""}`}>
             <h2>Causes & Development</h2>
-            <p>
+            <p style={{ marginBottom: "1.5rem" }}>
               Understanding what causes {disease.name} is key to both treatment and prevention. The primary causes include:
             </p>
-            <ul className="disease-list">
-              {disease.causes.map((cause, idx) => (
-                <li key={idx}>⚙️ {cause}</li>
-              ))}
-            </ul>
+            {typeof disease.causes === "string" ? (
+              <div className="doc-content" dangerouslySetInnerHTML={{ __html: disease.causes }} />
+            ) : (
+              <ul className="disease-list">
+                {disease.causes.map((cause, idx) => (
+                  <li key={idx}>⚙️ {cause}</li>
+                ))}
+              </ul>
+            )}
 
             <h3 style={{ marginTop: "2rem", marginBottom: "1rem" }}>Risk Factors</h3>
-            <p>
+            <p style={{ marginBottom: "1.5rem" }}>
               Certain factors can increase your likelihood of developing {disease.name}. These include:
             </p>
-            <ul className="disease-list">
-              {disease.riskFactors.map((risk, idx) => (
-                <li key={idx}>⚡ {risk}</li>
-              ))}
-            </ul>
+            {typeof disease.riskFactors === "string" ? (
+              <div className="doc-content" dangerouslySetInnerHTML={{ __html: disease.riskFactors }} />
+            ) : (
+              <ul className="disease-list">
+                {disease.riskFactors.map((risk, idx) => (
+                  <li key={idx}>⚡ {risk}</li>
+                ))}
+              </ul>
+            )}
           </section>
 
           {/* Diagnosis Section */}
           <section className={`disease-section ${activeTab === "diagnosis" ? "active" : ""}`}>
             <h2>Diagnosis & Medical Tests</h2>
-            <p>
+            <p style={{ marginBottom: "1.5rem" }}>
               Getting an accurate diagnosis is the first step in managing {disease.name}. Doctors utilize a combination of clinical assessments and diagnostic testing:
             </p>
-            <p style={{ padding: "1.25rem", backgroundColor: "var(--background)", borderRadius: "var(--radius-lg)", borderLeft: "4px solid var(--primary)", fontStyle: "italic" }}>
-              {disease.diagnosis}
-            </p>
+            <div
+              className="doc-content"
+              style={{ padding: "1.25rem", backgroundColor: "var(--background)", borderRadius: "var(--radius-lg)", borderLeft: "4px solid var(--primary)" }}
+              dangerouslySetInnerHTML={{ __html: disease.diagnosis }}
+            />
           </section>
 
           {/* Treatments Section */}
           <section className={`disease-section ${activeTab === "treatments" ? "active" : ""}`}>
             <h2>Treatment Options</h2>
-            <p>
+            <p style={{ marginBottom: "1.5rem" }}>
               While some conditions can be cured, others are managed to control symptoms and improve quality of life. Standard treatment protocols for {disease.name} include:
             </p>
-            <ul className="disease-list">
-              {disease.treatmentOptions.map((treatment, idx) => (
-                <li key={idx}>✔️ {treatment}</li>
-              ))}
-            </ul>
+            {typeof disease.treatmentOptions === "string" ? (
+              <div className="doc-content" dangerouslySetInnerHTML={{ __html: disease.treatmentOptions }} />
+            ) : (
+              <ul className="disease-list">
+                {disease.treatmentOptions.map((treatment, idx) => (
+                  <li key={idx}>✔️ {treatment}</li>
+                ))}
+              </ul>
+            )}
           </section>
 
           {/* Prevention Section */}
           <section className={`disease-section ${activeTab === "prevention" ? "active" : ""}`}>
             <h2>Prevention Guide</h2>
-            <p>
+            <p style={{ marginBottom: "1.5rem" }}>
               In many instances, adopting key healthy habits and reducing exposure to risk factors can prevent or delay the onset of {disease.name}:
             </p>
-            <p style={{ padding: "1.25rem", backgroundColor: "var(--primary-light)", borderRadius: "var(--radius-lg)", color: "var(--text-main)", fontWeight: "500" }}>
-              🛡️ {disease.prevention}
-            </p>
+            <div
+              className="doc-content"
+              style={{ padding: "1.25rem", backgroundColor: "var(--primary-light)", borderRadius: "var(--radius-lg)", color: "var(--text-main)" }}
+              dangerouslySetInnerHTML={{ __html: disease.prevention }}
+            />
           </section>
 
           {/* FAQ Section */}

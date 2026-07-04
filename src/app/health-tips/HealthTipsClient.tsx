@@ -188,7 +188,8 @@ export default function HealthTipsClient({ tips = [] }: { tips: Tip[] }) {
                 </h3>
 
                 {/* Body */}
-                <p
+                <div
+                  className="doc-content"
                   style={{
                     fontSize: "0.92rem",
                     color: "var(--text-muted)",
@@ -196,9 +197,8 @@ export default function HealthTipsClient({ tips = [] }: { tips: Tip[] }) {
                     margin: 0,
                     flexGrow: 1,
                   }}
-                >
-                  {tip.body}
-                </p>
+                  dangerouslySetInnerHTML={{ __html: tip.body }}
+                />
               </div>
             ))}
           </div>

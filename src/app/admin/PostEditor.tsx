@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import MiniRichEditor from "./MiniRichEditor";
 
 interface Post {
   _id: string;
@@ -16,11 +17,11 @@ interface Disease {
   slug: string;
   categories: string[];
   overview: string;
-  symptoms: string[];
-  causes: string[];
-  riskFactors: string[];
+  symptoms: string | string[];
+  causes: string | string[];
+  riskFactors: string | string[];
   diagnosis: string;
-  treatmentOptions: string[];
+  treatmentOptions: string | string[];
   prevention: string;
   faq: { q: string; a: string }[];
   relatedDiseases: string[];
@@ -629,11 +630,11 @@ graph TD
           name: diseaseName.trim(),
           categories: diseaseCategories,
           overview: diseaseOverview,
-          symptoms: diseaseSymptoms.split("\n").map(s => s.trim()).filter(Boolean),
-          causes: diseaseCauses.split("\n").map(s => s.trim()).filter(Boolean),
-          riskFactors: diseaseRiskFactors.split("\n").map(s => s.trim()).filter(Boolean),
+          symptoms: diseaseSymptoms,
+          causes: diseaseCauses,
+          riskFactors: diseaseRiskFactors,
           diagnosis: diseaseDiagnosis,
-          treatmentOptions: diseaseTreatments.split("\n").map(s => s.trim()).filter(Boolean),
+          treatmentOptions: diseaseTreatments,
           prevention: diseasePrevention,
           faq: diseaseFaqs.filter(f => f.q.trim() && f.a.trim()),
           relatedDiseases: diseaseRelated.split(",").map(s => s.trim()).filter(Boolean),
@@ -680,7 +681,8 @@ graph TD
       setUploadMsg({ type: "error", text: "Title and resource content are required." });
       return;
     }
-    if (contentType === "tips" && (!tipTitle.trim() || !tipBody.trim())) {
+    const tipBodyText = tipBody.replace(/<[^>]*>/g, "").trim();
+    if (contentType === "tips" && (!tipTitle.trim() || !tipBodyText)) {
       setUploadMsg({ type: "error", text: "Tip title and body details are required." });
       return;
     }
@@ -770,11 +772,14 @@ graph TD
       setDiseaseName(item.name || "");
       setDiseaseCategories(item.categories || []);
       setDiseaseOverview(item.overview || "");
-      setDiseaseSymptoms((item.symptoms || []).join("\n"));
-      setDiseaseCauses((item.causes || []).join("\n"));
-      setDiseaseRiskFactors((item.riskFactors || []).join("\n"));
+      // Load: support both old string[] and new HTML string formats
+      const toHtml = (val: string | string[]) =>
+        typeof val === "string" ? val : (val || []).map(v => `<li>${v}</li>`).join("") ? `<ul>${(val || []).map(v => `<li>${v}</li>`).join("")}</ul>` : "";
+      setDiseaseSymptoms(toHtml(item.symptoms));
+      setDiseaseCauses(toHtml(item.causes));
+      setDiseaseRiskFactors(toHtml(item.riskFactors));
       setDiseaseDiagnosis(item.diagnosis || "");
-      setDiseaseTreatments((item.treatmentOptions || []).join("\n"));
+      setDiseaseTreatments(toHtml(item.treatmentOptions));
       setDiseasePrevention(item.prevention || "");
       setDiseaseRelated((item.relatedDiseases || []).join(", "));
       setDiseaseFaqs(item.faq || []);
@@ -982,34 +987,60 @@ graph TD
                   </div>
                 </div>
 
+
                 <div className="full-width">
                   <label className="field-label">📖 1. Overview</label>
                   <textarea className="form-textarea large-textarea" placeholder="Brief clinical description..." value={diseaseOverview} onChange={(e) => setDiseaseOverview(e.target.value)} />
                 </div>
 
-                <div>
-                  <label className="field-label">🤒 2. Symptoms (One per line)</label>
-                  <textarea className="form-textarea" placeholder="E.g. Chest tightness&#10;Shortness of breath&#10;Cold sweats" value={diseaseSymptoms} onChange={(e) => setDiseaseSymptoms(e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="field-label">🧬 3. Causes & Risks (One per line)</label>
-                  <textarea className="form-textarea" placeholder="E.g. High blood pressure&#10;Smoking&#10;Genetic factors" value={diseaseCauses} onChange={(e) => setDiseaseCauses(e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="field-label">🛡️ 4. Risk Factors (One per line)</label>
-                  <textarea className="form-textarea" placeholder="E.g. Age over 50&#10;Sedentary lifestyle" value={diseaseRiskFactors} onChange={(e) => setDiseaseRiskFactors(e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="field-label">💊 5. Treatment Options (One per line)</label>
-                  <textarea className="form-textarea" placeholder="E.g. Beta-blockers&#10;Angioplasty surgery" value={diseaseTreatments} onChange={(e) => setDiseaseTreatments(e.target.value)} />
+                <div className="full-width">
+                  <MiniRichEditor
+                    label="🤒 2. Symptoms"
+                    value={diseaseSymptoms}
+                    onChange={setDiseaseSymptoms}
+                    placeholder="Describe symptoms — use lists, bold, tables, images..."
+                    minHeight="200px"
+                  />
                 </div>
 
                 <div className="full-width">
-                  <label className="field-label">🔍 6. Diagnosis & Tests</label>
-                  <textarea className="form-textarea" placeholder="How is this diagnosed? e.g. Electrocardiogram (ECG), Blood tests..." value={diseaseDiagnosis} onChange={(e) => setDiseaseDiagnosis(e.target.value)} />
+                  <MiniRichEditor
+                    label="🧬 3. Causes & Risks"
+                    value={diseaseCauses}
+                    onChange={setDiseaseCauses}
+                    placeholder="Describe causes and risk factors — use lists, bold, tables..."
+                    minHeight="200px"
+                  />
+                </div>
+
+                <div className="full-width">
+                  <MiniRichEditor
+                    label="🛡️ 4. Risk Factors"
+                    value={diseaseRiskFactors}
+                    onChange={setDiseaseRiskFactors}
+                    placeholder="List risk factors — use ordered/unordered lists, bold..."
+                    minHeight="180px"
+                  />
+                </div>
+
+                <div className="full-width">
+                  <MiniRichEditor
+                    label="💊 5. Treatment Options"
+                    value={diseaseTreatments}
+                    onChange={setDiseaseTreatments}
+                    placeholder="Describe treatments — use lists, headings, tables..."
+                    minHeight="200px"
+                  />
+                </div>
+
+                <div className="full-width">
+                  <MiniRichEditor
+                    label="🔍 6. Diagnosis & Tests"
+                    value={diseaseDiagnosis}
+                    onChange={setDiseaseDiagnosis}
+                    placeholder="Describe diagnostic tests — use tables, bold, lists..."
+                    minHeight="200px"
+                  />
                 </div>
 
                 <div className="full-width">
@@ -1103,8 +1134,13 @@ graph TD
                 </div>
 
                 <div className="full-width">
-                  <label className="field-label">📝 Tip Details & Explanation</label>
-                  <textarea className="form-textarea large-textarea" placeholder="Provide evidence-based instructions..." value={tipBody} onChange={(e) => setTipBody(e.target.value)} />
+                  <MiniRichEditor
+                    label="📝 Tip Details & Explanation"
+                    value={tipBody}
+                    onChange={setTipBody}
+                    placeholder="Provide evidence-based instructions — use bold, lists, images, tables..."
+                    minHeight="220px"
+                  />
                 </div>
               </div>
             )}
