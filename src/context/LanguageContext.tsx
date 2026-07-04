@@ -60,8 +60,15 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed: DetectedLanguage = JSON.parse(saved);
-        setLang(parsed);
-        applyLang(parsed);
+        // If the saved preference is English (old default), clear it and use Hindi
+        if (parsed.code === "en") {
+          localStorage.removeItem(STORAGE_KEY);
+          setLang(HINDI_LANG);
+          applyLang(HINDI_LANG);
+        } else {
+          setLang(parsed);
+          applyLang(parsed);
+        }
       } else {
         // No saved preference — apply Hindi as the default
         applyLang(HINDI_LANG);
@@ -99,8 +106,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
    */
   const translate = useCallback(
     async (texts: string[]): Promise<string[]> => {
-      // Content is natively in Hindi — no translation needed
-      if (lang.code === "hi") return texts;
+      // Content is natively in English — no translation needed
+      if (lang.code === "en") return texts;
 
       // Check cache first
       const results: (string | null)[] = texts.map((t) => {

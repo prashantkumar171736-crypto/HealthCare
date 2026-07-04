@@ -102,7 +102,9 @@ async function translateBatch(texts: string[], targetLang: string): Promise<stri
 
 export default function PageTranslator() {
   const { lang } = useLanguage();
-  const langRef = useRef(lang.code);
+  // Always start from "en" as the base so originals are stored correctly on first render,
+  // even when the default language is not English (e.g. Hindi).
+  const langRef = useRef("en");
   // Store original text for each node so we can restore English
   const originalsRef = useRef<Map<Text, string>>(new Map());
   const abortRef = useRef<AbortController | null>(null);
@@ -116,8 +118,8 @@ export default function PageTranslator() {
       abortRef.current.abort();
     }
 
-    // If switching back to Hindi (site default), restore originals
-    if (lang.code === "hi") {
+    // If switching back to English (original content language), restore originals
+    if (lang.code === "en") {
       originalsRef.current.forEach((original, node) => {
         if (node.isConnected) node.nodeValue = original;
       });
@@ -134,8 +136,8 @@ export default function PageTranslator() {
 
       const textNodes = collectTextNodes(mainEl as Element);
 
-      // Store originals on first encounter (or if lang switched from hi/default)
-      if (prevLang === "hi") {
+      // Store originals on first encounter (or when switching away from English)
+      if (prevLang === "en") {
         textNodes.forEach((node) => {
           if (!originalsRef.current.has(node)) {
             originalsRef.current.set(node, node.nodeValue ?? "");
