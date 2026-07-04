@@ -60,17 +60,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed: DetectedLanguage = JSON.parse(saved);
-        // If the saved preference is English (old default), clear it and use Hindi
-        if (parsed.code === "en") {
-          localStorage.removeItem(STORAGE_KEY);
-          setLang(HINDI_LANG);
-          applyLang(HINDI_LANG);
-        } else {
-          setLang(parsed);
-          applyLang(parsed);
-        }
+        setLang(parsed);
+        applyLang(parsed);
       } else {
         // No saved preference — apply Hindi as the default
+        setLang(HINDI_LANG);
         applyLang(HINDI_LANG);
       }
     } catch {
@@ -90,12 +84,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // "resetToEnglish" kept for API compatibility — now resets to the site default (Hindi)
   const resetToEnglish = useCallback(() => {
-    setLang(HINDI_LANG);
-    applyLang(HINDI_LANG);
+    setLang(ENGLISH_LANG);
+    applyLang(ENGLISH_LANG);
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      // Explicitly save English so the mount effect respects this choice
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(ENGLISH_LANG));
     } catch {}
   }, []);
 
