@@ -3,6 +3,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { detectLanguage, DetectedLanguage, ENGLISH_LANG, LANG_MAP } from "@/lib/detectLanguage";
 
+const HINDI_LANG = LANG_MAP.find((l) => l.code === "hi")!;
+
 const STORAGE_KEY = "healthedu_lang";
 
 interface LanguageContextValue {
@@ -15,7 +17,7 @@ interface LanguageContextValue {
 }
 
 const LanguageContext = createContext<LanguageContextValue>({
-  lang: ENGLISH_LANG,
+  lang: HINDI_LANG,
   setLangFromText: () => {},
   setLangByCode: () => {},
   resetToEnglish: () => {},
@@ -48,11 +50,11 @@ function applyLang(lang: DetectedLanguage) {
 }
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLang] = useState<DetectedLanguage>(ENGLISH_LANG);
+  const [lang, setLang] = useState<DetectedLanguage>(HINDI_LANG);
   const [isTranslating, setIsTranslating] = useState(false);
   const pendingRef = useRef<AbortController | null>(null);
 
-  // Restore from localStorage on mount
+  // Restore from localStorage on mount; default to Hindi if nothing saved
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -60,6 +62,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         const parsed: DetectedLanguage = JSON.parse(saved);
         setLang(parsed);
         applyLang(parsed);
+      } else {
+        // No saved preference — apply Hindi as the default
+        applyLang(HINDI_LANG);
       }
     } catch {
       // ignore parse errors
@@ -78,9 +83,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // "resetToEnglish" kept for API compatibility — now resets to the site default (Hindi)
   const resetToEnglish = useCallback(() => {
-    setLang(ENGLISH_LANG);
-    applyLang(ENGLISH_LANG);
+    setLang(HINDI_LANG);
+    applyLang(HINDI_LANG);
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {}
@@ -93,7 +99,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
    */
   const translate = useCallback(
     async (texts: string[]): Promise<string[]> => {
-      if (lang.code === "en") return texts;
+      // Content is natively in Hindi — no translation needed
+      if (lang.code === "hi") return texts;
 
       // Check cache first
       const results: (string | null)[] = texts.map((t) => {

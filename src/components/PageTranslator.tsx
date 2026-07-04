@@ -116,8 +116,8 @@ export default function PageTranslator() {
       abortRef.current.abort();
     }
 
-    // If switching back to English, restore originals
-    if (lang.code === "en") {
+    // If switching back to Hindi (site default), restore originals
+    if (lang.code === "hi") {
       originalsRef.current.forEach((original, node) => {
         if (node.isConnected) node.nodeValue = original;
       });
@@ -134,8 +134,8 @@ export default function PageTranslator() {
 
       const textNodes = collectTextNodes(mainEl as Element);
 
-      // Store originals on first encounter (or if lang switched from en)
-      if (prevLang === "en") {
+      // Store originals on first encounter (or if lang switched from hi/default)
+      if (prevLang === "hi") {
         textNodes.forEach((node) => {
           if (!originalsRef.current.has(node)) {
             originalsRef.current.set(node, node.nodeValue ?? "");
