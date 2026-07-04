@@ -105,9 +105,11 @@ export default function DiseaseDetailClient({
           {/* Overview Section */}
           <section className={`disease-section ${activeTab === "overview" ? "active" : ""}`}>
             <h2>Overview & Description</h2>
-            <p style={{ fontSize: "1.15rem", lineHeight: "1.7", color: "var(--text-main)", marginBottom: "2rem" }}>
-              {disease.overview}
-            </p>
+            <div
+              className="doc-content"
+              style={{ fontSize: "1.1rem", lineHeight: "1.8", color: "var(--text-main)", marginBottom: "2rem" }}
+              dangerouslySetInnerHTML={{ __html: disease.overview }}
+            />
             <h3>Key Details</h3>
             <p>
               This educational guide contains clinical insights regarding <strong>{disease.name}</strong>. Use the tabs in the sidebar (or top menu on mobile) to navigate through symptoms, causes, diagnostics, treatment choices, and prevention strategies.

@@ -989,8 +989,13 @@ graph TD
 
 
                 <div className="full-width">
-                  <label className="field-label">📖 1. Overview</label>
-                  <textarea className="form-textarea large-textarea" placeholder="Brief clinical description..." value={diseaseOverview} onChange={(e) => setDiseaseOverview(e.target.value)} />
+                  <MiniRichEditor
+                    label="📖 1. Overview"
+                    value={diseaseOverview}
+                    onChange={setDiseaseOverview}
+                    placeholder="Describe this disease — background, clinical details, who it affects..."
+                    minHeight="200px"
+                  />
                 </div>
 
                 <div className="full-width">
