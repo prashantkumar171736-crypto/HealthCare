@@ -637,7 +637,7 @@ graph TD
           treatmentOptions: diseaseTreatments,
           prevention: diseasePrevention,
           faq: diseaseFaqs.filter(f => f.q.trim() && f.a.trim()),
-          relatedDiseases: diseaseRelated.split(",").map(s => s.trim()).filter(Boolean),
+          relatedDiseases: diseaseRelated.replace(/<[^>]*>/g, "").split(",").map(s => s.trim()).filter(Boolean),
         };
       case "library":
         return {
@@ -1049,13 +1049,23 @@ graph TD
                 </div>
 
                 <div className="full-width">
-                  <label className="field-label">🛡️ 7. Prevention Strategies</label>
-                  <textarea className="form-textarea" placeholder="How to prevent this condition? e.g. Regular exercise, balanced diet..." value={diseasePrevention} onChange={(e) => setDiseasePrevention(e.target.value)} />
+                  <MiniRichEditor
+                    label="🛡️ 7. Prevention Strategies"
+                    value={diseasePrevention}
+                    onChange={setDiseasePrevention}
+                    placeholder="How to prevent this condition? e.g. Regular exercise, balanced diet..."
+                    minHeight="200px"
+                  />
                 </div>
 
                 <div className="full-width">
-                  <label className="field-label">🔗 Related Disease Slugs (Comma-separated)</label>
-                  <input type="text" className="post-title-input" placeholder="e.g. lung-cancer, asthma, bronchitis" value={diseaseRelated} onChange={(e) => setDiseaseRelated(e.target.value)} />
+                  <MiniRichEditor
+                    label="🔗 Related Disease Slugs (Comma-separated)"
+                    value={diseaseRelated}
+                    onChange={setDiseaseRelated}
+                    placeholder="e.g. lung-cancer, asthma, bronchitis..."
+                    minHeight="100px"
+                  />
                 </div>
 
                 {/* Disease FAQs section */}
