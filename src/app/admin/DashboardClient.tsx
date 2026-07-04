@@ -262,7 +262,7 @@ export default function DashboardClient() {
             className={`nav-item ${activeTab === "posts" ? "active" : ""}`}
             onClick={() => setActiveTab("posts")}
           >
-            📝 Add Post
+            🗂️ Content Manager
           </button>
           <button
             className={`nav-item ${activeTab === "donation" ? "active" : ""}`}

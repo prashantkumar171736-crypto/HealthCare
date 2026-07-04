@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import FAQClient from "./FAQClient";
+import { getDb } from "@/lib/db";
 
-const faqs = [
+const DEFAULT_FAQS = [
   {
     q: "Is the information on HealthEdu really free?",
     a: "Yes. All articles, symptom guides, and directory resources are 100% free to access. We do not place content behind a paywall, nor do we sell ads or user data."
@@ -48,11 +49,32 @@ export const metadata: Metadata = {
   },
 };
 
-export default function FAQPage() {
+export default async function FAQPage() {
+  let faqs = [];
+
+  try {
+    const db = await getDb();
+    faqs = await db.collection("faq").find({}).toArray();
+    
+    if (faqs.length === 0) {
+      // Self-seed database with default FAQs
+      await db.collection("faq").insertMany(DEFAULT_FAQS);
+      faqs = await db.collection("faq").find({}).toArray();
+    }
+  } catch (error) {
+    console.error("FAQ DB Query Error:", error);
+    faqs = DEFAULT_FAQS;
+  }
+
+  const serializedFaqs = faqs.map((faq: any) => ({
+    q: faq.q,
+    a: faq.a,
+  }));
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "mainEntity": faqs.map((faq) => ({
+    "mainEntity": serializedFaqs.map((faq) => ({
       "@type": "Question",
       "name": faq.q,
       "acceptedAnswer": {
@@ -68,7 +90,7 @@ export default function FAQPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <FAQClient faqs={faqs} />
+      <FAQClient faqs={serializedFaqs} />
     </>
   );
 }
