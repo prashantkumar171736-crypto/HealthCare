@@ -1,6 +1,23 @@
-export const metadata = {
-  title: "About Us | HealthEdu",
-  description: "Learn about the mission, values, and editorial process behind our free healthcare education platform.",
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "About Us - Rog Care Hindi",
+  description: "Learn about the mission, values, and editorial standards behind Rog Care Hindi, our free healthcare education platform.",
+  alternates: {
+    canonical: "/about",
+  },
+  openGraph: {
+    title: "About Us - Rog Care Hindi",
+    description: "Learn about the mission, values, and editorial standards behind Rog Care Hindi, our free healthcare education platform.",
+    url: "https://rogcarehindi.vercel.app/about",
+    siteName: "Rog Care Hindi",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "About Us - Rog Care Hindi",
+    description: "Learn about the mission, values, and editorial standards behind Rog Care Hindi, our free healthcare education platform.",
+  },
 };
 
 export default function AboutPage() {

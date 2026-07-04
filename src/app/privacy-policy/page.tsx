@@ -1,6 +1,11 @@
-export const metadata = {
-  title: "Privacy Policy | HealthEdu",
-  description: "Learn how HealthEdu protects your privacy and maintains a zero-advertising and non-tracking policy.",
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy | Rog Care Hindi",
+  description: "Learn how Rog Care Hindi protects your privacy and maintains a zero-advertising and non-tracking policy.",
+  alternates: {
+    canonical: "/privacy-policy",
+  },
 };
 
 export default function PrivacyPolicyPage() {

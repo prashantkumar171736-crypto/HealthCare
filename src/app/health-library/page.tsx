@@ -1,11 +1,27 @@
+import type { Metadata } from "next";
 import { getDb } from "@/lib/db";
 import HealthLibraryClient from "./HealthLibraryClient";
 
 export const revalidate = 3600; // Cache library page for 1 hour
 
-export const metadata = {
-  title: "Health Library - Symptoms, Tests & Treatments Guides | HealthEdu",
+export const metadata: Metadata = {
+  title: "Health Library - Symptoms, Tests & Treatments Guides | Rog Care Hindi",
   description: "Access our educational resource guides explaining clinical tests, symptoms analysis checklists, and treatment procedures.",
+  alternates: {
+    canonical: "/health-library",
+  },
+  openGraph: {
+    title: "Health Library - Symptoms, Tests & Treatments Guides | Rog Care Hindi",
+    description: "Access our educational resource guides explaining clinical tests, symptoms analysis checklists, and treatment procedures.",
+    url: "https://rogcarehindi.vercel.app/health-library",
+    siteName: "Rog Care Hindi",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Health Library - Symptoms, Tests & Treatments Guides | Rog Care Hindi",
+    description: "Access our educational resource guides explaining clinical tests, symptoms analysis checklists, and treatment procedures.",
+  },
 };
 
 export default async function HealthLibraryPage() {

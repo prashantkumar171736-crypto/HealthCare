@@ -1,6 +1,15 @@
 import { getDb } from "@/lib/db";
 import Link from "next/link";
 import SearchBar from "@/components/SearchBar";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Disease Directory A-Z - Symptoms & Causes | Rog Care Hindi",
+  description: "Browse our comprehensive A-Z directory of diseases, conditions, symptoms, diagnostic procedures, treatments, and prevention strategies.",
+  alternates: {
+    canonical: "/diseases",
+  },
+};
 
 interface DiseaseItem {
   name: string;
@@ -17,6 +26,25 @@ export default async function DiseasesPage({
   const resolvedSearchParams = await searchParams;
   const searchQuery = resolvedSearchParams.search || "";
   const selectedLetter = resolvedSearchParams.letter || "";
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://rogcarehindi.vercel.app"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Diseases",
+        "item": "https://rogcarehindi.vercel.app/diseases"
+      }
+    ]
+  };
 
   let diseases: DiseaseItem[] = [];
   let categories: { slug: string; name: string }[] = [];
@@ -176,7 +204,12 @@ export default async function DiseasesPage({
   }, { "articles": "Articles" } as Record<string, string>);
 
   return (
-    <div className="container" style={{ padding: "3rem 1.5rem" }}>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <div className="container" style={{ padding: "3rem 1.5rem" }}>
       <div className="text-center" style={{ marginBottom: "3rem" }}>
         <h1>Disease A-Z Directory</h1>
         <p className="text-muted" style={{ maxWidth: "600px", margin: "0 auto 2rem" }}>
@@ -309,5 +342,6 @@ export default async function DiseasesPage({
         )}
       </div>
     </div>
+    </>
   );
 }

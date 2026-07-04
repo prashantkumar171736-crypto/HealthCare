@@ -1,12 +1,41 @@
 import { getDb } from "@/lib/db";
 import SearchBar from "@/components/SearchBar";
 import Link from "next/link";
+import type { Metadata } from "next";
 
 export const revalidate = 3600; // Cache page for 1 hour
+
+export const metadata: Metadata = {
+  title: "Rog Care Hindi | Your Trusted Health Education Resource",
+  description: "Learn about diseases, symptoms, causes, diagnoses, prevention strategies, and healthy living in Hindi and English. Access verified medical guides.",
+  alternates: {
+    canonical: "/",
+  },
+};
 
 export default async function Home() {
   let categories = [];
   let stats = { categoriesCount: 15, diseasesCount: 105, libraryCount: 7 };
+
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Rog Care Hindi",
+    "url": "https://rogcarehindi.vercel.app",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://rogcarehindi.vercel.app/diseases?search={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  };
+
+  const orgJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Rog Care Hindi",
+    "url": "https://rogcarehindi.vercel.app",
+    "logo": "https://rogcarehindi.vercel.app/logo.png"
+  };
 
   try {
     const db = await getDb();
@@ -26,8 +55,17 @@ export default async function Home() {
   }
 
   return (
-    <div>
-      {/* 1. Hero Section */}
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+      />
+      <div>
+        {/* 1. Hero Section */}
       <section className="hero">
         <div className="container">
           <h1 className="hero-title">Your Trusted Health Education Resource</h1>
@@ -107,5 +145,6 @@ export default async function Home() {
         </div>
       </section>
     </div>
+    </>
   );
 }

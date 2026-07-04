@@ -2,6 +2,7 @@ import { getDb } from "@/lib/db";
 import { notFound } from "next/navigation";
 import DiseaseDetailClient from "./DiseaseDetailClient";
 import Link from "next/link";
+import type { Metadata } from "next";
 
 export const revalidate = 3600; // Cache articles for 1 hour
 
@@ -13,7 +14,7 @@ function stripHtml(html: string) {
   return html.replace(/<[^>]*>/g, "");
 }
 
-export async function generateMetadata({ params }: PageProps) {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const resolvedParams = await params;
   const slug = resolvedParams.slug;
 
@@ -31,24 +32,57 @@ export async function generateMetadata({ params }: PageProps) {
       });
       if (post) {
         return {
-          title: `${post.title} | HealthEdu`,
+          title: `${post.title} | Rog Care Hindi`,
           description: stripHtml(post.content).substring(0, 155) + "...",
+          alternates: {
+            canonical: `/diseases/${slug}`,
+          },
+          openGraph: {
+            title: `${post.title} | Rog Care Hindi`,
+            description: stripHtml(post.content).substring(0, 155) + "...",
+            url: `https://rogcarehindi.vercel.app/diseases/${slug}`,
+            siteName: "Rog Care Hindi",
+            type: "article",
+          },
+          twitter: {
+            card: "summary_large_image",
+            title: `${post.title} | Rog Care Hindi`,
+            description: stripHtml(post.content).substring(0, 155) + "...",
+          }
         };
       }
       return {
-        title: "Article Not Found | HealthEdu",
+        title: "Article Not Found | Rog Care Hindi",
         description: "The requested healthcare article was not found.",
       };
     }
 
+    const title = `${disease.name} - Symptoms, Causes, Treatment & Prevention | Rog Care Hindi`;
+    const description = disease.overview ? disease.overview.substring(0, 155) + "..." : `Learn about ${disease.name} clinical symptoms, risk factors, and treatments.`;
+
     return {
-      title: `${disease.name} - Symptoms, Causes, Treatment & Prevention | HealthEdu`,
-      description: disease.overview ? disease.overview.substring(0, 155) + "..." : `Learn about ${disease.name} clinical symptoms, risk factors, and treatments.`,
+      title,
+      description,
+      alternates: {
+        canonical: `/diseases/${slug}`,
+      },
+      openGraph: {
+        title,
+        description,
+        url: `https://rogcarehindi.vercel.app/diseases/${slug}`,
+        siteName: "Rog Care Hindi",
+        type: "article",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+      }
     };
   } catch (error) {
     console.error("Metadata Generation Error:", error);
     return {
-      title: "Disease Details | HealthEdu",
+      title: "Disease Details | Rog Care Hindi",
     };
   }
 }
@@ -109,8 +143,59 @@ export default async function DiseaseDetailPage({ params }: PageProps) {
       day: 'numeric'
     });
 
+    const breadcrumbJsonLd = {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://rogcarehindi.vercel.app"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Diseases",
+          "item": "https://rogcarehindi.vercel.app/diseases"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": post.title,
+          "item": `https://rogcarehindi.vercel.app/diseases/${slug}`
+        }
+      ]
+    };
+
+    const articleJsonLd = {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": post.title,
+      "description": stripHtml(post.content).substring(0, 160) + "...",
+      "datePublished": post.createdAt || new Date().toISOString(),
+      "dateModified": post.updatedAt || new Date().toISOString(),
+      "publisher": {
+        "@type": "Organization",
+        "name": "Rog Care Hindi",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://rogcarehindi.vercel.app/logo.png"
+        }
+      }
+    };
+
     return (
-      <div className="container" style={{ padding: "3rem 1.5rem", minHeight: "80vh" }}>
+      <>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+        />
+        <div className="container" style={{ padding: "3rem 1.5rem", minHeight: "80vh" }}>
         {/* Breadcrumb */}
         <div style={{ marginBottom: "2rem" }}>
           <Link
@@ -165,6 +250,7 @@ export default async function DiseaseDetailPage({ params }: PageProps) {
           />
         </article>
       </div>
+      </>
     );
   }
 
@@ -178,8 +264,72 @@ export default async function DiseaseDetailPage({ params }: PageProps) {
     _id: disease._id.toString(),
   } as any;
 
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://rogcarehindi.vercel.app"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Diseases",
+        "item": "https://rogcarehindi.vercel.app/diseases"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": disease.name,
+        "item": `https://rogcarehindi.vercel.app/diseases/${slug}`
+      }
+    ]
+  };
+
+  const medicalJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "MedicalCondition",
+    "name": disease.name,
+    "description": disease.overview || "",
+    "possibleTreatment": disease.treatmentOptions ? disease.treatmentOptions.map((t: string) => ({ "@type": "MedicalTherapy", "name": t })) : undefined,
+    "signOrSymptom": disease.symptoms ? disease.symptoms.map((s: string) => ({ "@type": "MedicalSignOrSymptom", "name": s })) : undefined,
+    "cause": disease.causes ? disease.causes.map((c: string) => ({ "@type": "MedicalCause", "name": c })) : undefined
+  };
+
+  const hasFaq = disease.faq && disease.faq.length > 0;
+  const faqJsonLd = hasFaq ? {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": disease.faq.map((item: any) => ({
+      "@type": "Question",
+      "name": item.q,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": item.a
+      }
+    }))
+  } : null;
+
   return (
-    <div>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(medicalJsonLd) }}
+      />
+      {faqJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        />
+      )}
+      <div>
       {/* Disease Header Banner */}
       <section className="disease-page-header">
         <div className="container">
@@ -206,5 +356,6 @@ export default async function DiseaseDetailPage({ params }: PageProps) {
         />
       </section>
     </div>
+    </>
   );
 }

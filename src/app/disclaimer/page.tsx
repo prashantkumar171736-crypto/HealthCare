@@ -1,6 +1,11 @@
-export const metadata = {
-  title: "Medical Disclaimer | HealthEdu",
-  description: "Read our official Medical Disclaimer outlining the limits of HealthEdu's educational resources.",
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Medical Disclaimer | Rog Care Hindi",
+  description: "Read our official Medical Disclaimer outlining the limits of Rog Care Hindi's educational resources.",
+  alternates: {
+    canonical: "/disclaimer",
+  },
 };
 
 export default function DisclaimerPage() {

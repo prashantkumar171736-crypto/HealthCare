@@ -1,6 +1,50 @@
 import { getDb } from "@/lib/db";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+
+interface PageProps {
+  params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const resolvedParams = await params;
+  const slug = resolvedParams.slug;
+  
+  try {
+    const db = await getDb();
+    const category = await db.collection("categories").findOne({ slug });
+    if (!category) {
+      return {
+        title: "Category Not Found | Rog Care Hindi",
+      };
+    }
+    return {
+      title: `${category.name} Articles & Resources | Rog Care Hindi`,
+      description: category.description || `Read detailed medical guides and information about conditions in the ${category.name} category.`,
+      alternates: {
+        canonical: `/diseases/category/${slug}`,
+      },
+      openGraph: {
+        title: `${category.name} Articles & Resources | Rog Care Hindi`,
+        description: category.description || `Read detailed medical guides and information about conditions in the ${category.name} category.`,
+        url: `https://rogcarehindi.vercel.app/diseases/category/${slug}`,
+        siteName: "Rog Care Hindi",
+        type: "website",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: `${category.name} Articles & Resources | Rog Care Hindi`,
+        description: category.description || `Read detailed medical guides and information about conditions in the ${category.name} category.`,
+      },
+    };
+  } catch (error) {
+    console.error("Error generating category metadata:", error);
+    return {
+      title: "Medical Category | Rog Care Hindi",
+    };
+  }
+}
 
 export default async function CategoryPage({
   params,
@@ -38,8 +82,38 @@ export default async function CategoryPage({
     notFound();
   }
 
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://rogcarehindi.vercel.app"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Diseases",
+        "item": "https://rogcarehindi.vercel.app/diseases"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": category.name,
+        "item": `https://rogcarehindi.vercel.app/diseases/category/${categorySlug}`
+      }
+    ]
+  };
+
   return (
-    <div>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <div>
       {/* Category Header */}
       <section className="category-header">
         <div className="container">
@@ -124,5 +198,6 @@ export default async function CategoryPage({
         </div>
       </section>
     </div>
+    </>
   );
 }

@@ -1,6 +1,11 @@
-export const metadata = {
-  title: "Terms & Conditions | HealthEdu",
-  description: "Read the Terms & Conditions of using the HealthEdu website and accessing our medical articles.",
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Terms & Conditions | Rog Care Hindi",
+  description: "Read the Terms & Conditions of using the Rog Care Hindi website and accessing our medical articles.",
+  alternates: {
+    canonical: "/terms",
+  },
 };
 
 export default function TermsPage() {
