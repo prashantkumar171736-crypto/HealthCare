@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PostEditor from "./PostEditor";
 import DonationSettings from "./DonationSettings";
+import { useLanguage } from "@/context/LanguageContext";
+import { LANG_MAP } from "@/lib/detectLanguage";
 
 interface KPI {
   totalViews: number;
@@ -72,6 +74,7 @@ export default function DashboardClient() {
   const [clearing, setClearing] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation">("overview");
   const router = useRouter();
+  const { lang, setLangByCode } = useLanguage();
 
   const fetchStats = async () => {
     try {
@@ -271,6 +274,29 @@ export default function DashboardClient() {
             💰 Donation Settings
           </button>
         </nav>
+
+        {/* Language Settings */}
+        <div className="lang-settings-block">
+          <div className="lang-settings-label">
+            🌐 Language Settings
+          </div>
+          <div className="lang-select-wrapper">
+            <select
+              id="admin-language-select"
+              className="lang-select"
+              value={lang.code}
+              onChange={(e) => setLangByCode(e.target.value)}
+            >
+              {LANG_MAP.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+            <span className="lang-select-arrow">▾</span>
+          </div>
+          <p className="lang-hint">Auto-saved &amp; applied site-wide</p>
+        </div>
 
         <div className="sidebar-footer">
           <button onClick={handleLogout} className="btn-logout">
@@ -1080,6 +1106,71 @@ export default function DashboardClient() {
 
         .status-pill.online {
           background-color: #10b981;
+        }
+
+        /* Language Settings Block */
+        .lang-settings-block {
+          margin-bottom: 1.5rem;
+          padding: 1rem;
+          background: rgba(0, 200, 150, 0.05);
+          border: 1px solid rgba(0, 200, 150, 0.15);
+          border-radius: 12px;
+        }
+
+        .lang-settings-label {
+          font-size: 0.75rem;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          color: #00c896;
+          text-transform: uppercase;
+          margin-bottom: 0.6rem;
+        }
+
+        .lang-select-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .lang-select {
+          width: 100%;
+          background-color: #0f1621;
+          color: #f3f4f6;
+          border: 1px solid rgba(0, 200, 150, 0.3);
+          border-radius: 8px;
+          padding: 0.55rem 2rem 0.55rem 0.75rem;
+          font-size: 0.9rem;
+          font-weight: 500;
+          appearance: none;
+          -webkit-appearance: none;
+          cursor: pointer;
+          outline: none;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .lang-select:focus {
+          border-color: #00c896;
+          box-shadow: 0 0 0 3px rgba(0, 200, 150, 0.15);
+        }
+
+        .lang-select option {
+          background-color: #0f1621;
+          color: #f3f4f6;
+        }
+
+        .lang-select-arrow {
+          position: absolute;
+          right: 0.65rem;
+          color: #00c896;
+          font-size: 0.8rem;
+          pointer-events: none;
+        }
+
+        .lang-hint {
+          font-size: 0.7rem;
+          color: #6b7280;
+          margin-top: 0.4rem;
+          text-align: center;
         }
       `}</style>
     </div>
