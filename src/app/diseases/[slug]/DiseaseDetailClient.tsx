@@ -107,7 +107,6 @@ export default function DiseaseDetailClient({
             <h2>Overview & Description</h2>
             <div
               className="doc-content"
-              style={{ fontSize: "1.1rem", lineHeight: "1.8", color: "var(--text-main)", marginBottom: "2rem" }}
               dangerouslySetInnerHTML={{ __html: disease.overview }}
             />
             <h3>Key Details</h3>

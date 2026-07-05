@@ -211,7 +211,7 @@ export default async function DiseaseDetailPage({ params }: PageProps) {
         </div>
 
         {/* Post Container */}
-        <article className="post-detail-container" style={{ maxWidth: "800px", margin: "0 auto" }}>
+        <article className="post-detail-container">
           <header style={{ marginBottom: "2rem", borderBottom: "1px solid var(--border)", paddingBottom: "1.5rem" }}>
             <span
               className="tag"
