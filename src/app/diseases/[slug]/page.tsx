@@ -294,9 +294,21 @@ export default async function DiseaseDetailPage({ params }: PageProps) {
     "@type": "MedicalCondition",
     "name": disease.name,
     "description": disease.overview || "",
-    "possibleTreatment": disease.treatmentOptions ? disease.treatmentOptions.map((t: string) => ({ "@type": "MedicalTherapy", "name": t })) : undefined,
-    "signOrSymptom": disease.symptoms ? disease.symptoms.map((s: string) => ({ "@type": "MedicalSignOrSymptom", "name": s })) : undefined,
-    "cause": disease.causes ? disease.causes.map((c: string) => ({ "@type": "MedicalCause", "name": c })) : undefined
+    "possibleTreatment": Array.isArray(disease.treatmentOptions)
+      ? disease.treatmentOptions.map((t: string) => ({ "@type": "MedicalTherapy", "name": t }))
+      : (typeof disease.treatmentOptions === "string" && disease.treatmentOptions
+        ? [{ "@type": "MedicalTherapy", "name": disease.treatmentOptions }]
+        : undefined),
+    "signOrSymptom": Array.isArray(disease.symptoms)
+      ? disease.symptoms.map((s: string) => ({ "@type": "MedicalSignOrSymptom", "name": s }))
+      : (typeof disease.symptoms === "string" && disease.symptoms
+        ? [{ "@type": "MedicalSignOrSymptom", "name": disease.symptoms }]
+        : undefined),
+    "cause": Array.isArray(disease.causes)
+      ? disease.causes.map((c: string) => ({ "@type": "MedicalCause", "name": c }))
+      : (typeof disease.causes === "string" && disease.causes
+        ? [{ "@type": "MedicalCause", "name": disease.causes }]
+        : undefined)
   };
 
   const hasFaq = disease.faq && disease.faq.length > 0;
