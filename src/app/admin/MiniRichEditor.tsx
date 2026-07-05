@@ -261,8 +261,43 @@ export default function MiniRichEditor({
   // ── Image/GIF upload ────────────────────────────────────────────────────
   const handleMediaFile = async (file: File) => {
     const isGif = file.type === "image/gif";
+    // If the image is large (>500KB) and not a GIF, compress it before upload
+    const shouldCompress = file.size > 500 * 1024 && !isGif;
+    let uploadFile = file;
+    if (shouldCompress) {
+      // Compress using canvas
+      const compressImage = (originalFile: File): Promise<File> => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxWidth = 1200; // max dimension
+            const scale = Math.min(maxWidth / img.width, 1);
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            const ctx = canvas.getContext('2d');
+            if (ctx) ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  const compressedFile = new File([blob], originalFile.name, { type: originalFile.type, lastModified: Date.now() });
+                  resolve(compressedFile);
+                } else {
+                  resolve(originalFile);
+                }
+              },
+              originalFile.type,
+              0.8
+            );
+          };
+          img.onerror = () => resolve(originalFile);
+          img.src = URL.createObjectURL(originalFile);
+        });
+      };
+      uploadFile = await compressImage(file);
+    }
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", uploadFile);
     try {
       const res = await fetch("/api/admin/upload", { method: "POST", body: formData });
       if (res.ok) {
@@ -270,11 +305,11 @@ export default function MiniRichEditor({
         insertMediaHtml(data.url, isGif);
         return;
       }
-    } catch {}
-    // Fallback: base64
-    const reader = new FileReader();
-    reader.onload = (e) => insertMediaHtml(e.target?.result as string, isGif);
-    reader.readAsDataURL(file);
+    } catch (e) {
+      console.error("Image upload failed", e);
+    }
+    // If upload fails, show a warning (no base64 fallback to avoid huge payloads)
+    alert("Failed to upload image. Please try again.");
   };
 
   const insertMediaHtml = (src: string, isGif: boolean) => {
