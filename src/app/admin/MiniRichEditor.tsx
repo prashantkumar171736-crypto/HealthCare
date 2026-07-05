@@ -38,6 +38,11 @@ const EMOJI_GROUPS = [
   },
 ];
 
+const SLASH_ITEMS = [
+  { id: "image", icon: "🖼️", label: "Upload Image", desc: "Upload an image file" },
+  { id: "table", icon: "⊞", label: "Add Table", desc: "Insert a table (pick size)" },
+];
+
 export default function MiniRichEditor({
   label,
   value,
@@ -50,7 +55,7 @@ export default function MiniRichEditor({
   const gifInputRef = useRef<HTMLInputElement>(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
-  const [savedSel, setSavedSel] = useState<Range | null>(null);
+  const savedSelRef = useRef<Range | null>(null);
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [hoverCell, setHoverCell] = useState({ r: 0, c: 0 });
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -59,6 +64,14 @@ export default function MiniRichEditor({
   const isInitialized = useRef(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const tablePickerRef = useRef<HTMLDivElement>(null);
+
+  // Slash commands state
+  const [slashOpen, setSlashOpen] = useState(false);
+  const [slashPos, setSlashPos] = useState({ top: 0, left: 0 });
+  const [slashQuery, setSlashQuery] = useState("");
+  const [slashIdx, setSlashIdx] = useState(0);
+  const slashRangeRef = useRef<Range | null>(null);
+  const slashMenuRef = useRef<HTMLDivElement>(null);
 
   // Initialise editor content once
   useEffect(() => {
@@ -84,6 +97,9 @@ export default function MiniRichEditor({
       if (tablePickerRef.current && !tablePickerRef.current.contains(e.target as Node)) {
         setShowTablePicker(false);
       }
+      if (slashMenuRef.current && !slashMenuRef.current.contains(e.target as Node)) {
+        closeSlash();
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -102,15 +118,110 @@ export default function MiniRichEditor({
   // ── Selection helpers ─────────────────────────────────────────────────────
   const saveSelection = () => {
     const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) setSavedSel(sel.getRangeAt(0).cloneRange());
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      if (editorRef.current?.contains(range.commonAncestorContainer)) {
+        savedSelRef.current = range.cloneRange();
+      }
+    }
   };
 
-  const restoreSelection = () => {
-    if (savedSel) {
+  const restoreSelection = (range?: Range | null) => {
+    const targetRange = range || savedSelRef.current;
+    if (targetRange) {
       const sel = window.getSelection();
       sel?.removeAllRanges();
-      sel?.addRange(savedSel);
+      sel?.addRange(targetRange);
     }
+  };
+
+  // ── Slash commands logic ──────────────────────────────────────────────────
+  const filteredSlashItems = SLASH_ITEMS.filter(
+    (it) =>
+      slashQuery === "" ||
+      it.label.toLowerCase().includes(slashQuery.toLowerCase()) ||
+      it.id.toLowerCase().includes(slashQuery.toLowerCase())
+  );
+
+  const closeSlash = () => { setSlashOpen(false); setSlashQuery(""); setShowTablePicker(false); };
+
+  const executeSlashItem = (id: string) => {
+    const range = slashRangeRef.current;
+    if (range) {
+      restoreSelection(range);
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const r = sel.getRangeAt(0);
+        const node = r.startContainer;
+        if (node.nodeType === Node.TEXT_NODE) {
+          const text = node.textContent || "";
+          const slashIdx2 = text.lastIndexOf("/");
+          if (slashIdx2 >= 0) {
+            const delRange = document.createRange();
+            delRange.setStart(node, slashIdx2);
+            delRange.setEnd(node, r.startOffset);
+            delRange.deleteContents();
+          }
+        }
+      }
+    }
+    saveSelection();
+    editorRef.current?.focus();
+
+    switch (id) {
+      case "table":   setShowTablePicker(true); return;
+      case "image":   fileInputRef.current?.click(); break;
+    }
+    closeSlash();
+  };
+
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (slashOpen) {
+      if (e.key === "ArrowDown")  { e.preventDefault(); setSlashIdx((i) => Math.min(i + 1, filteredSlashItems.length - 1)); return; }
+      if (e.key === "ArrowUp")    { e.preventDefault(); setSlashIdx((i) => Math.max(i - 1, 0)); return; }
+      if (e.key === "Enter")      { e.preventDefault(); if (filteredSlashItems[slashIdx]) executeSlashItem(filteredSlashItems[slashIdx].id); return; }
+      if (e.key === "Escape")     { closeSlash(); return; }
+      if (e.key === "Backspace" && slashQuery === "") { closeSlash(); return; }
+    }
+  };
+
+  const handleEditorInput = () => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    const node  = range.startContainer;
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text   = node.textContent || "";
+      const offset = range.startOffset;
+      const before = text.slice(0, offset);
+      const slashPos2 = before.lastIndexOf("/");
+
+      if (slashPos2 >= 0) {
+        const query = before.slice(slashPos2 + 1);
+        if (!query.includes(" ")) {
+          const rng = range.cloneRange();
+          rng.collapse(true);
+          const tmpSpan = document.createElement("span");
+          rng.insertNode(tmpSpan);
+          const spanRect    = tmpSpan.getBoundingClientRect();
+          const editorRect  = editorRef.current!.getBoundingClientRect();
+          tmpSpan.remove();
+
+          setSlashPos({
+            top:  spanRect.bottom - editorRect.top  + (editorRef.current?.scrollTop || 0) + 4,
+            left: Math.min(spanRect.left  - editorRect.left, editorRect.width - 260),
+          });
+          slashRangeRef.current = range.cloneRange();
+          setSlashQuery(query);
+          setSlashIdx(0);
+          setShowTablePicker(false);
+          setSlashOpen(true);
+          return;
+        }
+      }
+    }
+    closeSlash();
   };
 
   // ── Link ─────────────────────────────────────────────────────────────────
@@ -128,6 +239,7 @@ export default function MiniRichEditor({
 
   // ── Table ────────────────────────────────────────────────────────────────
   const insertTable = (rows: number, cols: number) => {
+    restoreSelection();
     editorRef.current?.focus();
     let html = `<table style="border-collapse:collapse;width:100%;margin:1rem 0;"><tbody>`;
     for (let r = 0; r < rows; r++) {
@@ -163,6 +275,7 @@ export default function MiniRichEditor({
   };
 
   const insertMediaHtml = (src: string, isGif: boolean) => {
+    restoreSelection();
     editorRef.current?.focus();
     const style = isGif
       ? "max-width:100%;border-radius:8px;margin:0.5rem 0;"
@@ -177,6 +290,7 @@ export default function MiniRichEditor({
 
   // ── Emoji / Icon insert ──────────────────────────────────────────────────
   const insertEmoji = (emoji: string) => {
+    restoreSelection();
     editorRef.current?.focus();
     document.execCommand("insertText", false, emoji);
     notifyChange();
@@ -184,6 +298,7 @@ export default function MiniRichEditor({
 
   // ── Small inline icon (favicon-style) ────────────────────────────────────
   const insertInlineIcon = (emoji: string) => {
+    restoreSelection();
     editorRef.current?.focus();
     document.execCommand(
       "insertHTML",
@@ -355,7 +470,7 @@ export default function MiniRichEditor({
           <button
             type="button"
             title="Insert Image"
-            onMouseDown={(e) => { e.preventDefault(); fileInputRef.current?.click(); }}
+            onMouseDown={(e) => { e.preventDefault(); saveSelection(); fileInputRef.current?.click(); }}
             style={{ padding: "4px 7px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", cursor: "pointer", fontSize: "12px", lineHeight: 1.4 }}
           >
             🖼️
@@ -369,7 +484,7 @@ export default function MiniRichEditor({
           <button
             type="button"
             title="Insert GIF"
-            onMouseDown={(e) => { e.preventDefault(); gifInputRef.current?.click(); }}
+            onMouseDown={(e) => { e.preventDefault(); saveSelection(); gifInputRef.current?.click(); }}
             style={{ padding: "4px 7px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", cursor: "pointer", fontSize: "12px", fontWeight: 700, lineHeight: 1.4 }}
           >
             GIF
@@ -403,6 +518,7 @@ export default function MiniRichEditor({
                   return (
                     <div key={i}
                       onMouseEnter={() => setHoverCell({ r, c })}
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => insertTable(r, c)}
                       style={{ width: "20px", height: "20px", border: `1px solid ${active ? "var(--primary)" : "var(--border)"}`, background: active ? "var(--primary-light, #e0f2fe)" : "var(--background)", borderRadius: "2px", cursor: "pointer", transition: "all 0.1s" }}
                     />
@@ -490,30 +606,81 @@ export default function MiniRichEditor({
       </div>
 
       {/* ── Editable area ─────────────────────────────────────────────────── */}
-      <div
-        ref={editorRef}
-        contentEditable
-        suppressContentEditableWarning
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => { setIsFocused(false); notifyChange(); }}
-        onInput={notifyChange}
-        data-placeholder={placeholder}
-        style={{
-          minHeight,
-          padding: "14px 16px",
-          border: "1px solid var(--border)",
-          borderRadius: "0 0 8px 8px",
-          background: "var(--surface, #fff)",
-          color: "var(--text-main)",
-          fontSize: "14px",
-          lineHeight: "1.7",
-          outline: "none",
-          overflowY: "auto",
-          boxSizing: "border-box",
-          transition: "border-color 0.2s, box-shadow 0.2s",
-          boxShadow: isFocused ? "0 0 0 2px rgba(var(--primary-rgb, 59,130,246), 0.15)" : "none",
-        }}
-      />
+      <div style={{ position: "relative" }}>
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onFocus={() => { setIsFocused(true); saveSelection(); }}
+          onBlur={() => { setIsFocused(false); notifyChange(); }}
+          onMouseUp={saveSelection}
+          onKeyUp={saveSelection}
+          onKeyDown={handleEditorKeyDown}
+          onInput={(e) => { handleEditorInput(); saveSelection(); notifyChange(); }}
+          data-placeholder={placeholder}
+          style={{
+            minHeight,
+            padding: "14px 16px",
+            border: "1px solid var(--border)",
+            borderRadius: "0 0 8px 8px",
+            background: "var(--surface, #fff)",
+            color: "var(--text-main)",
+            fontSize: "14px",
+            lineHeight: "1.7",
+            outline: "none",
+            overflowY: "auto",
+            boxSizing: "border-box",
+            transition: "border-color 0.2s, box-shadow 0.2s",
+            boxShadow: isFocused ? "0 0 0 2px rgba(var(--primary-rgb, 59,130,246), 0.15)" : "none",
+          }}
+        />
+
+        {/* ── SLASH COMMAND MENU ── */}
+        {slashOpen && (
+          <div ref={slashMenuRef} className="slash-menu" style={{ top: slashPos.top, left: slashPos.left }}>
+            {showTablePicker ? (
+              <div className="slash-table-picker">
+                <div className="slash-picker-label">Select table size</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 20px)", gap: "2px" }}>
+                  {Array.from({ length: 64 }, (_, i) => {
+                    const r = Math.floor(i / 8) + 1;
+                    const c = (i % 8) + 1;
+                    const active = r <= hoverCell.r && c <= hoverCell.c;
+                    return (
+                      <div key={i}
+                        onMouseEnter={() => setHoverCell({ r, c })}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => { insertTable(r, c); closeSlash(); }}
+                        style={{ width: "20px", height: "20px", border: `1px solid ${active ? "var(--primary)" : "var(--border)"}`, background: active ? "var(--primary-light, #e0f2fe)" : "var(--background)", borderRadius: "2px", cursor: "pointer", transition: "all 0.1s" }}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="tb-picker-size-label">{hoverCell.r} × {hoverCell.c}</div>
+                <button className="slash-back-btn" onClick={() => { setShowTablePicker(false); setHoverCell({ r: 0, c: 0 }); }}>← Back</button>
+              </div>
+            ) : (
+              <>
+                <div className="slash-menu-header">Quick Insert <kbd>/</kbd></div>
+                {filteredSlashItems.map((item, i) => (
+                  <button
+                    key={item.id}
+                    className={`slash-item ${i === slashIdx ? "active" : ""}`}
+                    onMouseEnter={() => setSlashIdx(i)}
+                    onMouseDown={(e) => { e.preventDefault(); executeSlashItem(item.id); }}
+                  >
+                    <span className="slash-icon">{item.icon}</span>
+                    <span className="slash-text">
+                      <span className="slash-label">{item.label}</span>
+                      <span className="slash-desc">{item.desc}</span>
+                    </span>
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── Link Modal ────────────────────────────────────────────────────── */}
       {showLinkModal && (
@@ -579,6 +746,109 @@ export default function MiniRichEditor({
         [contenteditable] h1 { font-size: 1.8rem; font-weight: 700; margin: 1rem 0 0.5rem; }
         [contenteditable] h2 { font-size: 1.4rem; font-weight: 700; margin: 0.9rem 0 0.4rem; }
         [contenteditable] h3 { font-size: 1.15rem; font-weight: 600; margin: 0.8rem 0 0.3rem; }
+
+        /* Slash Menu Styles */
+        .slash-menu {
+          position: absolute;
+          z-index: 300;
+          width: 260px;
+          background: var(--surface, #fff);
+          border: 1px solid var(--border, #ccc);
+          border-radius: 12px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+          overflow: hidden;
+          animation: fadeSlide 0.15s ease;
+        }
+        .slash-menu-header {
+          padding: 6px 12px;
+          font-size: 11px;
+          color: var(--text-muted, #6b7280);
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border-bottom: 1px solid var(--border, #e5e7eb);
+        }
+        .slash-menu-header kbd {
+          display: inline-block;
+          background: var(--border, #e5e7eb);
+          border-radius: 4px;
+          padding: 0 4px;
+          font-size: 10px;
+          color: var(--text-main, #374151);
+          margin-left: 4px;
+        }
+        .slash-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          padding: 8px 12px;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          transition: background 0.12s;
+          text-align: left;
+        }
+        .slash-item.active, .slash-item:hover {
+          background: var(--primary-light, #e0f2fe);
+        }
+        .slash-icon {
+          font-size: 14px;
+          width: 26px;
+          height: 26px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--border, #f3f4f6);
+          border-radius: 6px;
+          flex-shrink: 0;
+        }
+        .slash-text {
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+        }
+        .slash-label {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text-main, #111827);
+        }
+        .slash-desc {
+          font-size: 10px;
+          color: var(--text-muted, #6b7280);
+        }
+        .slash-table-picker {
+          padding: 10px;
+        }
+        .slash-picker-label {
+          font-size: 11px;
+          color: var(--text-muted, #6b7280);
+          margin-bottom: 6px;
+          font-weight: 600;
+        }
+        .slash-back-btn {
+          margin-top: 8px;
+          padding: 4px 8px;
+          background: var(--border, #f3f4f6);
+          border: 1px solid var(--border, #ccc);
+          border-radius: 6px;
+          color: var(--text-muted, #4b5563);
+          font-size: 11px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .slash-back-btn:hover {
+          color: var(--text-main, #000);
+          background: var(--primary-light, #e0f2fe);
+        }
+        .tb-picker-size-label {
+          margin-top: 6px;
+          font-size: 11px;
+          color: var(--primary);
+          font-weight: 700;
+          text-align: center;
+        }
+        @keyframes fadeSlide { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </div>
   );

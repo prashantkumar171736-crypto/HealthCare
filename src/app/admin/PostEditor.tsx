@@ -79,21 +79,8 @@ const DISEASE_CATEGORIES = [
 ];
 
 const SLASH_ITEMS = [
-  { id: "table",     icon: "⊞", label: "Table",       desc: "Insert a table (pick size)" },
-  { id: "image",     icon: "🖼️", label: "Image",       desc: "Upload an image file" },
-  { id: "gif",       icon: "🎞️", label: "GIF",         desc: "Upload an animated GIF" },
-  { id: "code",      icon: "</>" , label: "Code Block",  desc: "Insert a code block" },
-  { id: "hr",        icon: "—",  label: "Divider",     desc: "Horizontal rule" },
-  { id: "flow",      icon: "📊", label: "Flow Diagram", desc: "Flow diagram template" },
-  { id: "info",      icon: "ℹ️", label: "Info Box",    desc: "Info callout" },
-  { id: "warning",   icon: "⚠️", label: "Warning Box", desc: "Warning callout" },
-  { id: "tip",       icon: "💡", label: "Tip Box",     desc: "Tip callout" },
-  { id: "note",      icon: "📝", label: "Note Box",    desc: "Note callout" },
-  { id: "h1",        icon: "H1", label: "Heading 1",   desc: "Large heading" },
-  { id: "h2",        icon: "H2", label: "Heading 2",   desc: "Medium heading" },
-  { id: "h3",        icon: "H3", label: "Heading 3",   desc: "Small heading" },
-  { id: "quote",     icon: "❝",  label: "Blockquote",  desc: "Quote block" },
-  { id: "link",      icon: "🔗", label: "Link",        desc: "Insert hyperlink" },
+  { id: "image",     icon: "🖼️", label: "Upload Image", desc: "Upload an image file" },
+  { id: "table",     icon: "⊞", label: "Add Table",    desc: "Insert a table (pick size)" },
 ];
 
 export default function PostEditor() {
@@ -152,7 +139,7 @@ export default function PostEditor() {
   // Link Modal & Slash Command state
   const [linkUrl, setLinkUrl] = useState("");
   const [showLinkModal, setShowLinkModal] = useState(false);
-  const [savedSelection, setSavedSelection] = useState<Range | null>(null);
+  const savedSelectionRef = useRef<Range | null>(null);
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashPos, setSlashPos] = useState({ top: 0, left: 0 });
   const [slashQuery, setSlashQuery] = useState("");
@@ -225,17 +212,25 @@ export default function PostEditor() {
 
   const saveSelection = () => {
     const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) setSavedSelection(sel.getRangeAt(0).cloneRange());
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      if (editorRef.current?.contains(range.commonAncestorContainer)) {
+        savedSelectionRef.current = range.cloneRange();
+      }
+    }
   };
 
-  const restoreSelection = (range: Range | null) => {
-    if (!range) return;
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(range);
+  const restoreSelection = (range?: Range | null) => {
+    const targetRange = range || savedSelectionRef.current;
+    if (targetRange) {
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(targetRange);
+    }
   };
 
   const insertTableSized = (rows: number, cols: number) => {
+    restoreSelection();
     editorRef.current?.focus();
     let html = `<table style="border-collapse:collapse;width:100%;margin:1rem 0;table-layout:fixed;">`;
     for (let r = 0; r < rows; r++) {
@@ -285,6 +280,7 @@ graph TD
   );
 
   const insertImageHtml = (src: string, alt = "Uploaded image") => {
+    restoreSelection();
     editorRef.current?.focus();
     exec("insertHTML",
       `<img src="${src}" alt="${alt}" style="max-width:100%;width:100%;border-radius:8px;margin:0.5rem 0;display:block;cursor:pointer;" data-resizable="1"/><p><br></p>`
@@ -293,7 +289,7 @@ graph TD
 
   const handleInsertLink = () => { saveSelection(); setLinkUrl(""); setShowLinkModal(true); };
   const confirmLink = () => {
-    restoreSelection(savedSelection);
+    restoreSelection();
     editorRef.current?.focus();
     const url = linkUrl.trim();
     if (url) {
@@ -538,6 +534,7 @@ graph TD
         }
       }
     }
+    saveSelection();
     editorRef.current?.focus();
 
     switch (id) {
@@ -1235,6 +1232,7 @@ graph TD
                                 key={`${r}-${c}`}
                                 className={`tb-size-cell ${r <= pickerHover.r && c <= pickerHover.c ? "active" : ""}`}
                                 onMouseEnter={() => setPickerHover({ r, c })}
+                                onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => { insertTableSized(pickerHover.r + 1, pickerHover.c + 1); setPickerHover({ r: 0, c: 0 }); }}
                               />
                             ))
@@ -1244,8 +1242,8 @@ graph TD
                       </div>
                     </div>
                     <button title="Insert Link" onClick={handleInsertLink} className="tb-btn" id="tb-link">🔗 Link</button>
-                    <button title="Insert Image" onClick={() => fileInputRef.current?.click()} className="tb-btn" id="tb-image">🖼️ Image</button>
-                    <button title="Insert Animated GIF" onClick={() => gifInputRef.current?.click()} className="tb-btn" id="tb-gif">🎞️ GIF</button>
+                    <button title="Insert Image" onClick={() => { saveSelection(); fileInputRef.current?.click(); }} className="tb-btn" id="tb-image">🖼️ Image</button>
+                    <button title="Insert Animated GIF" onClick={() => { saveSelection(); gifInputRef.current?.click(); }} className="tb-btn" id="tb-gif">🎞️ GIF</button>
                   </div>
                   <div className="toolbar-sep" />
                   <div className="toolbar-group">
@@ -1279,8 +1277,11 @@ graph TD
                     data-placeholder="Start writing... or type / for quick-insert options (table, image, code, callouts, headings...)"
                     spellCheck
                     onMouseDown={handleEditorMouseDown}
+                    onMouseUp={saveSelection}
+                    onKeyUp={saveSelection}
+                    onFocus={saveSelection}
                     onKeyDown={handleEditorKeyDown}
-                    onInput={handleEditorInput}
+                    onInput={(e) => { handleEditorInput(); saveSelection(); }}
                   />
 
                   {/* ── TABLE CONTEXT TOOLBAR ── */}
@@ -1335,6 +1336,7 @@ graph TD
                                   key={`${r}-${c}`}
                                   className={`tb-size-cell ${r <= pickerHover.r && c <= pickerHover.c ? "active" : ""}`}
                                   onMouseEnter={() => setPickerHover({ r, c })}
+                                  onMouseDown={(e) => e.preventDefault()}
                                   onClick={() => { insertTableSized(pickerHover.r + 1, pickerHover.c + 1); setPickerHover({ r: 0, c: 0 }); closeSlash(); }}
                                 />
                               ))
