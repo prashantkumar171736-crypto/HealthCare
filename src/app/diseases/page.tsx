@@ -141,6 +141,14 @@ export default async function DiseasesPage({
         .toArray();
     }
 
+    // Map diseases to ensure overview is clean text
+    const mappedDiseases = diseaseList.map((disease: any) => ({
+      name: disease.name,
+      slug: disease.slug,
+      categories: disease.categories,
+      overview: stripHtml(disease.overview || "").substring(0, 160) + "...",
+    }));
+
     // Map posts to unified DiseaseItem structure
     const mappedPosts = postList.map((post: any) => ({
       name: post.title,
@@ -152,7 +160,7 @@ export default async function DiseasesPage({
     // Combine and sort by relevance if there is a search query, else alphabetically
     if (searchQuery) {
       const words = searchQuery.trim().split(/\s+/).filter(Boolean);
-      const scored = [...diseaseList, ...mappedPosts].map((item: any) => {
+      const scored = [...mappedDiseases, ...mappedPosts].map((item: any) => {
         let score = 0;
         const lowerQuery = searchQuery.toLowerCase();
         const lowerName = item.name.toLowerCase();
@@ -186,7 +194,7 @@ export default async function DiseasesPage({
         .sort((a, b) => b.score - a.score || a.item.name.localeCompare(b.item.name))
         .map(r => r.item);
     } else {
-      diseases = [...diseaseList, ...mappedPosts].sort((a, b) =>
+      diseases = [...mappedDiseases, ...mappedPosts].sort((a, b) =>
         a.name.localeCompare(b.name)
       );
     }

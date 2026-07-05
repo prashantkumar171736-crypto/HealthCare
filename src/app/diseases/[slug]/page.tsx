@@ -334,7 +334,7 @@ export default async function DiseaseDetailPage({ params }: PageProps) {
       <section className="disease-page-header">
         <div className="container">
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.75rem" }}>
-            {serializedDisease.categories.map((catSlug: string) => (
+            {(serializedDisease.categories || []).map((catSlug: string) => (
               <Link key={catSlug} href={`/diseases/category/${catSlug}`} className="disease-badge">
                 {categoryNames[catSlug] || catSlug}
               </Link>

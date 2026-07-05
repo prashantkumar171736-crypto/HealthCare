@@ -121,7 +121,9 @@ export default function DiseaseDetailClient({
             <p style={{ marginBottom: "1.5rem" }}>
               Symptoms of {disease.name} can range from mild to severe, and they may vary significantly from person to person. Common symptoms include:
             </p>
-            {typeof disease.symptoms === "string" ? (
+            {!disease.symptoms ? (
+              <p className="text-muted">Information not available yet.</p>
+            ) : typeof disease.symptoms === "string" ? (
               <div className="doc-content" dangerouslySetInnerHTML={{ __html: disease.symptoms }} />
             ) : (
               <ul className="disease-list">
@@ -144,7 +146,9 @@ export default function DiseaseDetailClient({
             <p style={{ marginBottom: "1.5rem" }}>
               Understanding what causes {disease.name} is key to both treatment and prevention. The primary causes include:
             </p>
-            {typeof disease.causes === "string" ? (
+            {!disease.causes ? (
+              <p className="text-muted">Information not available yet.</p>
+            ) : typeof disease.causes === "string" ? (
               <div className="doc-content" dangerouslySetInnerHTML={{ __html: disease.causes }} />
             ) : (
               <ul className="disease-list">
@@ -158,7 +162,9 @@ export default function DiseaseDetailClient({
             <p style={{ marginBottom: "1.5rem" }}>
               Certain factors can increase your likelihood of developing {disease.name}. These include:
             </p>
-            {typeof disease.riskFactors === "string" ? (
+            {!disease.riskFactors ? (
+              <p className="text-muted">Information not available yet.</p>
+            ) : typeof disease.riskFactors === "string" ? (
               <div className="doc-content" dangerouslySetInnerHTML={{ __html: disease.riskFactors }} />
             ) : (
               <ul className="disease-list">
@@ -175,11 +181,15 @@ export default function DiseaseDetailClient({
             <p style={{ marginBottom: "1.5rem" }}>
               Getting an accurate diagnosis is the first step in managing {disease.name}. Doctors utilize a combination of clinical assessments and diagnostic testing:
             </p>
-            <div
-              className="doc-content"
-              style={{ padding: "1.25rem", backgroundColor: "var(--background)", borderRadius: "var(--radius-lg)", borderLeft: "4px solid var(--primary)" }}
-              dangerouslySetInnerHTML={{ __html: disease.diagnosis }}
-            />
+            {disease.diagnosis ? (
+              <div
+                className="doc-content"
+                style={{ padding: "1.25rem", backgroundColor: "var(--background)", borderRadius: "var(--radius-lg)", borderLeft: "4px solid var(--primary)" }}
+                dangerouslySetInnerHTML={{ __html: disease.diagnosis }}
+              />
+            ) : (
+              <p className="text-muted">Information not available yet.</p>
+            )}
           </section>
 
           {/* Treatments Section */}
@@ -188,7 +198,9 @@ export default function DiseaseDetailClient({
             <p style={{ marginBottom: "1.5rem" }}>
               While some conditions can be cured, others are managed to control symptoms and improve quality of life. Standard treatment protocols for {disease.name} include:
             </p>
-            {typeof disease.treatmentOptions === "string" ? (
+            {!disease.treatmentOptions ? (
+              <p className="text-muted">Information not available yet.</p>
+            ) : typeof disease.treatmentOptions === "string" ? (
               <div className="doc-content" dangerouslySetInnerHTML={{ __html: disease.treatmentOptions }} />
             ) : (
               <ul className="disease-list">
@@ -205,11 +217,15 @@ export default function DiseaseDetailClient({
             <p style={{ marginBottom: "1.5rem" }}>
               In many instances, adopting key healthy habits and reducing exposure to risk factors can prevent or delay the onset of {disease.name}:
             </p>
-            <div
-              className="doc-content"
-              style={{ padding: "1.25rem", backgroundColor: "var(--primary-light)", borderRadius: "var(--radius-lg)", color: "var(--text-main)" }}
-              dangerouslySetInnerHTML={{ __html: disease.prevention }}
-            />
+            {disease.prevention ? (
+              <div
+                className="doc-content"
+                style={{ padding: "1.25rem", backgroundColor: "var(--primary-light)", borderRadius: "var(--radius-lg)", color: "var(--text-main)" }}
+                dangerouslySetInnerHTML={{ __html: disease.prevention }}
+              />
+            ) : (
+              <p className="text-muted">Information not available yet.</p>
+            )}
           </section>
 
           {/* FAQ Section */}
