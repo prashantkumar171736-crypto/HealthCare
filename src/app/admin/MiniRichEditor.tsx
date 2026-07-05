@@ -9,6 +9,7 @@ interface MiniRichEditorProps {
   placeholder?: string;
   minHeight?: string;
 }
+// NOTE: Removed invalid hook declaration here. Slash menu state is managed by existing slashOpen, slashPos, etc. Hooks must be inside the component.
 
 // Curated emoji / icon panel — medical, symbols, decorative
 const EMOJI_GROUPS = [
@@ -343,7 +344,6 @@ export default function MiniRichEditor({
     exec("fontName", font === "Default" ? "inherit" : font);
   };
 
-  // ── Toolbar button helper ─────────────────────────────────────────────────
   const Btn = ({
     children, title, onClick, active = false,
   }: { children: React.ReactNode; title: string; onClick: () => void; active?: boolean }) => (
@@ -473,7 +473,7 @@ export default function MiniRichEditor({
           <button
             type="button"
             title="Insert Image"
-            onMouseDown={(e) => { e.preventDefault(); saveSelection(); mediaInsertRangeRef.current = savedSelRef.current; fileInputRef.current?.click(); }}
+            onMouseDown={(e) => { e.preventDefault(); saveSelection(); fileInputRef.current?.click(); }}
             style={{ padding: "4px 7px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", cursor: "pointer", fontSize: "12px", lineHeight: 1.4 }}
           >
             🖼️
@@ -487,7 +487,7 @@ export default function MiniRichEditor({
           <button
             type="button"
             title="Insert GIF"
-            onMouseDown={(e) => { e.preventDefault(); saveSelection(); mediaInsertRangeRef.current = savedSelRef.current; gifInputRef.current?.click(); }}
+            onMouseDown={(e) => { e.preventDefault(); saveSelection(); gifInputRef.current?.click(); }}
             style={{ padding: "4px 7px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", cursor: "pointer", fontSize: "12px", fontWeight: 700, lineHeight: 1.4 }}
           >
             GIF
@@ -550,13 +550,6 @@ export default function MiniRichEditor({
               {/* Header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                 <span style={{ fontWeight: 700, fontSize: "13px", color: "var(--text-main)" }}>😊 Emoji & Icons</span>
-                <div style={{ display: "flex", gap: "4px" }}>
-                  <button type="button" title="Insert as inline icon (favicon style)"
-                    style={{ fontSize: "10px", padding: "2px 6px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--background)", color: "var(--text-muted)", cursor: "pointer" }}
-                    onClick={() => {}}>
-                    📌 Icon mode
-                  </button>
-                </div>
               </div>
 
               {/* Tabs */}
