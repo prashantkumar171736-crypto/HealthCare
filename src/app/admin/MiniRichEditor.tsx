@@ -56,6 +56,7 @@ export default function MiniRichEditor({
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const savedSelRef = useRef<Range | null>(null);
+  const mediaInsertRangeRef = useRef<Range | null>(null);
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [hoverCell, setHoverCell] = useState({ r: 0, c: 0 });
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -166,6 +167,7 @@ export default function MiniRichEditor({
       }
     }
     saveSelection();
+    mediaInsertRangeRef.current = savedSelRef.current;
     editorRef.current?.focus();
 
     switch (id) {
@@ -275,7 +277,7 @@ export default function MiniRichEditor({
   };
 
   const insertMediaHtml = (src: string, isGif: boolean) => {
-    restoreSelection();
+    restoreSelection(mediaInsertRangeRef.current);
     editorRef.current?.focus();
     const style = isGif
       ? "max-width:100%;border-radius:8px;margin:0.5rem 0;"
@@ -285,6 +287,7 @@ export default function MiniRichEditor({
       false,
       `<img src="${src}" alt="${isGif ? "gif" : "image"}" style="${style}" />`
     );
+    mediaInsertRangeRef.current = null;
     notifyChange();
   };
 
@@ -470,7 +473,7 @@ export default function MiniRichEditor({
           <button
             type="button"
             title="Insert Image"
-            onMouseDown={(e) => { e.preventDefault(); saveSelection(); fileInputRef.current?.click(); }}
+            onMouseDown={(e) => { e.preventDefault(); saveSelection(); mediaInsertRangeRef.current = savedSelRef.current; fileInputRef.current?.click(); }}
             style={{ padding: "4px 7px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", cursor: "pointer", fontSize: "12px", lineHeight: 1.4 }}
           >
             🖼️
@@ -484,7 +487,7 @@ export default function MiniRichEditor({
           <button
             type="button"
             title="Insert GIF"
-            onMouseDown={(e) => { e.preventDefault(); saveSelection(); gifInputRef.current?.click(); }}
+            onMouseDown={(e) => { e.preventDefault(); saveSelection(); mediaInsertRangeRef.current = savedSelRef.current; gifInputRef.current?.click(); }}
             style={{ padding: "4px 7px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", cursor: "pointer", fontSize: "12px", fontWeight: 700, lineHeight: 1.4 }}
           >
             GIF
@@ -611,7 +614,7 @@ export default function MiniRichEditor({
           ref={editorRef}
           contentEditable
           suppressContentEditableWarning
-          onFocus={() => { setIsFocused(true); saveSelection(); }}
+          onFocus={() => { setIsFocused(true); }}
           onBlur={() => { setIsFocused(false); notifyChange(); }}
           onMouseUp={saveSelection}
           onKeyUp={saveSelection}

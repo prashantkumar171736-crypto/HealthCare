@@ -140,6 +140,7 @@ export default function PostEditor() {
   const [linkUrl, setLinkUrl] = useState("");
   const [showLinkModal, setShowLinkModal] = useState(false);
   const savedSelectionRef = useRef<Range | null>(null);
+  const mediaInsertRangeRef = useRef<Range | null>(null);
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashPos, setSlashPos] = useState({ top: 0, left: 0 });
   const [slashQuery, setSlashQuery] = useState("");
@@ -280,11 +281,12 @@ graph TD
   );
 
   const insertImageHtml = (src: string, alt = "Uploaded image") => {
-    restoreSelection();
+    restoreSelection(mediaInsertRangeRef.current);
     editorRef.current?.focus();
     exec("insertHTML",
       `<img src="${src}" alt="${alt}" style="max-width:100%;width:100%;border-radius:8px;margin:0.5rem 0;display:block;cursor:pointer;" data-resizable="1"/><p><br></p>`
     );
+    mediaInsertRangeRef.current = null;
   };
 
   const handleInsertLink = () => { saveSelection(); setLinkUrl(""); setShowLinkModal(true); };
@@ -535,6 +537,7 @@ graph TD
       }
     }
     saveSelection();
+    mediaInsertRangeRef.current = savedSelectionRef.current;
     editorRef.current?.focus();
 
     switch (id) {
@@ -1242,8 +1245,8 @@ graph TD
                       </div>
                     </div>
                     <button title="Insert Link" onClick={handleInsertLink} className="tb-btn" id="tb-link">🔗 Link</button>
-                    <button title="Insert Image" onClick={() => { saveSelection(); fileInputRef.current?.click(); }} className="tb-btn" id="tb-image">🖼️ Image</button>
-                    <button title="Insert Animated GIF" onClick={() => { saveSelection(); gifInputRef.current?.click(); }} className="tb-btn" id="tb-gif">🎞️ GIF</button>
+                    <button title="Insert Image" onClick={() => { saveSelection(); mediaInsertRangeRef.current = savedSelectionRef.current; fileInputRef.current?.click(); }} className="tb-btn" id="tb-image">🖼️ Image</button>
+                    <button title="Insert Animated GIF" onClick={() => { saveSelection(); mediaInsertRangeRef.current = savedSelectionRef.current; gifInputRef.current?.click(); }} className="tb-btn" id="tb-gif">🎞️ GIF</button>
                   </div>
                   <div className="toolbar-sep" />
                   <div className="toolbar-group">
@@ -1279,7 +1282,7 @@ graph TD
                     onMouseDown={handleEditorMouseDown}
                     onMouseUp={saveSelection}
                     onKeyUp={saveSelection}
-                    onFocus={saveSelection}
+                    onFocus={() => {}}
                     onKeyDown={handleEditorKeyDown}
                     onInput={(e) => { handleEditorInput(); saveSelection(); }}
                   />
