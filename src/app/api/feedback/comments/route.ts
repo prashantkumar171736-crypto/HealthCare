@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { randomUUID } from "crypto";
+import { runAutoClean } from "../settings/route";
 
 export async function GET() {
   try {
     const db = await getDb();
+    
+    // Auto clean before fetching
+    const settings = await db.collection("settings").findOne({ key: "comment_settings" });
+    if (settings && settings.autoCleanVal) {
+      await runAutoClean(db, settings.autoCleanVal);
+    }
+
     const comments = await db
       .collection("feedback_comments")
       .find({})

@@ -32,6 +32,7 @@ function timeAgo(dateStr: string): string {
 
 export default function CommentsManager() {
   const [comments, setComments] = useState<Comment[]>([]);
+  const [autoCleanVal, setAutoCleanVal] = useState("disable");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -39,25 +40,67 @@ export default function CommentsManager() {
   const [posting, setPosting] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   const fetchComments = useCallback(async () => {
-    setLoading(true);
     try {
       const res = await fetch("/api/feedback/comments", { cache: "no-store" });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to load");
+      if (!res.ok) throw new Error(json.error || "Failed to load comments");
       setComments(json.comments);
-      setError("");
     } catch (err: any) {
       setError(err.message);
-    } finally {
-      setLoading(false);
+    }
+  }, []);
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/feedback/settings", { cache: "no-store" });
+      const json = await res.json();
+      if (res.ok && json.settings) {
+        setAutoCleanVal(json.settings.autoCleanVal || "disable");
+      }
+    } catch (err) {
+      console.error("Failed to load comment settings", err);
     }
   }, []);
 
   useEffect(() => {
-    fetchComments();
-  }, [fetchComments]);
+    const init = async () => {
+      setLoading(true);
+      await Promise.all([fetchComments(), fetchSettings()]);
+      setLoading(false);
+    };
+    init();
+  }, [fetchComments, fetchSettings]);
+
+  const handleSaveSetting = async (val: string) => {
+    setAutoCleanVal(val);
+    setSavingSettings(true);
+    setError("");
+    try {
+      const res = await fetch("/api/feedback/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoCleanVal: val }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to save settings");
+      
+      let msg = "Settings updated successfully ✓";
+      if (json.deletedCount > 0) {
+        msg += ` (${json.deletedCount} old comments deleted)`;
+      }
+      setSuccessMsg(msg);
+      setTimeout(() => setSuccessMsg(null), 4000);
+      
+      await fetchComments();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const handleAdminReply = async (commentId: string) => {
     const content = replyText[commentId]?.trim();
@@ -130,6 +173,34 @@ export default function CommentsManager() {
         <button className="btn-refresh" onClick={fetchComments} style={{ height: "fit-content" }}>
           🔄 Refresh
         </button>
+      </div>
+
+      {/* Community Comment Control Setting */}
+      <div className="cm-settings-card">
+        <h3 className="cm-settings-title">💬 Community Comment Control Setting</h3>
+        <p className="cm-settings-desc">
+          Automatically clean and delete older comments and replies from the database and website interface.
+        </p>
+        <div className="cm-settings-action">
+          <label htmlFor="auto-clean-select" className="cm-settings-label-inline">Auto Clean Up Mode:</label>
+          <select
+            id="auto-clean-select"
+            className="cm-settings-select"
+            value={autoCleanVal}
+            onChange={(e) => handleSaveSetting(e.target.value)}
+            disabled={savingSettings}
+          >
+            <option value="disable">Disable</option>
+            <option value="12h">Older than 12 Hours</option>
+            <option value="24h">Older than 24 Hours</option>
+            <option value="1w">Older than 1 Week</option>
+            <option value="1m">Older than 1 Month</option>
+            <option value="3m">Older than 3 Months</option>
+            <option value="6m">Older than 6 Months</option>
+            <option value="1y">Older than 1 Year</option>
+          </select>
+          {savingSettings && <span className="cm-settings-status">Saving settings…</span>}
+        </div>
       </div>
 
       {successMsg && (
@@ -492,6 +563,55 @@ export default function CommentsManager() {
         }
         @keyframes spin {
           to { transform: rotate(360deg); }
+        }
+        .cm-settings-card {
+          background: #0b0f19;
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 12px;
+          padding: 1.5rem;
+          margin-bottom: 1.5rem;
+        }
+        .cm-settings-title {
+          font-size: 1.1rem;
+          font-weight: 700;
+          color: #fff;
+          margin: 0 0 0.4rem;
+        }
+        .cm-settings-desc {
+          color: #9ca3af;
+          font-size: 0.85rem;
+          margin-bottom: 1.25rem;
+        }
+        .cm-settings-action {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          flex-wrap: wrap;
+        }
+        .cm-settings-label-inline {
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: #e5e7eb;
+        }
+        .cm-settings-select {
+          background: #1f2937;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          color: #fff;
+          padding: 0.5rem 1rem;
+          border-radius: 6px;
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          outline: none;
+          min-width: 200px;
+        }
+        .cm-settings-select:focus {
+          border-color: #00c896;
+        }
+        .cm-settings-status {
+          font-size: 0.85rem;
+          color: #9ca3af;
+          font-style: italic;
         }
       `}</style>
     </div>
