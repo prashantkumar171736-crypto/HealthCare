@@ -327,6 +327,107 @@ export default function MiniRichEditor({
     notifyChange();
   };
 
+  const handlePaste = async (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    // Check for direct file paste (e.g. screenshot or copied file)
+    let fileImage: File | null = null;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === "file" && item.type.startsWith("image/")) {
+        fileImage = item.getAsFile();
+        break;
+      }
+    }
+
+    if (fileImage) {
+      e.preventDefault();
+      saveSelection();
+      mediaInsertRangeRef.current = savedSelRef.current;
+      await handleMediaFile(fileImage);
+      return;
+    }
+
+    // Check for rich text HTML containing base64 images
+    const html = e.clipboardData.getData("text/html");
+    if (html && html.includes("data:image/")) {
+      e.preventDefault();
+      saveSelection();
+      mediaInsertRangeRef.current = savedSelRef.current;
+
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const imgs = Array.from(doc.querySelectorAll("img"));
+
+      for (const img of imgs) {
+        const src = img.getAttribute("src") || "";
+        if (src.startsWith("data:image/")) {
+          try {
+            // Convert base64 to File
+            const response = await fetch(src);
+            const blob = await response.blob();
+            const mimeType = blob.type || "image/png";
+            const ext = mimeType.split("/")[1] || "png";
+            const file = new File([blob], `pasted-image-${Date.now()}.${ext}`, { type: mimeType });
+
+            // Upload using the same logic as handleMediaFile
+            const isGif = mimeType === "image/gif";
+            const shouldCompress = file.size > 500 * 1024 && !isGif;
+            let uploadFile = file;
+            if (shouldCompress) {
+              const compressImage = (originalFile: File): Promise<File> => {
+                return new Promise((resolve) => {
+                  const imageObj = new Image();
+                  imageObj.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const maxWidth = 1200;
+                    const scale = Math.min(maxWidth / imageObj.width, 1);
+                    canvas.width = imageObj.width * scale;
+                    canvas.height = imageObj.height * scale;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) ctx.drawImage(imageObj, 0, 0, canvas.width, canvas.height);
+                    canvas.toBlob(
+                      (b) => {
+                        if (b) {
+                          resolve(new File([b], originalFile.name, { type: originalFile.type, lastModified: Date.now() }));
+                        } else {
+                          resolve(originalFile);
+                        }
+                      },
+                      originalFile.type,
+                      0.8
+                    );
+                  };
+                  imageObj.onerror = () => resolve(originalFile);
+                  imageObj.src = URL.createObjectURL(originalFile);
+                });
+              };
+              uploadFile = await compressImage(file);
+            }
+
+            const formData = new FormData();
+            formData.append("file", uploadFile);
+            const uploadRes = await fetch("/api/admin/upload", { method: "POST", body: formData });
+            if (uploadRes.ok) {
+              const uploadData = await uploadRes.json();
+              img.setAttribute("src", uploadData.url);
+            }
+          } catch (err) {
+            console.error("Failed to upload inline base64 image", err);
+          }
+        }
+      }
+
+      // Restore selection and insert the updated HTML
+      restoreSelection(mediaInsertRangeRef.current);
+      editorRef.current?.focus();
+      document.execCommand("insertHTML", false, doc.body.innerHTML);
+      mediaInsertRangeRef.current = null;
+      notifyChange();
+    }
+  };
+
   // ── Emoji / Icon insert ──────────────────────────────────────────────────
   const insertEmoji = (emoji: string) => {
     restoreSelection();
@@ -648,6 +749,7 @@ export default function MiniRichEditor({
           onKeyUp={saveSelection}
           onKeyDown={handleEditorKeyDown}
           onInput={(e) => { handleEditorInput(); saveSelection(); notifyChange(); }}
+          onPaste={handlePaste}
           data-placeholder={placeholder}
           style={{
             minHeight,

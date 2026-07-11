@@ -665,8 +665,97 @@ graph TD
     }
   };
 
+  /**
+   * Scans every string field in an object for base64-encoded image data URLs,
+   * uploads each one to MongoDB via /api/admin/upload, and replaces the
+   * data:image/... string with the hosted /api/admin/upload/<id> URL.
+   * This keeps the JSON payload within Vercel's 4.5 MB function body limit.
+   */
+  const sanitizeBase64Images = async (payload: Record<string, any>): Promise<Record<string, any>> => {
+    // Upload a single base64 data URL and return the hosted URL
+    const uploadBase64 = async (dataUrl: string): Promise<string> => {
+      try {
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const mimeType = blob.type || "image/png";
+        const ext = mimeType.split("/")[1] || "png";
+        let uploadBlob: Blob = blob;
+
+        // Compress non-GIF images > 500KB
+        if (mimeType !== "image/gif" && blob.size > 500 * 1024) {
+          uploadBlob = await new Promise<Blob>((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement("canvas");
+              const scale = Math.min(1200 / img.width, 1);
+              canvas.width = img.width * scale;
+              canvas.height = img.height * scale;
+              const ctx = canvas.getContext("2d");
+              if (ctx) ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              canvas.toBlob((b) => resolve(b || blob), mimeType, 0.82);
+            };
+            img.onerror = () => resolve(blob);
+            img.src = URL.createObjectURL(blob);
+          });
+        }
+
+        const file = new File([uploadBlob], `embedded-image-${Date.now()}.${ext}`, { type: mimeType });
+        const formData = new FormData();
+        formData.append("file", file);
+        const uploadRes = await fetch("/api/admin/upload", { method: "POST", body: formData });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          return uploadData.url as string;
+        }
+      } catch (err) {
+        console.error("sanitizeBase64Images: upload failed", err);
+      }
+      return dataUrl; // fallback: keep original if upload fails
+    };
+
+    // Replace all base64 images inside an HTML string
+    const processHtml = async (html: string): Promise<string> => {
+      if (!html || !html.includes("data:image/")) return html;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const imgs = Array.from(doc.querySelectorAll("img"));
+      for (const img of imgs) {
+        const src = img.getAttribute("src") || "";
+        if (src.startsWith("data:image/")) {
+          const hostedUrl = await uploadBase64(src);
+          img.setAttribute("src", hostedUrl);
+        }
+      }
+      return doc.body.innerHTML;
+    };
+
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(payload)) {
+      if (typeof value === "string") {
+        result[key] = await processHtml(value);
+      } else if (Array.isArray(value)) {
+        // Arrays may contain objects with HTML fields (e.g. FAQ items)
+        result[key] = await Promise.all(
+          value.map(async (item) => {
+            if (typeof item === "object" && item !== null) {
+              return await sanitizeBase64Images(item);
+            }
+            if (typeof item === "string") {
+              return await processHtml(item);
+            }
+            return item;
+          })
+        );
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
+  };
+
+
   const handleUpload = async () => {
-    const payload = preparePayload();
+    let payload = preparePayload();
     
     // Simple Validation
     if (contentType === "posts" && (!title.trim() || !(payload as any).content)) {
@@ -694,6 +783,9 @@ graph TD
     setUploading(true);
     setUploadMsg(null);
     try {
+      // Sanitize: extract any base64 images, upload them, replace with hosted URLs
+      payload = await sanitizeBase64Images(payload as Record<string, any>) as typeof payload;
+
       const res = await fetch(`/api/admin/content?type=${contentType}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -716,11 +808,15 @@ graph TD
 
   const handleUpdate = async () => {
     if (!editingItem) return;
-    const payload = preparePayload();
+    let payload = preparePayload();
 
     setUploading(true);
     setUploadMsg(null);
     try {
+      // Sanitize: extract any base64 images, upload them, replace with hosted URLs
+      // This prevents FUNCTION_PAYLOAD_TOO_LARGE (413) errors on Vercel
+      payload = await sanitizeBase64Images(payload as Record<string, any>) as typeof payload;
+
       const res = await fetch(`/api/admin/content?type=${contentType}&id=${editingItem._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -741,6 +837,7 @@ graph TD
       setUploading(false);
     }
   };
+
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this item permanently?")) return;
