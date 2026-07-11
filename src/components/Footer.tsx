@@ -16,9 +16,9 @@ const FOOTER_STRINGS = {
   privacy: "Privacy Policy",
   terms: "Terms & Conditions",
   disclaimer: "Medical Disclaimer",
-  contact: "Contact",
-  contactDesc: "Have feedback or questions?",
-  emailUs: "Email Us",
+  contact: "Contact Us",
+  contactDesc: "Share your thoughts, suggestions, or questions with our community.",
+  commentsFeedback: "Comment / Feedback",
   medicalDisclaimerTitle: "Medical Disclaimer:",
   medicalDisclaimerText: "The content provided on HealthEdu is for educational and informational purposes only. It is not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition. Never disregard professional medical advice or delay in seeking it because of something you have read on this website.",
   rightsReserved: "All rights reserved. Built for Healthcare Education.",
@@ -90,15 +90,18 @@ export default function Footer() {
           </ul>
         </div>
 
-        {/* Col 4: Platform */}
+        {/* Col 4: Contact Us */}
         <div>
           <h4 className="footer-col-title">{t("contact")}</h4>
-          <p className="text-muted" style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
+          <p className="text-muted" style={{ fontSize: "0.9rem", marginBottom: "0.75rem" }}>
             {t("contactDesc")}
           </p>
-          <a href="mailto:info@healthedu.org" className="btn btn-secondary btn-sm" style={{ marginTop: "0.5rem" }}>
-            {t("emailUs")}
-          </a>
+          <Link href="/feedback" className="btn btn-primary btn-sm" style={{ marginTop: "0.5rem", display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            {t("commentsFeedback")}
+          </Link>
         </div>
       </div>
 

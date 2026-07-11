@@ -1571,3 +1571,445 @@ h4 { font-size: 1.25rem; }
   color: var(--text-light);
   margin-top: 0.5rem;
 }
+
+/* ──────────────────────────────────────────────────────────────────────────────
+   COMMUNITY FEEDBACK & COMMENT STYLES
+   ────────────────────────────────────────────────────────────────────────────── */
+
+.feedback-page {
+  background-color: var(--background);
+  min-height: 80vh;
+}
+
+/* Feedback Hero Banner */
+.feedback-hero {
+  padding: 4rem 0 3.5rem;
+  text-align: center;
+  background: radial-gradient(circle at top, var(--primary-glow), transparent 70%);
+  border-bottom: 1px solid var(--border);
+}
+
+.feedback-hero-inner {
+  max-width: 700px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.feedback-hero-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  line-height: 1;
+}
+
+.feedback-hero-title {
+  font-size: 2.75rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+  color: var(--text-main);
+  letter-spacing: -0.03em;
+}
+
+.feedback-hero-subtitle {
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.feedback-hero-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+}
+
+/* Container spacing */
+.feedback-comments-section {
+  padding: 4rem 0;
+}
+
+/* Wrapper Grid: Forms and Comments list */
+.cf-wrapper {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .cf-wrapper {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Cards & Layout */
+.cf-new-comment-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: calc(var(--nav-height) + 20px);
+}
+
+.cf-new-comment-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text-main);
+}
+
+.cf-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.cf-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--border);
+}
+
+.cf-list-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text-main);
+}
+
+.cf-count-badge {
+  background-color: var(--primary-light);
+  color: var(--primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-full);
+}
+
+/* Form elements */
+.cf-form-group {
+  margin-bottom: 1.25rem;
+}
+
+.cf-label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-main);
+}
+
+.cf-required {
+  color: var(--danger);
+}
+
+.cf-input,
+.cf-textarea {
+  width: 100%;
+  background-color: var(--background);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  outline: none;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.cf-input:focus,
+.cf-textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+  background-color: var(--surface);
+}
+
+.cf-textarea-sm {
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.cf-char-count {
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--text-light);
+  margin-top: 0.25rem;
+}
+
+/* Alerts */
+.cf-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  font-weight: 500;
+  margin-bottom: 1.25rem;
+}
+
+.cf-alert-error {
+  background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+}
+
+.cf-alert-success {
+  background-color: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: var(--success);
+}
+
+/* Comment Thread Styles */
+.cf-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.cf-comment-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 1.75rem;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease;
+}
+
+.cf-comment-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.cf-comment-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.cf-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+}
+
+.cf-comment-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.cf-comment-author {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+.cf-comment-time {
+  font-size: 0.8rem;
+  color: var(--text-light);
+}
+
+.cf-comment-text {
+  font-size: 1.05rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  margin-bottom: 1.25rem;
+  word-break: break-word;
+}
+
+/* Action buttons */
+.cf-comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.85rem;
+}
+
+.cf-action-btn {
+  background: none;
+  border: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.cf-action-btn:hover {
+  background-color: var(--primary-light);
+}
+
+.cf-action-btn-muted {
+  color: var(--text-muted);
+}
+.cf-action-btn-muted:hover {
+  background-color: var(--surface-hover);
+}
+
+/* Replies List */
+.cf-replies-list {
+  margin-top: 1.25rem;
+  padding-left: 1.5rem;
+  border-left: 3px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cf-reply-card {
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+}
+
+.cf-reply-admin {
+  background-color: var(--primary-light);
+  border-color: rgba(13, 148, 136, 0.25);
+}
+
+.cf-reply-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cf-reply-author {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 0.92rem;
+}
+
+.cf-reply-time {
+  font-size: 0.78rem;
+  color: var(--text-light);
+}
+
+.cf-reply-text {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Admin badge */
+.cf-admin-badge {
+  background-color: var(--primary);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  box-shadow: 0 1px 2px rgba(13, 148, 136, 0.25);
+}
+
+/* Inline Collapsible Reply Form */
+.cf-reply-form {
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  background-color: var(--background);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cf-reply-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cf-reply-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cf-error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Loading & Empty States */
+.cf-loading {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--text-muted);
+}
+
+.cf-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3.5px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: var(--radius-full);
+  animation: cf-spin 0.8s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+.cf-empty {
+  text-align: center;
+  padding: 5rem 2rem;
+  border: 2.5px dashed var(--border);
+  border-radius: var(--radius-xl);
+  color: var(--text-muted);
+}
+
+.cf-empty-icon {
+  font-size: 3.5rem;
+  margin-bottom: 1rem;
+  opacity: 0.7;
+}
+
+.cf-empty h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--text-main);
+}
+
+.cf-link-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}

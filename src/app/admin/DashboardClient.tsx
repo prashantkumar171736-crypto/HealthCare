@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PostEditor from "./PostEditor";
 import DonationSettings from "./DonationSettings";
+import CommentsManager from "./CommentsManager";
 import { useLanguage } from "@/context/LanguageContext";
 import { LANG_MAP } from "@/lib/detectLanguage";
 
@@ -72,7 +73,7 @@ export default function DashboardClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [clearing, setClearing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation" | "comments">("overview");
   const router = useRouter();
   const { lang, setLangByCode } = useLanguage();
 
@@ -272,6 +273,12 @@ export default function DashboardClient() {
             onClick={() => setActiveTab("donation")}
           >
             💰 Donation Settings
+          </button>
+          <button
+            className={`nav-item ${activeTab === "comments" ? "active" : ""}`}
+            onClick={() => setActiveTab("comments")}
+          >
+            💬 Community Comments
           </button>
         </nav>
 
@@ -576,6 +583,12 @@ export default function DashboardClient() {
         {activeTab === "donation" && (
           <div className="panel-card full-panel">
             <DonationSettings />
+          </div>
+        )}
+        
+        {activeTab === "comments" && (
+          <div className="panel-card full-panel">
+            <CommentsManager />
           </div>
         )}
       </main>
