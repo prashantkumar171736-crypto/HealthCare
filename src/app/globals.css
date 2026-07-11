@@ -1233,6 +1233,37 @@ h4 { font-size: 1.25rem; }
   text-align: center;
 }
 
+.footer-sitemap {
+  padding: 2rem 0;
+  border-top: 1px solid var(--border);
+  margin-bottom: 0.5rem;
+}
+
+.footer-sitemap-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+  color: var(--text-muted);
+}
+
+.footer-sitemap-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  font-size: 0.85rem;
+}
+
+.footer-sitemap-link {
+  color: var(--text-muted);
+}
+
+.footer-sitemap-link:hover {
+  color: var(--primary);
+}
+
+
 /* Stat Counters */
 .stats-section {
   padding: 3rem 0;

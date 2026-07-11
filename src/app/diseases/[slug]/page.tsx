@@ -21,34 +21,37 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   try {
     const db = await getDb();
     let disease = await db.collection("diseases").findOne({ slug });
-    
+
     if (!disease) {
-      // Check if it's a post
-      const post = await db.collection("posts").findOne({ 
+      const post = await db.collection("posts").findOne({
         $or: [
           { slug },
           { title: { $regex: new RegExp(`^${slug.replace(/-/g, " ")}$`, "i") } }
         ]
       });
       if (post) {
+        const desc = stripHtml(post.content).substring(0, 155) + "...";
         return {
           title: `${post.title} | Rog Care Hindi`,
-          description: stripHtml(post.content).substring(0, 155) + "...",
-          alternates: {
-            canonical: `/diseases/${slug}`,
-          },
+          description: desc,
+          keywords: [post.title, "health guide", "medical article", "Rog Care Hindi", "rogcarehindi", "स्वास्थ्य", "बीमारी"],
+          alternates: { canonical: `/diseases/${slug}` },
           openGraph: {
             title: `${post.title} | Rog Care Hindi`,
-            description: stripHtml(post.content).substring(0, 155) + "...",
+            description: desc,
             url: `https://rogcarehindi.vercel.app/diseases/${slug}`,
             siteName: "Rog Care Hindi",
             type: "article",
+            images: [{ url: "/logo.png", width: 1200, height: 630, alt: post.title }],
+            publishedTime: post.createdAt ? new Date(post.createdAt).toISOString() : undefined,
+            modifiedTime: post.updatedAt ? new Date(post.updatedAt).toISOString() : undefined,
           },
           twitter: {
             card: "summary_large_image",
             title: `${post.title} | Rog Care Hindi`,
-            description: stripHtml(post.content).substring(0, 155) + "...",
-          }
+            description: desc,
+            images: ["/logo.png"],
+          },
         };
       }
       return {
@@ -58,32 +61,45 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
 
     const title = `${disease.name} - Symptoms, Causes, Treatment & Prevention | Rog Care Hindi`;
-    const description = disease.overview ? disease.overview.substring(0, 155) + "..." : `Learn about ${disease.name} clinical symptoms, risk factors, and treatments.`;
+    const description = disease.overview
+      ? stripHtml(disease.overview).substring(0, 155) + "..."
+      : `Learn about ${disease.name} — clinical symptoms, risk factors, diagnosis and treatments.`;
+
+    const keywords = [
+      disease.name,
+      `${disease.name} symptoms`,
+      `${disease.name} causes`,
+      `${disease.name} treatment`,
+      `${disease.name} prevention`,
+      `${disease.name} के लक्षण`,
+      `${disease.name} का इलाज`,
+      "healthcare education", "Rog Care Hindi", "rogcarehindi",
+      "रोग केयर हिंदी", "बीमारी की जानकारी",
+    ].filter(Boolean);
 
     return {
       title,
       description,
-      alternates: {
-        canonical: `/diseases/${slug}`,
-      },
+      keywords,
+      alternates: { canonical: `/diseases/${slug}` },
       openGraph: {
         title,
         description,
         url: `https://rogcarehindi.vercel.app/diseases/${slug}`,
         siteName: "Rog Care Hindi",
         type: "article",
+        images: [{ url: "/logo.png", width: 1200, height: 630, alt: disease.name }],
       },
       twitter: {
         card: "summary_large_image",
         title,
         description,
-      }
+        images: ["/logo.png"],
+      },
     };
   } catch (error) {
     console.error("Metadata Generation Error:", error);
-    return {
-      title: "Disease Details | Rog Care Hindi",
-    };
+    return { title: "Disease Details | Rog Care Hindi" };
   }
 }
 

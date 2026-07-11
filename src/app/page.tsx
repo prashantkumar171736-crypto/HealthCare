@@ -7,9 +7,38 @@ export const revalidate = 3600; // Cache page for 1 hour
 
 export const metadata: Metadata = {
   title: "Rog Care Hindi | Your Trusted Health Education Resource",
-  description: "Learn about diseases, symptoms, causes, diagnoses, prevention strategies, and healthy living in Hindi and English. Access verified medical guides.",
+  description:
+    "Learn about diseases, symptoms, causes, diagnoses, prevention strategies, and healthy living in Hindi and English. Access verified, peer-reviewed medical guides.",
+  keywords: [
+    "Rog Care Hindi", "rogcarehindi", "health education", "medical directory",
+    "disease list", "healthy living tips", "symptom checker", "disease prevention",
+    "रोग केयर हिंदी", "बीमारी के लक्षण", "घरेलू उपचार", "स्वास्थ्य सलाह"
+  ],
   alternates: {
     canonical: "/",
+  },
+  openGraph: {
+    title: "Rog Care Hindi | Your Trusted Health Education Resource",
+    description:
+      "Learn about diseases, symptoms, causes, diagnoses, prevention strategies, and healthy living in Hindi and English. Access verified, peer-reviewed medical guides.",
+    url: "https://rogcarehindi.vercel.app",
+    siteName: "Rog Care Hindi",
+    type: "website",
+    images: [
+      {
+        url: "/logo.png",
+        width: 1200,
+        height: 630,
+        alt: "Rog Care Hindi — Home",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Rog Care Hindi | Your Trusted Health Education Resource",
+    description:
+      "Learn about diseases, symptoms, causes, diagnoses, prevention strategies, and healthy living in Hindi and English.",
+    images: ["/logo.png"],
   },
 };
 

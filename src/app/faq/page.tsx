@@ -31,23 +31,32 @@ const DEFAULT_FAQS = [
 
 export const metadata: Metadata = {
   title: "Frequently Asked Questions (FAQ) | Rog Care Hindi",
-  description: "Get answers to frequently asked questions about Rog Care Hindi (HealthEdu), including our editorial process, free medical guides, and non-profit support model.",
-  alternates: {
-    canonical: "/faq",
-  },
+  description:
+    "Get answers to frequently asked questions about Rog Care Hindi — our editorial process, free medical guides, donations, and healthcare content sourcing from WHO and NIH.",
+  keywords: [
+    "FAQ healthcare", "Rog Care Hindi FAQ", "health education questions",
+    "medical guide questions", "free health information", "rogcarehindi",
+    "स्वास्थ्य प्रश्न", "रोग केयर हिंदी सवाल",
+  ],
+  alternates: { canonical: "/faq" },
   openGraph: {
     title: "Frequently Asked Questions (FAQ) | Rog Care Hindi",
-    description: "Get answers to frequently asked questions about Rog Care Hindi (HealthEdu), including our editorial process, free medical guides, and non-profit support model.",
+    description:
+      "Get answers to frequently asked questions about Rog Care Hindi — editorial process, free medical guides, and healthcare content from WHO and NIH.",
     url: "https://rogcarehindi.vercel.app/faq",
     siteName: "Rog Care Hindi",
     type: "website",
+    images: [{ url: "/logo.png", width: 1200, height: 630, alt: "Rog Care Hindi FAQ" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Frequently Asked Questions (FAQ) | Rog Care Hindi",
-    description: "Get answers to frequently asked questions about Rog Care Hindi (HealthEdu), including our editorial process, free medical guides, and non-profit support model.",
+    description:
+      "Get answers about Rog Care Hindi's editorial process, free medical guides, and non-profit support model.",
+    images: ["/logo.png"],
   },
 };
+
 
 export default async function FAQPage() {
   let faqs = [];

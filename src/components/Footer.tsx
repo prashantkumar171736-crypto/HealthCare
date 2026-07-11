@@ -106,6 +106,21 @@ export default function Footer() {
       </div>
 
       <div className="container">
+        <div className="footer-sitemap">
+          <h4 className="footer-sitemap-title">Disease Categories &amp; Resources</h4>
+          <div className="footer-sitemap-links">
+            <Link href="/diseases/category/cancer" className="footer-sitemap-link">Cancer (कैंसर)</Link>
+            <Link href="/diseases/category/heart-diseases" className="footer-sitemap-link">Heart Diseases (हृदय रोग)</Link>
+            <Link href="/diseases/category/diabetes" className="footer-sitemap-link">Diabetes (मधुमेह)</Link>
+            <Link href="/diseases/category/respiratory-diseases" className="footer-sitemap-link">Respiratory Diseases (श्वास रोग)</Link>
+            <Link href="/health-tips" className="footer-sitemap-link">Health Tips (स्वास्थ्य सुझाव)</Link>
+            <Link href="/health-library" className="footer-sitemap-link">Health Library (चिकित्सा संदर्भ)</Link>
+            <Link href="/feedback" className="footer-sitemap-link">Community Forum (प्रतिक्रिया और चर्चा)</Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="container">
         <div className="footer-disclaimer">
           <p style={{ fontWeight: "600", marginBottom: "0.5rem" }}>⚠️ {t("medicalDisclaimerTitle")}</p>
           <p>

@@ -4,21 +4,29 @@ import HealthTipsClient from "./HealthTipsClient";
 
 export const metadata: Metadata = {
   title: "Health Tips & Wellness Guide | Rog Care Hindi",
-  description: "Evidence-based health tips covering nutrition, fitness, mental health, sleep hygiene, hydration, and disease prevention — sourced from WHO and NIH guidelines.",
-  alternates: {
-    canonical: "/health-tips",
-  },
+  description:
+    "Evidence-based health tips covering nutrition, fitness, mental health, sleep hygiene, hydration, and disease prevention — sourced from WHO and NIH guidelines.",
+  keywords: [
+    "health tips", "wellness guide", "nutrition tips", "fitness tips", "mental health tips",
+    "sleep hygiene", "disease prevention", "healthy lifestyle", "WHO health guidelines",
+    "NIH health tips", "Rog Care Hindi", "rogcarehindi",
+    "स्वास्थ्य टिप्स", "स्वस्थ जीवन", "पोषण", "मानसिक स्वास्थ्य", "व्यायाम",
+  ],
+  alternates: { canonical: "/health-tips" },
   openGraph: {
     title: "Health Tips & Wellness Guide | Rog Care Hindi",
-    description: "Evidence-based health tips covering nutrition, fitness, mental health, sleep hygiene, hydration, and disease prevention.",
+    description:
+      "Evidence-based health tips covering nutrition, fitness, mental health, sleep hygiene, hydration, and disease prevention — sourced from WHO and NIH.",
     url: "https://rogcarehindi.vercel.app/health-tips",
     siteName: "Rog Care Hindi",
     type: "website",
+    images: [{ url: "/logo.png", width: 1200, height: 630, alt: "Health Tips & Wellness — Rog Care Hindi" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Health Tips & Wellness Guide | Rog Care Hindi",
-    description: "Evidence-based health tips covering nutrition, fitness, mental health, sleep hygiene, hydration, and disease prevention.",
+    description: "Evidence-based health tips on nutrition, fitness, sleep, mental health, and disease prevention.",
+    images: ["/logo.png"],
   },
 };
 
@@ -310,5 +318,35 @@ export default async function HealthTipsPage() {
     tagColor: tip.tagColor,
   }));
 
-  return <HealthTipsClient tips={serializedTips} />;
+  const itemListJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": "Health Tips & Wellness Guide",
+    "description": "Evidence-based health tips from WHO and NIH guidelines",
+    "url": "https://rogcarehindi.vercel.app/health-tips",
+    "numberOfItems": serializedTips.length,
+    "itemListElement": serializedTips.map((tip, index) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "name": tip.title,
+      "description": tip.body,
+    })),
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://rogcarehindi.vercel.app" },
+      { "@type": "ListItem", "position": 2, "name": "Health Tips", "item": "https://rogcarehindi.vercel.app/health-tips" },
+    ],
+  };
+
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <HealthTipsClient tips={serializedTips} />
+    </>
+  );
 }
