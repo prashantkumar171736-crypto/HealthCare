@@ -20,6 +20,7 @@ interface Disease {
   symptoms: string | string[];
   causes: string | string[];
   riskFactors: string | string[];
+  whenToSeeDoctor: string;
   diagnosis: string;
   treatmentOptions: string | string[];
   prevention: string;
@@ -113,6 +114,7 @@ export default function PostEditor() {
   const [diseaseSymptoms, setDiseaseSymptoms] = useState("");
   const [diseaseCauses, setDiseaseCauses] = useState("");
   const [diseaseRiskFactors, setDiseaseRiskFactors] = useState("");
+  const [diseaseWhenToSeeDoctor, setDiseaseWhenToSeeDoctor] = useState("");
   const [diseaseDiagnosis, setDiseaseDiagnosis] = useState("");
   const [diseaseTreatments, setDiseaseTreatments] = useState("");
   const [diseasePrevention, setDiseasePrevention] = useState("");
@@ -186,6 +188,7 @@ export default function PostEditor() {
     setDiseaseSymptoms("");
     setDiseaseCauses("");
     setDiseaseRiskFactors("");
+    setDiseaseWhenToSeeDoctor("");
     setDiseaseDiagnosis("");
     setDiseaseTreatments("");
     setDiseasePrevention("");
@@ -633,6 +636,7 @@ graph TD
           symptoms: diseaseSymptoms,
           causes: diseaseCauses,
           riskFactors: diseaseRiskFactors,
+          whenToSeeDoctor: diseaseWhenToSeeDoctor,
           diagnosis: diseaseDiagnosis,
           treatmentOptions: diseaseTreatments,
           prevention: diseasePrevention,
@@ -875,6 +879,7 @@ graph TD
       setDiseaseSymptoms(toHtml(item.symptoms));
       setDiseaseCauses(toHtml(item.causes));
       setDiseaseRiskFactors(toHtml(item.riskFactors));
+      setDiseaseWhenToSeeDoctor(item.whenToSeeDoctor || "");
       setDiseaseDiagnosis(item.diagnosis || "");
       setDiseaseTreatments(toHtml(item.treatmentOptions));
       setDiseasePrevention(item.prevention || "");
@@ -1121,6 +1126,16 @@ graph TD
                     value={diseaseRiskFactors}
                     onChange={setDiseaseRiskFactors}
                     placeholder="List risk factors — use ordered/unordered lists, bold..."
+                    minHeight="180px"
+                  />
+                </div>
+
+                <div className="full-width">
+                  <MiniRichEditor
+                    label="⚠️ When to see a doctor"
+                    value={diseaseWhenToSeeDoctor}
+                    onChange={setDiseaseWhenToSeeDoctor}
+                    placeholder="Describe warning signs that require immediate medical attention — use bold, lists..."
                     minHeight="180px"
                   />
                 </div>

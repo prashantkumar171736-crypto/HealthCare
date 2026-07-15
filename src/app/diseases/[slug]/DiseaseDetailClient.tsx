@@ -16,6 +16,7 @@ interface DiseaseData {
   symptoms: string | string[];
   causes: string | string[];
   riskFactors: string | string[];
+  whenToSeeDoctor: string;
   diagnosis: string;
   treatmentOptions: string | string[];
   prevention: string;
@@ -134,9 +135,13 @@ export default function DiseaseDetailClient({
             )}
             <div style={{ backgroundColor: "var(--accent-light)", padding: "1.25rem", borderRadius: "var(--radius-lg)", borderLeft: "4px solid var(--accent)", marginTop: "2rem" }}>
               <p style={{ color: "var(--accent-hover)", fontWeight: "600", marginBottom: "0.5rem" }}>⚠️ When to see a doctor:</p>
-              <p style={{ fontSize: "0.95rem", margin: 0, color: "var(--text-main)" }}>
-                If you experience any warning symptoms or if they persist and worsen over time, consult a medical professional immediately.
-              </p>
+              {disease.whenToSeeDoctor ? (
+                <div className="doc-content" dangerouslySetInnerHTML={{ __html: disease.whenToSeeDoctor }} />
+              ) : (
+                <p style={{ fontSize: "0.95rem", margin: 0, color: "var(--text-main)" }}>
+                  If you experience any warning symptoms or if they persist and worsen over time, consult a medical professional immediately.
+                </p>
+              )}
             </div>
           </section>
 

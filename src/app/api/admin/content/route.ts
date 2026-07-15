@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
       doc.category = /^[A-Z]$/.test(letter) ? letter : "#";
       doc.slug = slugify(title);
     } else if (collection === "diseases") {
-      const { name, categories, overview, symptoms, causes, riskFactors, diagnosis, treatmentOptions, prevention, faq, relatedDiseases } = body;
+      const { name, categories, overview, symptoms, causes, riskFactors, whenToSeeDoctor, diagnosis, treatmentOptions, prevention, faq, relatedDiseases } = body;
       if (!name) return NextResponse.json({ error: "Disease name is required" }, { status: 400 });
       doc.name = name.trim();
       doc.slug = slugify(name);
@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
       doc.symptoms = Array.isArray(symptoms) ? symptoms : (symptoms || "");
       doc.causes = Array.isArray(causes) ? causes : (causes || "");
       doc.riskFactors = Array.isArray(riskFactors) ? riskFactors : (riskFactors || "");
+      doc.whenToSeeDoctor = whenToSeeDoctor || "";
       doc.diagnosis = diagnosis || "";
       doc.treatmentOptions = Array.isArray(treatmentOptions) ? treatmentOptions : (treatmentOptions || "");
       doc.prevention = prevention || "";
@@ -169,7 +170,7 @@ export async function PUT(req: NextRequest) {
       updateDoc.category = /^[A-Z]$/.test(letter) ? letter : "#";
       updateDoc.slug = slugify(title);
     } else if (collection === "diseases") {
-      const { name, categories, overview, symptoms, causes, riskFactors, diagnosis, treatmentOptions, prevention, faq, relatedDiseases } = body;
+      const { name, categories, overview, symptoms, causes, riskFactors, whenToSeeDoctor, diagnosis, treatmentOptions, prevention, faq, relatedDiseases } = body;
       if (!name) return NextResponse.json({ error: "Disease name is required" }, { status: 400 });
       updateDoc.name = name.trim();
       updateDoc.slug = slugify(name);
@@ -178,6 +179,7 @@ export async function PUT(req: NextRequest) {
       updateDoc.symptoms = Array.isArray(symptoms) ? symptoms : (symptoms || "");
       updateDoc.causes = Array.isArray(causes) ? causes : (causes || "");
       updateDoc.riskFactors = Array.isArray(riskFactors) ? riskFactors : (riskFactors || "");
+      updateDoc.whenToSeeDoctor = whenToSeeDoctor || "";
       updateDoc.diagnosis = diagnosis || "";
       updateDoc.treatmentOptions = Array.isArray(treatmentOptions) ? treatmentOptions : (treatmentOptions || "");
       updateDoc.prevention = prevention || "";
