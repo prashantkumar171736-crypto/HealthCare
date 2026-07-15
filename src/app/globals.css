@@ -662,9 +662,12 @@ h4 { font-size: 1.25rem; }
 
 .disease-layout {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 280px minmax(0, 1fr);
   gap: 2.5rem;
   padding: 3rem 0;
+  /* Ensure grid doesn't overflow its container */
+  width: 100%;
+  overflow-x: hidden;
 }
 
 @media (max-width: 1024px) {
@@ -722,9 +725,9 @@ h4 { font-size: 1.25rem; }
   border-radius: var(--radius-xl);
   padding: 2.5rem;
   box-shadow: var(--shadow-sm);
-  /* Critical: prevent content from overflowing the grid column */
+  /* Prevent content from overflowing the grid column but still allow height to grow */
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   word-break: break-word;
   overflow-wrap: break-word;
 }
@@ -735,6 +738,9 @@ h4 { font-size: 1.25rem; }
 
 .disease-section.active {
   display: block;
+  /* Allow section to grow with its content */
+  width: 100%;
+  min-height: 0;
 }
 
 .disease-section h2 {
@@ -1472,23 +1478,25 @@ h4 { font-size: 1.25rem; }
    Fix layout breakage when images are embedded
    ===================================================== */
 .doc-content {
-  /* Prevent content from overflowing the container */
+  /* Prevent horizontal overflow but allow vertical growth */
   max-width: 100%;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
   overflow-wrap: break-word;
   word-break: break-word;
 }
 
 /* All images inside rich-HTML content */
 .doc-content img {
-  max-width: 100% !important;
-  width: auto !important;
-  height: auto !important;
   display: block;
+  /* Respect inline width set by editor but NEVER exceed container */
+  max-width: 100% !important;
+  height: auto !important;
   border-radius: var(--radius-lg);
   margin: 1.25rem auto;
   box-shadow: var(--shadow-md);
   object-fit: contain;
+  box-sizing: border-box;
 }
 
 /* Paragraphs */
