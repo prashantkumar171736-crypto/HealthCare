@@ -40,8 +40,7 @@ export default function DiseaseDetailClient({
   const tabs = [
     { id: "overview", label: "Overview", icon: "📖" },
     { id: "symptoms", label: "Symptoms", icon: "🤒" },
-    { id: "causes", label: "Causes", icon: "🧬" },
-    { id: "riskFactors", label: "Risk Factors", icon: "🛡️" },
+    { id: "causes", label: "Causes & Risks", icon: "🧬" },
     { id: "diagnosis", label: "Diagnosis & Tests", icon: "🔍" },
     { id: "treatments", label: "Treatments", icon: "💊" },
     { id: "prevention", label: "Prevention", icon: "🛡️" },
@@ -146,7 +145,7 @@ export default function DiseaseDetailClient({
             </div>
           </section>
 
-          {/* Causes Section */}
+          {/* Causes & Risks Section */}
           <section className={`disease-section ${activeTab === "causes" ? "active" : ""}`}>
             <h2>Causes &amp; Development</h2>
             <p style={{ marginBottom: "1.5rem" }}>
@@ -163,11 +162,8 @@ export default function DiseaseDetailClient({
                 ))}
               </ul>
             )}
-          </section>
 
-          {/* Risk Factors Section — separate tab */}
-          <section className={`disease-section ${activeTab === "riskFactors" ? "active" : ""}`}>
-            <h2>Risk Factors</h2>
+            <h3 style={{ marginTop: "2.5rem", marginBottom: "1rem" }}>Risk Factors</h3>
             <p style={{ marginBottom: "1.5rem" }}>
               Certain factors can increase your likelihood of developing {disease.name}. These include:
             </p>

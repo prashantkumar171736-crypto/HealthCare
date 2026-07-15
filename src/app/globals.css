@@ -1478,17 +1478,29 @@ h4 { font-size: 1.25rem; }
    Fix layout breakage when images are embedded
    ===================================================== */
 .doc-content {
-  /* Prevent horizontal overflow but allow vertical growth */
+  /* Allow vertical growth — page height expands automatically with content */
   max-width: 100%;
-  overflow-x: auto;
+  overflow-x: clip;
   overflow-y: visible;
   overflow-wrap: break-word;
   word-break: break-word;
 }
 
+/* ─── Critical: Override any fixed height/overflow from the rich-text editor ─── */
+/* Editor sometimes outputs divs/spans with inline height/overflow that clip content */
+.doc-content div,
+.doc-content section,
+.doc-content span {
+  /* Force auto height so content is NEVER clipped — page grows downward instead */
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
 /* All images inside rich-HTML content */
 .doc-content img {
-  display: block;
+  display: block !important;
   /* Respect inline width set by editor but NEVER exceed container */
   max-width: 100% !important;
   height: auto !important;
