@@ -88,11 +88,16 @@ export default function MiniRichEditor({
   const [charCount, setCharCount] = useState(0);
   const [activeFormats, setActiveFormats] = useState<string[]>([]);
 
-  // Slash commands state
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashPos, setSlashPos] = useState({ top: 0, left: 0 });
   const [slashQuery, setSlashQuery] = useState("");
   const [slashIdx, setSlashIdx] = useState(0);
+
+  // Color picker popup state
+  const [colorPickerOpen, setColorPickerOpen] = useState<"text" | "highlight" | null>(null);
+  const [pendingColor, setPendingColor] = useState("#000000");
+  const colorPickerRef = useRef<HTMLDivElement>(null);
+  const colorSelectionRef = useRef<Range | null>(null);
   const slashRangeRef = useRef<Range | null>(null);
   const slashMenuRef = useRef<HTMLDivElement>(null);
 
@@ -731,17 +736,49 @@ graph TD
 
           {/* Color picker triggers */}
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <label className="tb-color-picker-label" title="Text Color" style={{ display: "flex", alignItems: "center", gap: "3px", cursor: "pointer" }}>
-              <span style={{ fontSize: "12px", fontWeight: "bold", borderBottom: "3px solid #000" }}>A</span>
-              <input type="color" onMouseDown={(e) => e.stopPropagation()} onChange={(e) => exec("foreColor", e.target.value)}
-                style={{ width: "16px", height: "16px", border: "none", padding: 0, cursor: "pointer", background: "none" }} />
-            </label>
+            {/* Text Color */}
+            <button
+              type="button"
+              title="Text Color"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                saveSelection();
+                colorSelectionRef.current = savedSelRef.current;
+                setPendingColor("#000000");
+                setColorPickerOpen("text");
+              }}
+              style={{
+                display: "flex", alignItems: "center", gap: "3px",
+                padding: "4px 7px", border: "1px solid var(--border)",
+                borderRadius: "4px", background: "var(--surface)",
+                cursor: "pointer", height: "26px",
+              }}
+            >
+              <span style={{ fontSize: "13px", fontWeight: 900, borderBottom: "3px solid #000", lineHeight: 1, paddingBottom: "1px" }}>A</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+            </button>
 
-            <label className="tb-color-picker-label" title="Highlight Color" style={{ display: "flex", alignItems: "center", gap: "3px", cursor: "pointer" }}>
-              <span style={{ fontSize: "12px", background: "#ffff00", padding: "1px 3px", borderRadius: "2px", color: "#000" }}>H</span>
-              <input type="color" defaultValue="#ffff00" onMouseDown={(e) => e.stopPropagation()} onChange={(e) => exec("hiliteColor", e.target.value)}
-                style={{ width: "16px", height: "16px", border: "none", padding: 0, cursor: "pointer", background: "none" }} />
-            </label>
+            {/* Highlight / Background Color */}
+            <button
+              type="button"
+              title="Highlight Color"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                saveSelection();
+                colorSelectionRef.current = savedSelRef.current;
+                setPendingColor("#ffff00");
+                setColorPickerOpen("highlight");
+              }}
+              style={{
+                display: "flex", alignItems: "center", gap: "3px",
+                padding: "4px 7px", border: "1px solid var(--border)",
+                borderRadius: "4px", background: "var(--surface)",
+                cursor: "pointer", height: "26px",
+              }}
+            >
+              <span style={{ fontSize: "11px", fontWeight: 700, background: "#ffff00", padding: "1px 4px", borderRadius: "2px", color: "#000", lineHeight: 1.4 }}>H</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+            </button>
           </div>
         </div>
 
@@ -1046,6 +1083,108 @@ graph TD
               <button type="button" onClick={insertLink}
                 style={{ padding: "8px 18px", border: "none", borderRadius: "8px", background: "var(--primary)", color: "#fff", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}>
                 Insert
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Color Picker Modal ────────────────────────────────────────────── */}
+      {colorPickerOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
+          onClick={() => setColorPickerOpen(null)}
+        >
+          <div
+            ref={colorPickerRef}
+            style={{ background: "#fff", borderRadius: "14px", padding: "24px", width: "300px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)", display: "flex", flexDirection: "column", gap: "16px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Title */}
+            <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "#111827", display: "flex", alignItems: "center", gap: "8px" }}>
+              {colorPickerOpen === "text" ? (
+                <><span style={{ fontWeight: 900, borderBottom: "3px solid currentColor", paddingBottom: "1px" }}>A</span> Text Color</>
+              ) : (
+                <><span style={{ background: "#ffff00", padding: "2px 5px", borderRadius: "3px", fontSize: "0.85rem" }}>H</span> Highlight Color</>
+              )}
+            </h3>
+
+            {/* Color input + preview */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <input
+                type="color"
+                value={pendingColor}
+                onChange={(e) => setPendingColor(e.target.value)}
+                style={{ width: "56px", height: "56px", border: "1px solid #d1d5db", borderRadius: "8px", cursor: "pointer", padding: "2px", background: "#fff" }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: "13px", color: "#374151", marginBottom: "6px" }}>Preview</div>
+                <div style={{
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid #e5e7eb",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: colorPickerOpen === "text" ? pendingColor : "#111827",
+                  background: colorPickerOpen === "highlight" ? pendingColor : "#fff",
+                }}>
+                  Sample Text
+                </div>
+                <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "4px" }}>{pendingColor.toUpperCase()}</div>
+              </div>
+            </div>
+
+            {/* Preset swatches */}
+            <div>
+              <div style={{ fontSize: "12px", fontWeight: 600, color: "#6b7280", marginBottom: "8px" }}>Quick Colors</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {["#000000","#111827","#374151","#6b7280","#9ca3af","#d1d5db","#ffffff",
+                  "#dc2626","#ea580c","#d97706","#65a30d","#0891b2","#2563eb","#7c3aed","#db2777",
+                  "#fef08a","#bbf7d0","#bfdbfe","#fca5a5","#ddd6fe"].map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    title={c}
+                    onClick={() => setPendingColor(c)}
+                    style={{
+                      width: "22px", height: "22px", borderRadius: "4px",
+                      background: c,
+                      border: pendingColor === c ? "2px solid #2563eb" : "1px solid #d1d5db",
+                      cursor: "pointer", padding: 0, flexShrink: 0,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* OK / Cancel */}
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setColorPickerOpen(null)}
+                style={{ padding: "8px 20px", border: "1px solid #d1d5db", borderRadius: "8px", background: "#fff", color: "#374151", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  // Restore the saved selection and apply the color
+                  const sel = window.getSelection();
+                  sel?.removeAllRanges();
+                  if (colorSelectionRef.current) sel?.addRange(colorSelectionRef.current);
+                  editorRef.current?.focus();
+                  if (colorPickerOpen === "text") {
+                    document.execCommand("foreColor", false, pendingColor);
+                  } else {
+                    document.execCommand("hiliteColor", false, pendingColor);
+                  }
+                  notifyChange();
+                  setColorPickerOpen(null);
+                }}
+                style={{ padding: "8px 20px", border: "none", borderRadius: "8px", background: "#2563eb", color: "#fff", cursor: "pointer", fontSize: "13px", fontWeight: 700 }}
+              >
+                ✓ Apply
               </button>
             </div>
           </div>

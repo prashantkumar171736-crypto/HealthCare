@@ -176,6 +176,11 @@ export default function PostEditor() {
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
 
+  // Color picker popup state
+  const [colorPickerOpen, setColorPickerOpen] = useState<"text" | "highlight" | null>(null);
+  const [pendingColor, setPendingColor] = useState("#000000");
+  const colorSelectionRef = useRef<Range | null>(null);
+
   const updateActiveFormats = useCallback(() => {
     if (typeof document === "undefined") return;
     const formats: string[] = [];
@@ -1436,15 +1441,37 @@ graph TD
                     <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)", margin: "0 4px" }} />
 
                     {/* Colors */}
-                    <label className="tb-color-picker-label" title="Text Color" style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
-                      <span style={{ fontSize: "12px", fontWeight: "bold", borderBottom: "3px solid #fff", color: "#fff", lineHeight: 1 }}>A</span>
-                      <input type="color" defaultValue="#ffffff" className="tb-color-input" onChange={(e) => exec("foreColor", e.target.value)} style={{ width: "16px", height: "16px", border: "none", padding: 0, cursor: "pointer", background: "none" }} />
-                    </label>
+                    <button
+                      type="button"
+                      title="Text Color"
+                      className="tb-btn-new"
+                      onClick={() => {
+                        saveSelection();
+                        colorSelectionRef.current = savedSelectionRef.current;
+                        setPendingColor("#000000");
+                        setColorPickerOpen("text");
+                      }}
+                      style={{ gap: "3px", fontSize: "12px", fontWeight: 700 }}
+                    >
+                      <span style={{ fontWeight: 900, borderBottom: "3px solid #fff", color: "#fff", lineHeight: 1, paddingBottom: "1px" }}>A</span>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                    </button>
 
-                    <label className="tb-color-picker-label" title="Highlight Color" style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", marginLeft: "6px" }}>
-                      <span style={{ fontSize: "12px", background: "#ffff00", padding: "1px 3px", borderRadius: "2px", color: "#000", fontWeight: "bold", lineHeight: 1 }}>H</span>
-                      <input type="color" defaultValue="#ffff00" className="tb-color-input" onChange={(e) => exec("hiliteColor", e.target.value)} style={{ width: "16px", height: "16px", border: "none", padding: 0, cursor: "pointer", background: "none" }} />
-                    </label>
+                    <button
+                      type="button"
+                      title="Highlight Color"
+                      className="tb-btn-new"
+                      style={{ gap: "3px", marginLeft: "4px" }}
+                      onClick={() => {
+                        saveSelection();
+                        colorSelectionRef.current = savedSelectionRef.current;
+                        setPendingColor("#ffff00");
+                        setColorPickerOpen("highlight");
+                      }}
+                    >
+                      <span style={{ fontSize: "11px", background: "#ffff00", padding: "1px 3px", borderRadius: "2px", color: "#000", fontWeight: 700, lineHeight: 1.4 }}>H</span>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                    </button>
                   </div>
 
                   {/* Row 2: Alignment, Lists, Indents, Insertions, Tables, Links, Media, Clear */}
@@ -1883,6 +1910,64 @@ graph TD
         </div>
       )}
 
+      {/* ── Color Picker Modal ── */}
+      {colorPickerOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
+          onClick={() => setColorPickerOpen(null)}>
+          <div style={{ background: "#fff", borderRadius: "14px", padding: "24px", width: "300px", boxShadow: "0 20px 60px rgba(0,0,0,0.4)", display: "flex", flexDirection: "column", gap: "16px" }}
+            onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "#111827", display: "flex", alignItems: "center", gap: "8px" }}>
+              {colorPickerOpen === "text"
+                ? <><span style={{ fontWeight: 900, borderBottom: "3px solid #111", paddingBottom: "1px" }}>A</span> Text Color</>
+                : <><span style={{ background: "#ffff00", padding: "2px 5px", borderRadius: "3px", fontSize: "0.85rem", color: "#000" }}>H</span> Highlight Color</>}
+            </h3>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <input type="color" value={pendingColor} onChange={(e) => setPendingColor(e.target.value)}
+                style={{ width: "56px", height: "56px", border: "1px solid #d1d5db", borderRadius: "8px", cursor: "pointer", padding: "2px" }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: "13px", color: "#374151", marginBottom: "6px" }}>Preview</div>
+                <div style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #e5e7eb", fontSize: "14px", fontWeight: 600,
+                  color: colorPickerOpen === "text" ? pendingColor : "#111827",
+                  background: colorPickerOpen === "highlight" ? pendingColor : "#fff" }}>Sample Text</div>
+                <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "4px" }}>{pendingColor.toUpperCase()}</div>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: "12px", fontWeight: 600, color: "#6b7280", marginBottom: "8px" }}>Quick Colors</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {["#000000","#111827","#374151","#6b7280","#9ca3af","#d1d5db","#ffffff",
+                  "#dc2626","#ea580c","#d97706","#65a30d","#0891b2","#2563eb","#7c3aed","#db2777",
+                  "#fef08a","#bbf7d0","#bfdbfe","#fca5a5","#ddd6fe"].map(c => (
+                  <button key={c} type="button" title={c} onClick={() => setPendingColor(c)}
+                    style={{ width: "22px", height: "22px", borderRadius: "4px", background: c,
+                      border: pendingColor === c ? "2px solid #2563eb" : "1px solid #d1d5db",
+                      cursor: "pointer", padding: 0 }} />
+                ))}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => setColorPickerOpen(null)}
+                style={{ padding: "8px 20px", border: "1px solid #d1d5db", borderRadius: "8px", background: "#fff", color: "#374151", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}>
+                Cancel
+              </button>
+              <button type="button"
+                onClick={() => {
+                  const sel = window.getSelection();
+                  sel?.removeAllRanges();
+                  if (colorSelectionRef.current) sel?.addRange(colorSelectionRef.current);
+                  editorRef.current?.focus();
+                  if (colorPickerOpen === "text") document.execCommand("foreColor", false, pendingColor);
+                  else document.execCommand("hiliteColor", false, pendingColor);
+                  setColorPickerOpen(null);
+                }}
+                style={{ padding: "8px 20px", border: "none", borderRadius: "8px", background: "#2563eb", color: "#fff", cursor: "pointer", fontSize: "13px", fontWeight: 700 }}>
+                ✓ Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         /* ─── Content Navigator Tabs ───────────────────────────── */
         .content-type-nav { display: flex; flex-wrap: wrap; gap: 0.5rem; border-bottom: 2px solid rgba(255,255,255,0.05); padding-bottom: 1rem; margin-bottom: 1rem; }
@@ -2027,17 +2112,17 @@ graph TD
         .post-content-editor h5 { font-size: 0.9rem; font-weight: 700; color: #6b7280; margin: 0.75rem 0 0.35rem; }
         .post-content-editor h6 { font-size: 0.82rem; font-weight: 700; color: #9ca3af; margin: 0.65rem 0 0.3rem; text-transform: uppercase; letter-spacing: 0.04em; }
         .post-content-editor h7 { display: block; font-size: 0.75rem; font-weight: 700; color: #d1d5db; margin: 0.5rem 0 0.2rem; text-transform: uppercase; letter-spacing: 0.06em; }
-        .post-content-editor blockquote { border-left: 4px solid #00c896; padding: 0.5rem 1rem; margin: 1rem 0; color: #9ca3af; background: rgba(0,200,150,0.05); border-radius: 0 8px 8px 0; font-style: italic; }
+        .post-content-editor blockquote { border-left: 4px solid #00c896; padding: 0.5rem 1rem; margin: 1rem 0; color: #374151; background: rgba(0,200,150,0.06); border-radius: 0 8px 8px 0; font-style: italic; }
         .post-content-editor table { border-collapse: collapse; width: 100%; margin: 1rem 0; table-layout: fixed; }
-        .post-content-editor th, .post-content-editor td { border: 1px solid rgba(255,255,255,0.2); padding: 8px 12px; position: relative; cursor: col-resize; min-width: 40px; vertical-align: top; }
-        .post-content-editor th { background: rgba(0,200,150,0.12); color: #00c896; font-weight: 700; cursor: col-resize; }
+        .post-content-editor th, .post-content-editor td { border: 1px solid #d1d5db; padding: 8px 12px; position: relative; cursor: col-resize; min-width: 40px; vertical-align: top; }
+        .post-content-editor th { background: rgba(0,200,150,0.1); color: #059669; font-weight: 700; cursor: col-resize; }
         .post-content-editor td { cursor: text; }
-        .post-content-editor tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+        .post-content-editor tr:nth-child(even) td { background: #f9fafb; }
         .post-content-editor img { max-width: 100%; border-radius: 8px; margin: 0.5rem 0; display: block; cursor: pointer; }
         .post-content-editor img:hover { outline: 2px solid rgba(0,200,150,0.5); }
-        .post-content-editor a { color: #00c896; text-decoration: underline; }
-        .post-content-editor code { background: rgba(0,0,0,0.4); padding: 0.15rem 0.4rem; border-radius: 4px; font-family: monospace; font-size: 0.88rem; color: #7ee787; }
-        .post-content-editor pre { background: #0d1117; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+        .post-content-editor a { color: #0284c7; text-decoration: underline; }
+        .post-content-editor code { background: #f3f4f6; padding: 0.15rem 0.4rem; border-radius: 4px; font-family: monospace; font-size: 0.88rem; color: #dc2626; border: 1px solid #e5e7eb; }
+        .post-content-editor pre { background: #1e293b; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; color: #e2e8f0; }
         .post-content-editor ul { list-style: disc; padding-left: 1.5rem; }
         .post-content-editor ul li { display: list-item; list-style-type: disc; }
         .post-content-editor ol { list-style: decimal !important; padding-left: 2.5rem !important; }
