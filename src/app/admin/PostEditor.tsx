@@ -80,9 +80,13 @@ const DISEASE_CATEGORIES = [
 ];
 
 const SLASH_ITEMS = [
-  { id: "h1", icon: "Heading 1", label: "Heading 1", desc: "Large header" },
-  { id: "h2", icon: "Heading 2", label: "Heading 2", desc: "Medium header" },
-  { id: "h3", icon: "Heading 3", label: "Heading 3", desc: "Small header" },
+  { id: "h1", icon: "H1", label: "Heading 1", desc: "Largest header (H1)" },
+  { id: "h2", icon: "H2", label: "Heading 2", desc: "Large header (H2)" },
+  { id: "h3", icon: "H3", label: "Heading 3", desc: "Medium header (H3)" },
+  { id: "h4", icon: "H4", label: "Heading 4", desc: "Small header (H4)" },
+  { id: "h5", icon: "H5", label: "Heading 5", desc: "Smaller header (H5)" },
+  { id: "h6", icon: "H6", label: "Heading 6", desc: "Tiny header (H6)" },
+  { id: "h7", icon: "H7", label: "Heading 7", desc: "Micro header (H7)" },
   { id: "image", icon: "🖼️", label: "Upload Image", desc: "Upload image file" },
   { id: "table", icon: "⊞", label: "Add Table", desc: "Insert a table" },
   { id: "code", icon: "⌨️", label: "Code Block", desc: "Monospace code syntax" },
@@ -611,6 +615,10 @@ graph TD
       case "h1":      exec("formatBlock", "h1"); break;
       case "h2":      exec("formatBlock", "h2"); break;
       case "h3":      exec("formatBlock", "h3"); break;
+      case "h4":      exec("formatBlock", "h4"); break;
+      case "h5":      exec("formatBlock", "h5"); break;
+      case "h6":      exec("formatBlock", "h6"); break;
+      case "h7":      exec("insertHTML", `<div style="font-size:0.75rem;font-weight:700;line-height:1.4;margin:0.75rem 0 0.4rem;"><br></div>`); break;
       case "quote":   exec("formatBlock", "blockquote"); break;
       case "link":    handleInsertLink(); break;
     }
@@ -1383,11 +1391,34 @@ graph TD
 
                     <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)", margin: "0 4px" }} />
 
-                    {/* Headings */}
-                    <button type="button" title="Heading 1" onClick={() => exec("formatBlock", "h1")} className={`tb-btn-new ${activeFormats.includes("formatblock-h1") ? "active" : ""}`} style={{ fontSize: "11px", fontWeight: "bold" }}>H1</button>
-                    <button type="button" title="Heading 2" onClick={() => exec("formatBlock", "h2")} className={`tb-btn-new ${activeFormats.includes("formatblock-h2") ? "active" : ""}`} style={{ fontSize: "11px", fontWeight: "bold" }}>H2</button>
-                    <button type="button" title="Heading 3" onClick={() => exec("formatBlock", "h3")} className={`tb-btn-new ${activeFormats.includes("formatblock-h3") ? "active" : ""}`} style={{ fontSize: "11px", fontWeight: "bold" }}>H3</button>
-                    <button type="button" title="Paragraph" onClick={() => exec("formatBlock", "p")} className={`tb-btn-new ${activeFormats.includes("formatblock-p") ? "active" : ""}`} style={{ fontSize: "11px", fontWeight: "bold" }}>¶</button>
+                    {/* Headings dropdown H1–H7 + Paragraph */}
+                    <select
+                      className="tb-select-new"
+                      title="Heading / Paragraph"
+                      defaultValue=""
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (!v) return;
+                        if (v === "p") exec("formatBlock", "p");
+                        else if (v === "h7") {
+                          editorRef.current?.focus();
+                          document.execCommand("insertHTML", false, `<div style="font-size:0.75rem;font-weight:700;line-height:1.4;margin:0.75rem 0 0.4rem;"><br></div>`);
+                        }
+                        else exec("formatBlock", v);
+                        e.target.value = "";
+                      }}
+                      style={{ height: "26px", padding: "2px 6px", background: "#1f2937", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: "6px", fontSize: "11px", outline: "none", cursor: "pointer", minWidth: "80px" }}
+                    >
+                      <option value="" disabled>Heading</option>
+                      <option value="h1" style={{ background: "#111827" }}>H1 — Largest</option>
+                      <option value="h2" style={{ background: "#111827" }}>H2 — Large</option>
+                      <option value="h3" style={{ background: "#111827" }}>H3 — Medium</option>
+                      <option value="h4" style={{ background: "#111827" }}>H4 — Small</option>
+                      <option value="h5" style={{ background: "#111827" }}>H5 — Smaller</option>
+                      <option value="h6" style={{ background: "#111827" }}>H6 — Tiny</option>
+                      <option value="h7" style={{ background: "#111827" }}>H7 — Micro</option>
+                      <option value="p" style={{ background: "#111827" }}>¶ Paragraph</option>
+                    </select>
 
                     <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)", margin: "0 4px" }} />
 
@@ -1992,6 +2023,10 @@ graph TD
         .post-content-editor h1 { font-size: 2rem; font-weight: 800; color: #fff; border-bottom: 2px solid rgba(0,200,150,0.3); padding-bottom: 0.5rem; margin: 1.5rem 0 1rem; }
         .post-content-editor h2 { font-size: 1.5rem; font-weight: 700; color: #f3f4f6; margin: 1.25rem 0 0.75rem; }
         .post-content-editor h3 { font-size: 1.2rem; font-weight: 700; color: #e5e7eb; margin: 1rem 0 0.5rem; }
+        .post-content-editor h4 { font-size: 1.0rem; font-weight: 700; color: #d1d5db; margin: 0.85rem 0 0.4rem; }
+        .post-content-editor h5 { font-size: 0.9rem; font-weight: 700; color: #9ca3af; margin: 0.75rem 0 0.35rem; }
+        .post-content-editor h6 { font-size: 0.82rem; font-weight: 700; color: #6b7280; margin: 0.65rem 0 0.3rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        .post-content-editor h7 { display: block; font-size: 0.75rem; font-weight: 700; color: #4b5563; margin: 0.5rem 0 0.2rem; text-transform: uppercase; letter-spacing: 0.06em; }
         .post-content-editor blockquote { border-left: 4px solid #00c896; padding: 0.5rem 1rem; margin: 1rem 0; color: #9ca3af; background: rgba(0,200,150,0.05); border-radius: 0 8px 8px 0; font-style: italic; }
         .post-content-editor table { border-collapse: collapse; width: 100%; margin: 1rem 0; table-layout: fixed; }
         .post-content-editor th, .post-content-editor td { border: 1px solid rgba(255,255,255,0.2); padding: 8px 12px; position: relative; cursor: col-resize; min-width: 40px; vertical-align: top; }
@@ -2005,9 +2040,8 @@ graph TD
         .post-content-editor pre { background: #0d1117; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
         .post-content-editor ul { list-style: disc; padding-left: 1.5rem; }
         .post-content-editor ul li { display: list-item; list-style-type: disc; }
-        .post-content-editor ol { list-style: none; padding-left: 1.5rem; counter-reset: list-counter; }
-        .post-content-editor ol li { display: list-item; list-style-type: none; counter-increment: list-counter; position: relative; padding-left: 0.25rem; }
-        .post-content-editor ol li::before { content: counter(list-counter) ". "; font-variant-numeric: tabular-nums; }
+        .post-content-editor ol { list-style: decimal !important; padding-left: 2.5rem !important; }
+        .post-content-editor ol li { display: list-item !important; list-style-type: decimal !important; }
         .post-content-editor li { margin: 0.35rem 0; }
         .post-content-editor hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 1.5rem 0; }
 

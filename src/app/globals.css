@@ -1466,22 +1466,13 @@ h4 { font-size: 1.25rem; }
 .post-documentation-view ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
 .post-documentation-view ul li { display: list-item; list-style-type: disc; }
 .post-documentation-view ol {
-  list-style: none;
-  padding-left: 1.75rem;
+  list-style: decimal !important;
+  padding-left: 2.5rem !important;
   margin-bottom: 1rem;
-  counter-reset: list-counter;
 }
 .post-documentation-view ol li {
-  display: list-item;
-  list-style-type: none;
-  counter-increment: list-counter;
-  position: relative;
-  padding-left: 0.25rem;
-}
-.post-documentation-view ol li::before {
-  content: counter(list-counter) ". ";
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  display: list-item !important;
+  list-style-type: decimal !important;
 }
 .post-documentation-view li { margin: 0.4rem 0; }
 .post-documentation-view hr {
@@ -1562,24 +1553,14 @@ h4 { font-size: 1.25rem; }
 }
 
 .doc-content ol {
-  list-style: none;
-  padding-left: 1.75rem;
+  list-style: decimal !important;
+  padding-left: 2.5rem !important;
   margin-bottom: 1rem;
-  counter-reset: list-counter;
 }
 
 .doc-content ol li {
-  display: list-item;
-  list-style-type: none;
-  counter-increment: list-counter;
-  position: relative;
-  padding-left: 0.25rem;
-}
-
-.doc-content ol li::before {
-  content: counter(list-counter) ". ";
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  display: list-item !important;
+  list-style-type: decimal !important;
 }
 
 .doc-content li {

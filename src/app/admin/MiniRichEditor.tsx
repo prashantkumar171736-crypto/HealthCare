@@ -40,9 +40,13 @@ const EMOJI_GROUPS = [
 ];
 
 const SLASH_ITEMS = [
-  { id: "h1", icon: "Heading 1", label: "Heading 1", desc: "Large header" },
-  { id: "h2", icon: "Heading 2", label: "Heading 2", desc: "Medium header" },
-  { id: "h3", icon: "Heading 3", label: "Heading 3", desc: "Small header" },
+  { id: "h1", icon: "H1", label: "Heading 1", desc: "Largest header (H1)" },
+  { id: "h2", icon: "H2", label: "Heading 2", desc: "Large header (H2)" },
+  { id: "h3", icon: "H3", label: "Heading 3", desc: "Medium header (H3)" },
+  { id: "h4", icon: "H4", label: "Heading 4", desc: "Small header (H4)" },
+  { id: "h5", icon: "H5", label: "Heading 5", desc: "Smaller header (H5)" },
+  { id: "h6", icon: "H6", label: "Heading 6", desc: "Tiny header (H6)" },
+  { id: "h7", icon: "H7", label: "Heading 7", desc: "Micro header (H7)" },
   { id: "image", icon: "🖼️", label: "Upload Image", desc: "Upload image file" },
   { id: "table", icon: "⊞", label: "Add Table", desc: "Insert a table" },
   { id: "code", icon: "⌨️", label: "Code Block", desc: "Monospace code syntax" },
@@ -276,6 +280,10 @@ graph TD
       case "h1":      exec("formatBlock", "<h1>"); break;
       case "h2":      exec("formatBlock", "<h2>"); break;
       case "h3":      exec("formatBlock", "<h3>"); break;
+      case "h4":      exec("formatBlock", "<h4>"); break;
+      case "h5":      exec("formatBlock", "<h5>"); break;
+      case "h6":      exec("formatBlock", "<h6>"); break;
+      case "h7":      exec("insertHTML", `<div style="font-size:0.75rem;font-weight:700;line-height:1.4;margin:0.75rem 0 0.4rem;"><br></div>`); break;
       case "quote":   exec("formatBlock", "<blockquote>"); break;
       case "link":    handleInsertLinkSlash(); break;
     }
@@ -663,11 +671,35 @@ graph TD
 
           <Divider />
 
-          {/* Headings */}
-          <Btn title="Heading 1" onClick={() => exec("formatBlock", "<h1>")} active={activeFormats.includes("formatblock-h1")}>H1</Btn>
-          <Btn title="Heading 2" onClick={() => exec("formatBlock", "<h2>")} active={activeFormats.includes("formatblock-h2")}>H2</Btn>
-          <Btn title="Heading 3" onClick={() => exec("formatBlock", "<h3>")} active={activeFormats.includes("formatblock-h3")}>H3</Btn>
-          <Btn title="Paragraph" onClick={() => exec("formatBlock", "<p>")} active={activeFormats.includes("formatblock-p")}>¶</Btn>
+          {/* Headings dropdown H1–H7 + Paragraph */}
+          <select
+            title="Heading / Paragraph"
+            onMouseDown={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (!v) return;
+              if (v === "p") exec("formatBlock", "<p>");
+              else if (v === "h7") {
+                editorRef.current?.focus();
+                document.execCommand("insertHTML", false, `<div style="font-size:0.75rem;font-weight:700;line-height:1.4;margin:0.75rem 0 0.4rem;"><br></div>`);
+                notifyChange();
+              }
+              else exec("formatBlock", `<${v}>`);
+              e.target.value = "";
+            }}
+            defaultValue=""
+            style={{ padding: "4px 8px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", fontSize: "11px", cursor: "pointer", outline: "none", height: "26px", minWidth: "72px" }}
+          >
+            <option value="" disabled>Heading</option>
+            <option value="h1">H1 — Largest</option>
+            <option value="h2">H2 — Large</option>
+            <option value="h3">H3 — Medium</option>
+            <option value="h4">H4 — Small</option>
+            <option value="h5">H5 — Smaller</option>
+            <option value="h6">H6 — Tiny</option>
+            <option value="h7">H7 — Micro</option>
+            <option value="p">¶ Paragraph</option>
+          </select>
 
           <Divider />
 
@@ -1048,23 +1080,13 @@ graph TD
           list-style-type: disc;
         }
         [contenteditable] ol {
-          list-style-type: none;
-          padding-left: 1.5rem;
+          list-style-type: decimal !important;
+          padding-left: 2.5rem !important;
           margin: 0.5rem 0;
-          counter-reset: list-counter;
         }
         [contenteditable] ol li {
-          display: list-item;
-          list-style-type: none;
-          counter-increment: list-counter;
-          position: relative;
-          padding-left: 0.25rem;
-        }
-        [contenteditable] ol li::before {
-          content: counter(list-counter) ". ";
-          font-variant-numeric: tabular-nums;
-          min-width: 1.5em;
-          display: inline;
+          display: list-item !important;
+          list-style-type: decimal !important;
         }
         [contenteditable] blockquote {
           border-left: 4px solid var(--primary, #3b82f6);
@@ -1077,9 +1099,13 @@ graph TD
           max-width: 100%;
           border-radius: 8px;
         }
-        [contenteditable] h1 { font-size: 1.8rem; font-weight: 700; margin: 1rem 0 0.5rem; }
+        [contenteditable] h1 { font-size: 1.8rem; font-weight: 800; margin: 1rem 0 0.5rem; }
         [contenteditable] h2 { font-size: 1.4rem; font-weight: 700; margin: 0.9rem 0 0.4rem; }
-        [contenteditable] h3 { font-size: 1.15rem; font-weight: 600; margin: 0.8rem 0 0.3rem; }
+        [contenteditable] h3 { font-size: 1.15rem; font-weight: 700; margin: 0.8rem 0 0.3rem; }
+        [contenteditable] h4 { font-size: 1.0rem; font-weight: 700; margin: 0.7rem 0 0.3rem; }
+        [contenteditable] h5 { font-size: 0.9rem; font-weight: 700; margin: 0.6rem 0 0.25rem; }
+        [contenteditable] h6 { font-size: 0.82rem; font-weight: 700; margin: 0.5rem 0 0.2rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        [contenteditable] h7 { display: block; font-size: 0.75rem; font-weight: 700; margin: 0.4rem 0 0.15rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; }
 
         /* Slash Menu Styles */
         .slash-menu {
