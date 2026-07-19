@@ -860,10 +860,33 @@ export default function MiniRichEditor({
           padding: 8px 12px;
           min-width: 80px;
         }
-        [contenteditable] ul,
-        [contenteditable] ol {
+        [contenteditable] ul {
+          list-style-type: disc;
           padding-left: 1.5rem;
           margin: 0.5rem 0;
+        }
+        [contenteditable] ul li {
+          display: list-item;
+          list-style-type: disc;
+        }
+        [contenteditable] ol {
+          list-style-type: none;
+          padding-left: 1.5rem;
+          margin: 0.5rem 0;
+          counter-reset: list-counter;
+        }
+        [contenteditable] ol li {
+          display: list-item;
+          list-style-type: none;
+          counter-increment: list-counter;
+          position: relative;
+          padding-left: 0.25rem;
+        }
+        [contenteditable] ol li::before {
+          content: counter(list-counter) ". ";
+          font-variant-numeric: tabular-nums;
+          min-width: 1.5em;
+          display: inline;
         }
         [contenteditable] blockquote {
           border-left: 4px solid var(--primary, #3b82f6);

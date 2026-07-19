@@ -1842,7 +1842,10 @@ graph TD
         .post-content-editor code { background: rgba(0,0,0,0.4); padding: 0.15rem 0.4rem; border-radius: 4px; font-family: monospace; font-size: 0.88rem; color: #7ee787; }
         .post-content-editor pre { background: #0d1117; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
         .post-content-editor ul { list-style: disc; padding-left: 1.5rem; }
-        .post-content-editor ol { list-style: decimal; padding-left: 1.5rem; }
+        .post-content-editor ul li { display: list-item; list-style-type: disc; }
+        .post-content-editor ol { list-style: none; padding-left: 1.5rem; counter-reset: list-counter; }
+        .post-content-editor ol li { display: list-item; list-style-type: none; counter-increment: list-counter; position: relative; padding-left: 0.25rem; }
+        .post-content-editor ol li::before { content: counter(list-counter) ". "; font-variant-numeric: tabular-nums; }
         .post-content-editor li { margin: 0.35rem 0; }
         .post-content-editor hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 1.5rem 0; }
 
@@ -1963,7 +1966,10 @@ graph TD
         .doc-content code { background: rgba(0,0,0,0.4); padding: 0.15rem 0.4rem; border-radius: 4px; font-family: monospace; font-size: 0.88rem; color: #7ee787; }
         .doc-content pre { background: #0d1117; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; border: 1px solid rgba(255,255,255,0.08); }
         .doc-content ul { list-style: disc; padding-left: 1.5rem; }
-        .doc-content ol { list-style: decimal; padding-left: 1.5rem; }
+        .doc-content ul li { display: list-item; list-style-type: disc; }
+        .doc-content ol { list-style: none; padding-left: 1.5rem; counter-reset: list-counter; }
+        .doc-content ol li { display: list-item; list-style-type: none; counter-increment: list-counter; position: relative; padding-left: 0.25rem; }
+        .doc-content ol li::before { content: counter(list-counter) ". "; font-variant-numeric: tabular-nums; }
         .doc-content li { margin: 0.35rem 0; }
         .doc-content hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 1.5rem 0; }
 
