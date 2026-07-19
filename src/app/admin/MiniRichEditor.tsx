@@ -944,15 +944,15 @@ graph TD
             padding: "14px 16px",
             border: "1px solid var(--border)",
             borderRadius: "0",
-            background: "var(--surface, #fff)",
-            color: "var(--text-main)",
+            background: "#ffffff",
+            color: "#111827",
             fontSize: "14px",
             lineHeight: "1.7",
             outline: "none",
             overflowY: "auto",
             boxSizing: "border-box",
             transition: "border-color 0.2s, box-shadow 0.2s",
-            boxShadow: isFocused ? "0 0 0 2px rgba(var(--primary-rgb, 59,130,246), 0.15)" : "none",
+            boxShadow: isFocused ? "0 0 0 2px rgba(59,130,246,0.2)" : "none",
           }}
         />
 

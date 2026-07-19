@@ -2018,15 +2018,15 @@ graph TD
         .tb-picker-size-label { margin-top: 0.5rem; font-size: 0.8rem; color: #00c896; font-weight: 700; text-align: center; }
 
         /* ─── Editor body ──────────────────────────────────────── */
-        .post-content-editor { min-height: 450px; max-height: 700px; overflow-y: auto; padding: 1.5rem; background: #070c16; border: 1px solid rgba(255,255,255,0.08); border-radius: 0 0 10px 10px; color: #e5e7eb; font-size: 1rem; line-height: 1.8; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; outline: none; position: relative; word-break: break-word; }
-        .post-content-editor:empty::before { content: attr(data-placeholder); color: #374151; font-size: 0.95rem; line-height: 1.8; white-space: pre-line; pointer-events: none; }
-        .post-content-editor h1 { font-size: 2rem; font-weight: 800; color: #fff; border-bottom: 2px solid rgba(0,200,150,0.3); padding-bottom: 0.5rem; margin: 1.5rem 0 1rem; }
-        .post-content-editor h2 { font-size: 1.5rem; font-weight: 700; color: #f3f4f6; margin: 1.25rem 0 0.75rem; }
-        .post-content-editor h3 { font-size: 1.2rem; font-weight: 700; color: #e5e7eb; margin: 1rem 0 0.5rem; }
-        .post-content-editor h4 { font-size: 1.0rem; font-weight: 700; color: #d1d5db; margin: 0.85rem 0 0.4rem; }
-        .post-content-editor h5 { font-size: 0.9rem; font-weight: 700; color: #9ca3af; margin: 0.75rem 0 0.35rem; }
-        .post-content-editor h6 { font-size: 0.82rem; font-weight: 700; color: #6b7280; margin: 0.65rem 0 0.3rem; text-transform: uppercase; letter-spacing: 0.04em; }
-        .post-content-editor h7 { display: block; font-size: 0.75rem; font-weight: 700; color: #4b5563; margin: 0.5rem 0 0.2rem; text-transform: uppercase; letter-spacing: 0.06em; }
+        .post-content-editor { min-height: 450px; max-height: 700px; overflow-y: auto; padding: 1.5rem; background: #ffffff; border: 1px solid rgba(255,255,255,0.08); border-radius: 0 0 10px 10px; color: #111827; font-size: 1rem; line-height: 1.8; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; outline: none; position: relative; word-break: break-word; }
+        .post-content-editor:empty::before { content: attr(data-placeholder); color: #9ca3af; font-size: 0.95rem; line-height: 1.8; white-space: pre-line; pointer-events: none; }
+        .post-content-editor h1 { font-size: 2rem; font-weight: 800; color: #111827; border-bottom: 2px solid rgba(0,200,150,0.5); padding-bottom: 0.5rem; margin: 1.5rem 0 1rem; }
+        .post-content-editor h2 { font-size: 1.5rem; font-weight: 700; color: #1f2937; margin: 1.25rem 0 0.75rem; }
+        .post-content-editor h3 { font-size: 1.2rem; font-weight: 700; color: #374151; margin: 1rem 0 0.5rem; }
+        .post-content-editor h4 { font-size: 1.0rem; font-weight: 700; color: #4b5563; margin: 0.85rem 0 0.4rem; }
+        .post-content-editor h5 { font-size: 0.9rem; font-weight: 700; color: #6b7280; margin: 0.75rem 0 0.35rem; }
+        .post-content-editor h6 { font-size: 0.82rem; font-weight: 700; color: #9ca3af; margin: 0.65rem 0 0.3rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        .post-content-editor h7 { display: block; font-size: 0.75rem; font-weight: 700; color: #d1d5db; margin: 0.5rem 0 0.2rem; text-transform: uppercase; letter-spacing: 0.06em; }
         .post-content-editor blockquote { border-left: 4px solid #00c896; padding: 0.5rem 1rem; margin: 1rem 0; color: #9ca3af; background: rgba(0,200,150,0.05); border-radius: 0 8px 8px 0; font-style: italic; }
         .post-content-editor table { border-collapse: collapse; width: 100%; margin: 1rem 0; table-layout: fixed; }
         .post-content-editor th, .post-content-editor td { border: 1px solid rgba(255,255,255,0.2); padding: 8px 12px; position: relative; cursor: col-resize; min-width: 40px; vertical-align: top; }
