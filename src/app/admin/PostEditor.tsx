@@ -80,8 +80,20 @@ const DISEASE_CATEGORIES = [
 ];
 
 const SLASH_ITEMS = [
-  { id: "image",     icon: "🖼️", label: "Upload Image", desc: "Upload an image file" },
-  { id: "table",     icon: "⊞", label: "Add Table",    desc: "Insert a table (pick size)" },
+  { id: "h1", icon: "Heading 1", label: "Heading 1", desc: "Large header" },
+  { id: "h2", icon: "Heading 2", label: "Heading 2", desc: "Medium header" },
+  { id: "h3", icon: "Heading 3", label: "Heading 3", desc: "Small header" },
+  { id: "image", icon: "🖼️", label: "Upload Image", desc: "Upload image file" },
+  { id: "table", icon: "⊞", label: "Add Table", desc: "Insert a table" },
+  { id: "code", icon: "⌨️", label: "Code Block", desc: "Monospace code syntax" },
+  { id: "hr", icon: "―", label: "Divider Line", desc: "Horizontal rule separator" },
+  { id: "flow", icon: "📊", label: "Flow Diagram", desc: "Insert Mermaid flow chart" },
+  { id: "info", icon: "ℹ️", label: "Info Callout", desc: "Blue callout box" },
+  { id: "warning", icon: "⚠️", label: "Warning Callout", desc: "Yellow warning box" },
+  { id: "tip", icon: "💡", label: "Tip Callout", desc: "Green tip box" },
+  { id: "note", icon: "📝", label: "Note Callout", desc: "Purple note box" },
+  { id: "quote", icon: "❝", label: "Blockquote", desc: "Styled blockquote quote" },
+  { id: "link", icon: "🔗", label: "Insert Link", desc: "Add external hyperlink" }
 ];
 
 export default function PostEditor() {
@@ -155,6 +167,42 @@ export default function PostEditor() {
   const [imgResizePos, setImgResizePos] = useState({ top: 0, left: 0, w: 0, h: 0 });
   const imgDragRef = useRef<{ startX: number; startW: number } | null>(null);
 
+  // Active formatting state
+  const [activeFormats, setActiveFormats] = useState<string[]>([]);
+  const [wordCount, setWordCount] = useState(0);
+  const [charCount, setCharCount] = useState(0);
+
+  const updateActiveFormats = useCallback(() => {
+    if (typeof document === "undefined") return;
+    const formats: string[] = [];
+    if (document.queryCommandState("bold")) formats.push("bold");
+    if (document.queryCommandState("italic")) formats.push("italic");
+    if (document.queryCommandState("underline")) formats.push("underline");
+    if (document.queryCommandState("strikeThrough")) formats.push("strikeThrough");
+    if (document.queryCommandState("insertUnorderedList")) formats.push("insertUnorderedList");
+    if (document.queryCommandState("insertOrderedList")) formats.push("insertOrderedList");
+    if (document.queryCommandState("justifyLeft")) formats.push("justifyLeft");
+    if (document.queryCommandState("justifyCenter")) formats.push("justifyCenter");
+    if (document.queryCommandState("justifyRight")) formats.push("justifyRight");
+    if (document.queryCommandState("justifyFull")) formats.push("justifyFull");
+
+    try {
+      const block = document.queryCommandValue("formatBlock");
+      if (block) formats.push(`formatblock-${block.toLowerCase()}`);
+    } catch (e) {}
+
+    setActiveFormats(formats);
+  }, []);
+
+  const updateStats = useCallback(() => {
+    if (!editorRef.current) return;
+    const text = editorRef.current.innerText || "";
+    const chars = text.length;
+    const words = text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
+    setWordCount(words);
+    setCharCount(chars);
+  }, []);
+
   // Fetch content list
   const fetchItems = useCallback(async () => {
     setLoadingItems(true);
@@ -205,13 +253,18 @@ export default function PostEditor() {
     setTipTagColor("#10b981");
     setFaqQ("");
     setFaqA("");
-    if (editorRef.current) editorRef.current.innerHTML = "";
+    if (editorRef.current) {
+      editorRef.current.innerHTML = "";
+      updateStats();
+    }
   };
 
   // ── editor helper functions ───────────────────────────────────────────────
   const exec = (cmd: string, value?: string) => {
     editorRef.current?.focus();
     document.execCommand(cmd, false, value);
+    updateActiveFormats();
+    updateStats();
   };
 
   const saveSelection = () => {
@@ -222,6 +275,7 @@ export default function PostEditor() {
         savedSelectionRef.current = range.cloneRange();
       }
     }
+    updateActiveFormats();
   };
 
   const restoreSelection = (range?: Range | null) => {
@@ -1291,53 +1345,124 @@ graph TD
               <>
                 <label className="field-label">📝 Content Body</label>
                 {/* Editor Toolbar */}
-                <div className="editor-toolbar" id="editor-toolbar">
-                  <div className="toolbar-group">
-                    <button title="Bold (Ctrl+B)" onClick={() => exec("bold")} className="tb-btn" id="tb-bold"><b>B</b></button>
-                    <button title="Italic (Ctrl+I)" onClick={() => exec("italic")} className="tb-btn" id="tb-italic"><i>I</i></button>
-                    <button title="Underline (Ctrl+U)" onClick={() => exec("underline")} className="tb-btn" id="tb-underline"><u>U</u></button>
-                    <button title="Strikethrough" onClick={() => exec("strikeThrough")} className="tb-btn" id="tb-strike"><s>S</s></button>
-                  </div>
-                  <div className="toolbar-sep" />
-                  <div className="toolbar-group">
-                    <button title="Heading 1" onClick={() => exec("formatBlock", "h1")} className="tb-btn" id="tb-h1">H1</button>
-                    <button title="Heading 2" onClick={() => exec("formatBlock", "h2")} className="tb-btn" id="tb-h2">H2</button>
-                    <button title="Heading 3" onClick={() => exec("formatBlock", "h3")} className="tb-btn" id="tb-h3">H3</button>
-                    <button title="Paragraph" onClick={() => exec("formatBlock", "p")} className="tb-btn" id="tb-p">¶</button>
-                  </div>
-                  <div className="toolbar-sep" />
-                  <div className="toolbar-group">
-                    <select className="tb-select" id="tb-fontsize" defaultValue="" onChange={(e) => { if (e.target.value) exec("fontSize", e.target.value); e.target.value = ""; }} title="Font Size">
+                <div className="editor-toolbar-new" style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "6px",
+                  padding: "8px 10px",
+                  background: "#0d1424",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderBottom: "none",
+                  borderRadius: "10px 10px 0 0",
+                }}>
+                  {/* Row 1: History, Formatting, Font, Size, Colors */}
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px" }}>
+                    {/* History */}
+                    <button type="button" title="Undo (Ctrl+Z)" onClick={() => exec("undo")} className="tb-btn-new">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                    </button>
+                    <button type="button" title="Redo (Ctrl+Y)" onClick={() => exec("redo")} className="tb-btn-new">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    </button>
+
+                    <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)", margin: "0 4px" }} />
+
+                    {/* Bold, Italic, Underline, Strike */}
+                    <button type="button" title="Bold (Ctrl+B)" onClick={() => exec("bold")} className={`tb-btn-new ${activeFormats.includes("bold") ? "active" : ""}`}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>
+                    </button>
+                    <button type="button" title="Italic (Ctrl+I)" onClick={() => exec("italic")} className={`tb-btn-new ${activeFormats.includes("italic") ? "active" : ""}`}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>
+                    </button>
+                    <button type="button" title="Underline (Ctrl+U)" onClick={() => exec("underline")} className={`tb-btn-new ${activeFormats.includes("underline") ? "active" : ""}`}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg>
+                    </button>
+                    <button type="button" title="Strikethrough" onClick={() => exec("strikeThrough")} className={`tb-btn-new ${activeFormats.includes("strikeThrough") ? "active" : ""}`}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><path d="M16 6A5 5 0 0 0 8 9c0 1 .4 1.8 1.1 2.2m5.8 1.6A5 5 0 0 1 8 15"/></svg>
+                    </button>
+
+                    <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)", margin: "0 4px" }} />
+
+                    {/* Headings */}
+                    <button type="button" title="Heading 1" onClick={() => exec("formatBlock", "h1")} className={`tb-btn-new ${activeFormats.includes("formatblock-h1") ? "active" : ""}`} style={{ fontSize: "11px", fontWeight: "bold" }}>H1</button>
+                    <button type="button" title="Heading 2" onClick={() => exec("formatBlock", "h2")} className={`tb-btn-new ${activeFormats.includes("formatblock-h2") ? "active" : ""}`} style={{ fontSize: "11px", fontWeight: "bold" }}>H2</button>
+                    <button type="button" title="Heading 3" onClick={() => exec("formatBlock", "h3")} className={`tb-btn-new ${activeFormats.includes("formatblock-h3") ? "active" : ""}`} style={{ fontSize: "11px", fontWeight: "bold" }}>H3</button>
+                    <button type="button" title="Paragraph" onClick={() => exec("formatBlock", "p")} className={`tb-btn-new ${activeFormats.includes("formatblock-p") ? "active" : ""}`} style={{ fontSize: "11px", fontWeight: "bold" }}>¶</button>
+
+                    <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)", margin: "0 4px" }} />
+
+                    {/* Font Dropdowns */}
+                    <select className="tb-select-new" defaultValue="" onChange={(e) => { if (e.target.value) exec("fontSize", e.target.value); e.target.value = ""; }} title="Font Size" style={{ height: "26px", padding: "2px 6px", background: "#1f2937", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: "6px", fontSize: "11px", outline: "none", cursor: "pointer" }}>
                       <option value="" disabled>Size</option>
-                      {["1","2","3","4","5","6","7"].map((s) => (<option key={s} value={s}>{["8px","10px","12px","14px","18px","24px","36px"][+s - 1]}</option>))}
+                      {["1","2","3","4","5","6","7"].map((s) => (<option key={s} value={s} style={{ background: "#111827", color: "#fff" }}>{["8px","10px","12px","14px","18px","24px","36px"][+s - 1]}</option>))}
                     </select>
-                    <select className="tb-select tb-select-wide" id="tb-fontname" defaultValue="" onChange={(e) => { if (e.target.value) exec("fontName", e.target.value); e.target.value = ""; }} title="Font Family">
+
+                    <select className="tb-select-new" defaultValue="" onChange={(e) => { if (e.target.value) exec("fontName", e.target.value); e.target.value = ""; }} title="Font Family" style={{ height: "26px", padding: "2px 6px", background: "#1f2937", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: "6px", fontSize: "11px", outline: "none", cursor: "pointer", maxWidth: "100px" }}>
                       <option value="" disabled>Font</option>
-                      {["Arial","Georgia","Courier New","Times New Roman","Verdana","Trebuchet MS","Impact","Comic Sans MS"].map((f) => (<option key={f} value={f} style={{ fontFamily: f }}>{f}</option>))}
+                      {["Arial","Georgia","Courier New","Times New Roman","Verdana","Trebuchet MS","Impact","Comic Sans MS"].map((f) => (<option key={f} value={f} style={{ fontFamily: f, background: "#111827", color: "#fff" }}>{f}</option>))}
                     </select>
+
+                    <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)", margin: "0 4px" }} />
+
+                    {/* Colors */}
+                    <label className="tb-color-picker-label" title="Text Color" style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+                      <span style={{ fontSize: "12px", fontWeight: "bold", borderBottom: "3px solid #fff", color: "#fff", lineHeight: 1 }}>A</span>
+                      <input type="color" defaultValue="#ffffff" className="tb-color-input" onChange={(e) => exec("foreColor", e.target.value)} style={{ width: "16px", height: "16px", border: "none", padding: 0, cursor: "pointer", background: "none" }} />
+                    </label>
+
+                    <label className="tb-color-picker-label" title="Highlight Color" style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", marginLeft: "6px" }}>
+                      <span style={{ fontSize: "12px", background: "#ffff00", padding: "1px 3px", borderRadius: "2px", color: "#000", fontWeight: "bold", lineHeight: 1 }}>H</span>
+                      <input type="color" defaultValue="#ffff00" className="tb-color-input" onChange={(e) => exec("hiliteColor", e.target.value)} style={{ width: "16px", height: "16px", border: "none", padding: 0, cursor: "pointer", background: "none" }} />
+                    </label>
                   </div>
-                  <div className="toolbar-sep" />
-                  <div className="toolbar-group">
-                    <label className="tb-color-label" title="Text Color"><span className="tb-color-icon">A</span><input type="color" defaultValue="#ffffff" id="tb-forecolor" className="tb-color-input" onChange={(e) => exec("foreColor", e.target.value)} /></label>
-                    <label className="tb-color-label" title="Highlight Color"><span className="tb-color-icon tb-hl-icon">◼</span><input type="color" defaultValue="#ffff00" id="tb-hilite" className="tb-color-input" onChange={(e) => exec("hiliteColor", e.target.value)} /></label>
-                  </div>
-                  <div className="toolbar-sep" />
-                  <div className="toolbar-group">
-                    <button title="Align Left" onClick={() => exec("justifyLeft")} className="tb-btn" id="tb-align-left">⬅️</button>
-                    <button title="Align Center" onClick={() => exec("justifyCenter")} className="tb-btn" id="tb-align-center">↔️</button>
-                    <button title="Align Right" onClick={() => exec("justifyRight")} className="tb-btn" id="tb-align-right">➡️</button>
-                    <button title="Justify" onClick={() => exec("justifyFull")} className="tb-btn" id="tb-justify">≡</button>
-                  </div>
-                  <div className="toolbar-sep" />
-                  <div className="toolbar-group">
-                    <button title="Bullet List" onClick={() => exec("insertUnorderedList")} className="tb-btn" id="tb-ul">• List</button>
-                    <button title="Numbered List" onClick={() => exec("insertOrderedList")} className="tb-btn" id="tb-ol">1. List</button>
-                    <button title="Blockquote" onClick={() => exec("formatBlock", "blockquote")} className="tb-btn" id="tb-quote">❝</button>
-                  </div>
-                  <div className="toolbar-sep" />
-                  <div className="toolbar-group" style={{ position: "relative" }}>
-                    <div className="tb-table-wrap">
-                      <button title="Insert Table (pick size)" className="tb-btn" id="tb-table">⊞ Table ▾</button>
+
+                  {/* Row 2: Alignment, Lists, Indents, Insertions, Tables, Links, Media, Clear */}
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px", borderTop: "1px dashed rgba(255,255,255,0.15)", paddingTop: "6px" }}>
+                    {/* Alignments */}
+                    <button type="button" title="Align Left" onClick={() => exec("justifyLeft")} className={`tb-btn-new ${activeFormats.includes("justifyLeft") ? "active" : ""}`}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+                    </button>
+                    <button type="button" title="Align Center" onClick={() => exec("justifyCenter")} className={`tb-btn-new ${activeFormats.includes("justifyCenter") ? "active" : ""}`}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="10" x2="6" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="18" y1="18" x2="6" y2="18"/></svg>
+                    </button>
+                    <button type="button" title="Align Right" onClick={() => exec("justifyRight")} className={`tb-btn-new ${activeFormats.includes("justifyRight") ? "active" : ""}`}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/></svg>
+                    </button>
+                    <button type="button" title="Justify" onClick={() => exec("justifyFull")} className={`tb-btn-new ${activeFormats.includes("justifyFull") ? "active" : ""}`}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
+                    </button>
+
+                    <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)", margin: "0 4px" }} />
+
+                    {/* Lists */}
+                    <button type="button" title="Bullet List" onClick={() => exec("insertUnorderedList")} className={`tb-btn-new ${activeFormats.includes("insertUnorderedList") ? "active" : ""}`}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                    </button>
+                    <button type="button" title="Numbered List" onClick={() => exec("insertOrderedList")} className={`tb-btn-new ${activeFormats.includes("insertOrderedList") ? "active" : ""}`}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M3 12h1v4H3m0-4v-1h1v1M3 6h2v1H3V6m0 12h2v1H3v-1z"/></svg>
+                    </button>
+
+                    <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)", margin: "0 4px" }} />
+
+                    {/* Structural */}
+                    <button type="button" title="Blockquote" onClick={() => exec("formatBlock", "blockquote")} className={`tb-btn-new ${activeFormats.includes("formatblock-blockquote") ? "active" : ""}`}>❝</button>
+                    <button type="button" title="Code Block" onClick={insertCodeBlock} className="tb-btn-new">&lt;/&gt;</button>
+                    <button type="button" title="Divider Line" onClick={insertHR} className="tb-btn-new">— HR</button>
+                    <button type="button" title="Flow Diagram" onClick={insertFlowDiagram} className="tb-btn-new">📊</button>
+
+                    <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)", margin: "0 4px" }} />
+
+                    {/* Callouts */}
+                    <button type="button" title="Info Callout" onClick={() => insertCallout("info")} className="tb-btn-new" style={{ color: "#3b82f6" }}>ℹ️</button>
+                    <button type="button" title="Tip Callout" onClick={() => insertCallout("tip")} className="tb-btn-new" style={{ color: "#00c896" }}>💡</button>
+                    <button type="button" title="Warning Callout" onClick={() => insertCallout("warning")} className="tb-btn-new" style={{ color: "#eab308" }}>⚠️</button>
+                    <button type="button" title="Note Callout" onClick={() => insertCallout("note")} className="tb-btn-new" style={{ color: "#a855f7" }}>📝</button>
+
+                    <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)", margin: "0 4px" }} />
+
+                    {/* Table picker wrapper */}
+                    <div className="tb-table-wrap" style={{ position: "relative" }}>
+                      <button type="button" title="Insert Table (pick size)" className="tb-btn-new" id="tb-table">⊞</button>
                       <div className="tb-table-picker-popup">
                         <div className="tb-picker-label">Drag to select table size</div>
                         <div className="tb-size-grid">
@@ -1356,28 +1481,20 @@ graph TD
                         <div className="tb-picker-size-label">{pickerHover.r + 1} × {pickerHover.c + 1}</div>
                       </div>
                     </div>
-                    <button title="Insert Link" onClick={handleInsertLink} className="tb-btn" id="tb-link">🔗 Link</button>
-                    <button title="Insert Image" onClick={() => { saveSelection(); mediaInsertRangeRef.current = savedSelectionRef.current; fileInputRef.current?.click(); }} className="tb-btn" id="tb-image">🖼️ Image</button>
-                    <button title="Insert Animated GIF" onClick={() => { saveSelection(); mediaInsertRangeRef.current = savedSelectionRef.current; gifInputRef.current?.click(); }} className="tb-btn" id="tb-gif">🎞️ GIF</button>
-                  </div>
-                  <div className="toolbar-sep" />
-                  <div className="toolbar-group">
-                    <button title="Code Block" onClick={insertCodeBlock} className="tb-btn" id="tb-code">&lt;/&gt; Code</button>
-                    <button title="Divider Line" onClick={insertHR} className="tb-btn" id="tb-hr">— HR</button>
-                    <button title="Flow Diagram" onClick={insertFlowDiagram} className="tb-btn" id="tb-flow">📊 Flow</button>
-                  </div>
-                  <div className="toolbar-sep" />
-                  <div className="toolbar-group">
-                    <button title="Info Callout" onClick={() => insertCallout("info")} className="tb-btn tb-callout-info" id="tb-callout-info">ℹ️</button>
-                    <button title="Tip Callout" onClick={() => insertCallout("tip")} className="tb-btn tb-callout-tip" id="tb-callout-tip">💡</button>
-                    <button title="Warning Callout" onClick={() => insertCallout("warning")} className="tb-btn tb-callout-warn" id="tb-callout-warn">⚠️</button>
-                    <button title="Note Callout" onClick={() => insertCallout("note")} className="tb-btn tb-callout-note" id="tb-callout-note">📝</button>
-                  </div>
-                  <div className="toolbar-sep" />
-                  <div className="toolbar-group">
-                    <button title="Undo (Ctrl+Z)" onClick={() => exec("undo")} className="tb-btn" id="tb-undo">↩ Undo</button>
-                    <button title="Redo (Ctrl+Y)" onClick={() => exec("redo")} className="tb-btn" id="tb-redo">↪ Redo</button>
-                    <button title="Clear Formatting" onClick={() => exec("removeFormat")} className="tb-btn" id="tb-clearfmt">✕ Clear</button>
+
+                    {/* Hyperlinks, Media */}
+                    <button type="button" title="Insert Link" onClick={handleInsertLink} className="tb-btn-new">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    </button>
+                    <button type="button" title="Insert Image" onClick={() => { saveSelection(); mediaInsertRangeRef.current = savedSelectionRef.current; fileInputRef.current?.click(); }} className="tb-btn-new">🖼️</button>
+                    <button type="button" title="Insert Animated GIF" onClick={() => { saveSelection(); mediaInsertRangeRef.current = savedSelectionRef.current; gifInputRef.current?.click(); }} className="tb-btn-new">🎞️</button>
+
+                    <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)", margin: "0 4px" }} />
+
+                    {/* Clear formatting */}
+                    <button type="button" title="Clear Formatting" onClick={() => exec("removeFormat")} className="tb-btn-new">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
                   </div>
                 </div>
 
@@ -1392,11 +1509,11 @@ graph TD
                     data-placeholder="Start writing... or type / for quick-insert options (table, image, code, callouts, headings...)"
                     spellCheck
                     onMouseDown={handleEditorMouseDown}
-                    onMouseUp={saveSelection}
-                    onKeyUp={saveSelection}
-                    onFocus={() => {}}
+                    onMouseUp={() => { saveSelection(); updateActiveFormats(); updateStats(); }}
+                    onKeyUp={() => { saveSelection(); updateActiveFormats(); updateStats(); }}
+                    onFocus={() => { updateActiveFormats(); updateStats(); }}
                     onKeyDown={handleEditorKeyDown}
-                    onInput={(e) => { handleEditorInput(); saveSelection(); }}
+                    onInput={(e) => { handleEditorInput(); saveSelection(); updateActiveFormats(); updateStats(); }}
                   />
 
                   {/* ── TABLE CONTEXT TOOLBAR ── */}
@@ -1487,8 +1604,12 @@ graph TD
                   )}
                 </div>
 
-                <div className="editor-stats-bar">
+                <div className="editor-stats-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>Type <kbd>/</kbd> anywhere to quick-insert • Click table cell for row/col controls • Click image to resize</span>
+                  <div style={{ display: "flex", gap: "12px", fontSize: "11px", opacity: 0.8 }}>
+                    <span>Words: <strong>{wordCount}</strong></span>
+                    <span>Characters: <strong>{charCount}</strong></span>
+                  </div>
                 </div>
               </>
             )}
@@ -1799,20 +1920,61 @@ graph TD
         .category-chip { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: linear-gradient(135deg, #00c896, #10b981); color: #030712; font-weight: 900; font-size: 1rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,200,150,0.3); }
 
         /* ─── Toolbar ──────────────────────────────────────────── */
-        .editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; padding: 0.6rem 0.75rem; background: #0d1424; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px 10px 0 0; border-bottom: none; }
-        .toolbar-group { display: flex; align-items: center; gap: 0.2rem; }
-        .toolbar-sep { width: 1px; height: 22px; background: rgba(255,255,255,0.1); margin: 0 0.3rem; flex-shrink: 0; }
-        .tb-btn { padding: 0.3rem 0.55rem; background: transparent; border: 1px solid transparent; border-radius: 6px; color: #d1d5db; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; font-family: inherit; }
-        .tb-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); color: #ffffff; }
-        .tb-btn:active { transform: scale(0.95); }
-        .tb-select { padding: 0.28rem 0.45rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #d1d5db; font-size: 0.82rem; cursor: pointer; outline: none; width: 68px; }
-        .tb-select-wide { width: 110px; }
-        .tb-select:focus { border-color: #00c896; }
-        .tb-color-label { display: flex; align-items: center; gap: 0.25rem; padding: 0.28rem 0.55rem; background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
-        .tb-color-label:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); }
-        .tb-color-icon { font-size: 0.85rem; font-weight: 900; color: #f3f4f6; }
-        .tb-hl-icon { color: #fde68a; }
-        .tb-color-input { width: 22px; height: 22px; border: none; border-radius: 4px; cursor: pointer; padding: 0; background: transparent; }
+        .tb-btn-new {
+          padding: 4px 7px;
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 6px;
+          background: rgba(255,255,255,0.05);
+          color: #d1d5db;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 600;
+          min-width: 26px;
+          height: 26px;
+          line-height: 1.4;
+          transition: all 0.15s;
+          white-space: nowrap;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .tb-btn-new:hover {
+          background: rgba(255,255,255,0.12);
+          border-color: rgba(255,255,255,0.2);
+          color: #ffffff;
+        }
+        .tb-btn-new.active {
+          background: rgba(0,200,150,0.2);
+          border-color: rgba(0,200,150,0.4);
+          color: #00c896;
+        }
+        .tb-select-new {
+          padding: 2px 6px;
+          background: #1f2937;
+          border: 1px solid rgba(255,255,255,0.1);
+          color: #fff;
+          border-radius: 6px;
+          font-size: 11px;
+          outline: none;
+          cursor: pointer;
+          height: 26px;
+        }
+        .tb-color-picker-label {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          cursor: pointer;
+          transition: all 0.15s;
+          padding: 2px 6px;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 6px;
+          background: rgba(255,255,255,0.05);
+          height: 26px;
+        }
+        .tb-color-picker-label:hover {
+          background: rgba(255,255,255,0.12);
+          border-color: rgba(255,255,255,0.2);
+        }
 
         /* ─── Table size picker in toolbar ─────────────────────── */
         .tb-table-wrap { position: relative; display: inline-flex; }

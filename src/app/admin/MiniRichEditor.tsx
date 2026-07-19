@@ -40,8 +40,20 @@ const EMOJI_GROUPS = [
 ];
 
 const SLASH_ITEMS = [
-  { id: "image", icon: "🖼️", label: "Upload Image", desc: "Upload an image file" },
-  { id: "table", icon: "⊞", label: "Add Table", desc: "Insert a table (pick size)" },
+  { id: "h1", icon: "Heading 1", label: "Heading 1", desc: "Large header" },
+  { id: "h2", icon: "Heading 2", label: "Heading 2", desc: "Medium header" },
+  { id: "h3", icon: "Heading 3", label: "Heading 3", desc: "Small header" },
+  { id: "image", icon: "🖼️", label: "Upload Image", desc: "Upload image file" },
+  { id: "table", icon: "⊞", label: "Add Table", desc: "Insert a table" },
+  { id: "code", icon: "⌨️", label: "Code Block", desc: "Monospace code syntax" },
+  { id: "hr", icon: "―", label: "Divider Line", desc: "Horizontal rule separator" },
+  { id: "flow", icon: "📊", label: "Flow Diagram", desc: "Insert Mermaid flow chart" },
+  { id: "info", icon: "ℹ️", label: "Info Callout", desc: "Blue callout box" },
+  { id: "warning", icon: "⚠️", label: "Warning Callout", desc: "Yellow warning box" },
+  { id: "tip", icon: "💡", label: "Tip Callout", desc: "Green tip box" },
+  { id: "note", icon: "📝", label: "Note Callout", desc: "Purple note box" },
+  { id: "quote", icon: "❝", label: "Blockquote", desc: "Styled blockquote quote" },
+  { id: "link", icon: "🔗", label: "Insert Link", desc: "Add external hyperlink" }
 ];
 
 export default function MiniRichEditor({
@@ -67,6 +79,11 @@ export default function MiniRichEditor({
   const pickerRef = useRef<HTMLDivElement>(null);
   const tablePickerRef = useRef<HTMLDivElement>(null);
 
+  // Stats and Active Formats
+  const [wordCount, setWordCount] = useState(0);
+  const [charCount, setCharCount] = useState(0);
+  const [activeFormats, setActiveFormats] = useState<string[]>([]);
+
   // Slash commands state
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashPos, setSlashPos] = useState({ top: 0, left: 0 });
@@ -75,11 +92,45 @@ export default function MiniRichEditor({
   const slashRangeRef = useRef<Range | null>(null);
   const slashMenuRef = useRef<HTMLDivElement>(null);
 
+  // Update active formatting states based on current cursor selection
+  const updateActiveFormats = useCallback(() => {
+    if (typeof document === "undefined") return;
+    const formats: string[] = [];
+    if (document.queryCommandState("bold")) formats.push("bold");
+    if (document.queryCommandState("italic")) formats.push("italic");
+    if (document.queryCommandState("underline")) formats.push("underline");
+    if (document.queryCommandState("strikeThrough")) formats.push("strikeThrough");
+    if (document.queryCommandState("insertUnorderedList")) formats.push("insertUnorderedList");
+    if (document.queryCommandState("insertOrderedList")) formats.push("insertOrderedList");
+    if (document.queryCommandState("justifyLeft")) formats.push("justifyLeft");
+    if (document.queryCommandState("justifyCenter")) formats.push("justifyCenter");
+    if (document.queryCommandState("justifyRight")) formats.push("justifyRight");
+    if (document.queryCommandState("justifyFull")) formats.push("justifyFull");
+    
+    try {
+      const block = document.queryCommandValue("formatBlock");
+      if (block) formats.push(`formatblock-${block.toLowerCase()}`);
+    } catch (e) {}
+
+    setActiveFormats(formats);
+  }, []);
+
+  // Update text stats
+  const updateStats = useCallback(() => {
+    if (!editorRef.current) return;
+    const text = editorRef.current.innerText || "";
+    const chars = text.length;
+    const words = text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
+    setWordCount(words);
+    setCharCount(chars);
+  }, []);
+
   // Initialise editor content once
   useEffect(() => {
     if (editorRef.current && !isInitialized.current) {
       editorRef.current.innerHTML = value || "";
       isInitialized.current = true;
+      updateStats();
     }
   }, []);
 
@@ -87,6 +138,7 @@ export default function MiniRichEditor({
   useEffect(() => {
     if (editorRef.current && !isFocused) {
       editorRef.current.innerHTML = value || "";
+      updateStats();
     }
   }, [value, isFocused]);
 
@@ -111,6 +163,8 @@ export default function MiniRichEditor({
     editorRef.current?.focus();
     document.execCommand(cmd, false, val);
     notifyChange();
+    updateActiveFormats();
+    updateStats();
   };
 
   const notifyChange = useCallback(() => {
@@ -126,6 +180,7 @@ export default function MiniRichEditor({
         savedSelRef.current = range.cloneRange();
       }
     }
+    updateActiveFormats();
   };
 
   const restoreSelection = (range?: Range | null) => {
@@ -135,6 +190,43 @@ export default function MiniRichEditor({
       sel?.removeAllRanges();
       sel?.addRange(targetRange);
     }
+  };
+
+  // Helper insertions for slash items
+  const insertHR = () => exec("insertHTML", `<hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:1.5rem 0;"/><p><br></p>`);
+
+  const insertCodeBlock = () => exec("insertHTML",
+    `<pre style="background:#0d1117;color:#7ee787;padding:1rem 1.25rem;border-radius:8px;font-family:monospace;font-size:0.9rem;overflow-x:auto;border:1px solid rgba(255,255,255,0.08);margin:1rem 0;white-space:pre-wrap;"><code>// Your code here</code></pre><p><br></p>`
+  );
+
+  const insertCallout = (type: "info" | "warning" | "tip" | "note") => {
+    const styles: Record<string, { bg: string; border: string; color: string; icon: string }> = {
+      info:    { bg: "rgba(59,130,246,0.1)",  border: "#3b82f6", color: "#93c5fd", icon: "ℹ️" },
+      warning: { bg: "rgba(234,179,8,0.1)",   border: "#eab308", color: "#fde68a", icon: "⚠️" },
+      tip:     { bg: "rgba(0,200,150,0.1)",   border: "#00c896", color: "#6ee7b7", icon: "💡" },
+      note:    { bg: "rgba(168,85,247,0.1)",  border: "#a855f7", color: "#d8b4fe", icon: "📝" },
+    };
+    const s = styles[type];
+    exec("insertHTML",
+      `<div style="background:${s.bg};border-left:4px solid ${s.border};border-radius:0 8px 8px 0;padding:1rem 1.25rem;margin:1rem 0;color:${s.color};"><strong>${s.icon} ${type.charAt(0).toUpperCase() + type.slice(1)}:</strong> Edit this callout text.</div><p><br></p>`
+    );
+  };
+
+  const insertFlowDiagram = () => exec("insertHTML",
+    `<div style="background:#0d1117;border:1px solid rgba(0,200,150,0.3);border-radius:8px;padding:1rem;margin:1rem 0;font-family:monospace;color:#7ee787;font-size:0.85rem;white-space:pre;">
+📊 Flow Diagram:
+graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Action 1]
+    B -->|No| D[Action 2]
+    C --> E[End]
+    D --> E[End]</div><p><br></p>`
+  );
+
+  const handleInsertLinkSlash = () => {
+    saveSelection();
+    setLinkUrl("");
+    setShowLinkModal(true);
   };
 
   // ── Slash commands logic ──────────────────────────────────────────────────
@@ -174,6 +266,18 @@ export default function MiniRichEditor({
     switch (id) {
       case "table":   setShowTablePicker(true); return;
       case "image":   fileInputRef.current?.click(); break;
+      case "code":    insertCodeBlock(); break;
+      case "hr":      insertHR(); break;
+      case "flow":    insertFlowDiagram(); break;
+      case "info":    insertCallout("info"); break;
+      case "warning": insertCallout("warning"); break;
+      case "tip":     insertCallout("tip"); break;
+      case "note":    insertCallout("note"); break;
+      case "h1":      exec("formatBlock", "<h1>"); break;
+      case "h2":      exec("formatBlock", "<h2>"); break;
+      case "h3":      exec("formatBlock", "<h3>"); break;
+      case "quote":   exec("formatBlock", "<blockquote>"); break;
+      case "link":    handleInsertLinkSlash(); break;
     }
     closeSlash();
   };
@@ -500,6 +604,10 @@ export default function MiniRichEditor({
         lineHeight: 1.4,
         transition: "background 0.15s",
         whiteSpace: "nowrap",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "26px"
       }}
     >
       {children}
@@ -518,223 +626,271 @@ export default function MiniRichEditor({
       <div
         style={{
           display: "flex",
-          flexWrap: "wrap",
-          gap: "3px",
-          padding: "7px 10px",
+          flexDirection: "column",
+          gap: "6px",
+          padding: "8px 10px",
           background: "var(--surface-alt, #f4f6f8)",
           border: "1px solid var(--border)",
           borderBottom: "none",
           borderRadius: "8px 8px 0 0",
-          alignItems: "center",
         }}
       >
-        {/* Text formatting */}
-        <Btn title="Bold" onClick={() => exec("bold")}><b>B</b></Btn>
-        <Btn title="Italic" onClick={() => exec("italic")}><i>I</i></Btn>
-        <Btn title="Underline" onClick={() => exec("underline")}><u>U</u></Btn>
-        <Btn title="Strikethrough" onClick={() => exec("strikeThrough")}><s>S</s></Btn>
+        {/* Row 1: History, Formatting, Font, Size, Colors */}
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px" }}>
+          {/* History */}
+          <Btn title="Undo" onClick={() => exec("undo")} active={false}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          </Btn>
+          <Btn title="Redo" onClick={() => exec("redo")} active={false}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          </Btn>
 
-        <Divider />
+          <Divider />
 
-        {/* Font size */}
-        <select
-          title="Font Size"
-          onMouseDown={(e) => e.stopPropagation()}
-          onChange={(e) => { applyFontSize(e.target.value); e.target.value = ""; }}
-          defaultValue=""
-          style={{ padding: "3px 5px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", fontSize: "12px", cursor: "pointer" }}
-        >
-          <option value="" disabled>Size</option>
-          {FONT_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
+          {/* Text formatting */}
+          <Btn title="Bold" onClick={() => exec("bold")} active={activeFormats.includes("bold")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>
+          </Btn>
+          <Btn title="Italic" onClick={() => exec("italic")} active={activeFormats.includes("italic")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>
+          </Btn>
+          <Btn title="Underline" onClick={() => exec("underline")} active={activeFormats.includes("underline")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg>
+          </Btn>
+          <Btn title="Strikethrough" onClick={() => exec("strikeThrough")} active={activeFormats.includes("strikeThrough")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><path d="M16 6A5 5 0 0 0 8 9c0 1 .4 1.8 1.1 2.2m5.8 1.6A5 5 0 0 1 8 15"/></svg>
+          </Btn>
 
-        {/* Font family */}
-        <select
-          title="Font Family"
-          onMouseDown={(e) => e.stopPropagation()}
-          onChange={(e) => { applyFontFamily(e.target.value); e.target.value = ""; }}
-          defaultValue=""
-          style={{ padding: "3px 5px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", fontSize: "12px", cursor: "pointer" }}
-        >
-          <option value="" disabled>Font</option>
-          {FONT_FAMILIES.map(f => <option key={f} value={f}>{f}</option>)}
-        </select>
+          <Divider />
 
-        <Divider />
+          {/* Headings */}
+          <Btn title="Heading 1" onClick={() => exec("formatBlock", "<h1>")} active={activeFormats.includes("formatblock-h1")}>H1</Btn>
+          <Btn title="Heading 2" onClick={() => exec("formatBlock", "<h2>")} active={activeFormats.includes("formatblock-h2")}>H2</Btn>
+          <Btn title="Heading 3" onClick={() => exec("formatBlock", "<h3>")} active={activeFormats.includes("formatblock-h3")}>H3</Btn>
+          <Btn title="Paragraph" onClick={() => exec("formatBlock", "<p>")} active={activeFormats.includes("formatblock-p")}>¶</Btn>
 
-        {/* Text color */}
-        <label title="Text Color" style={{ display: "flex", alignItems: "center", gap: "2px", cursor: "pointer", fontSize: "13px" }}>
-          🎨
-          <input type="color" onMouseDown={(e) => e.stopPropagation()} onChange={(e) => exec("foreColor", e.target.value)}
-            style={{ width: "22px", height: "22px", border: "none", padding: 0, cursor: "pointer", background: "none" }} />
-        </label>
+          <Divider />
 
-        {/* Highlight */}
-        <label title="Highlight" style={{ display: "flex", alignItems: "center", gap: "2px", cursor: "pointer", fontSize: "13px" }}>
-          🖊
-          <input type="color" defaultValue="#ffff00" onMouseDown={(e) => e.stopPropagation()} onChange={(e) => exec("hiliteColor", e.target.value)}
-            style={{ width: "22px", height: "22px", border: "none", padding: 0, cursor: "pointer", background: "none" }} />
-        </label>
-
-        <Divider />
-
-        {/* Lists */}
-        <Btn title="Bullet List" onClick={() => exec("insertUnorderedList")}>≡</Btn>
-        <Btn title="Numbered List" onClick={() => exec("insertOrderedList")}>1≡</Btn>
-        <Btn title="Indent" onClick={() => exec("indent")}>→</Btn>
-        <Btn title="Outdent" onClick={() => exec("outdent")}>←</Btn>
-
-        <Divider />
-
-        {/* Alignment */}
-        <Btn title="Align Left" onClick={() => exec("justifyLeft")}>◀▬</Btn>
-        <Btn title="Align Center" onClick={() => exec("justifyCenter")}>▬▬</Btn>
-        <Btn title="Align Right" onClick={() => exec("justifyRight")}>▬▶</Btn>
-
-        <Divider />
-
-        {/* Headings */}
-        <Btn title="Heading 1" onClick={() => exec("formatBlock", "<h1>")}>H1</Btn>
-        <Btn title="Heading 2" onClick={() => exec("formatBlock", "<h2>")}>H2</Btn>
-        <Btn title="Heading 3" onClick={() => exec("formatBlock", "<h3>")}>H3</Btn>
-        <Btn title="Blockquote" onClick={() => exec("formatBlock", "<blockquote>")}>❝</Btn>
-
-        <Divider />
-
-        {/* Link */}
-        <Btn title="Insert Link" onClick={openLinkModal}>🔗</Btn>
-
-        {/* Image upload */}
-        <>
-          <button
-            type="button"
-            title="Insert Image"
-            onMouseDown={(e) => { e.preventDefault(); saveSelection(); fileInputRef.current?.click(); }}
-            style={{ padding: "4px 7px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", cursor: "pointer", fontSize: "12px", lineHeight: 1.4 }}
+          {/* Font size */}
+          <select
+            title="Font Size"
+            onMouseDown={(e) => e.stopPropagation()}
+            onChange={(e) => { applyFontSize(e.target.value); e.target.value = ""; }}
+            defaultValue=""
+            style={{ padding: "4px 8px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", fontSize: "11px", cursor: "pointer", outline: "none", height: "26px" }}
           >
-            🖼️
-          </button>
-          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleMediaFile(f); e.target.value = ""; }} />
-        </>
+            <option value="" disabled>Size</option>
+            {FONT_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
 
-        {/* GIF upload */}
-        <>
-          <button
-            type="button"
-            title="Insert GIF"
-            onMouseDown={(e) => { e.preventDefault(); saveSelection(); gifInputRef.current?.click(); }}
-            style={{ padding: "4px 7px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", cursor: "pointer", fontSize: "12px", fontWeight: 700, lineHeight: 1.4 }}
+          {/* Font family */}
+          <select
+            title="Font Family"
+            onMouseDown={(e) => e.stopPropagation()}
+            onChange={(e) => { applyFontFamily(e.target.value); e.target.value = ""; }}
+            defaultValue=""
+            style={{ padding: "4px 8px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", fontSize: "11px", cursor: "pointer", outline: "none", height: "26px" }}
           >
-            GIF
-          </button>
-          <input ref={gifInputRef} type="file" accept="image/gif" style={{ display: "none" }}
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleMediaFile(f); e.target.value = ""; }} />
-        </>
+            <option value="" disabled>Font</option>
+            {FONT_FAMILIES.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
 
-        {/* Table */}
-        <div ref={tablePickerRef} style={{ position: "relative" }}>
-          <button
-            type="button"
-            title="Insert Table"
-            onMouseDown={(e) => { e.preventDefault(); setShowTablePicker(p => !p); setShowEmojiPicker(false); }}
-            style={{ padding: "4px 7px", border: "1px solid var(--border)", borderRadius: "4px", background: showTablePicker ? "var(--primary)" : "var(--surface)", color: showTablePicker ? "#fff" : "var(--text-main)", cursor: "pointer", fontSize: "12px", lineHeight: 1.4 }}
-          >
-            ⊞
-          </button>
+          <Divider />
 
-          {showTablePicker && (
-            <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 200, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", padding: "10px", boxShadow: "0 8px 24px rgba(0,0,0,0.18)" }}
-              onMouseLeave={() => setHoverCell({ r: 0, c: 0 })}>
-              <p style={{ margin: "0 0 7px", fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>
-                {hoverCell.r > 0 ? `${hoverCell.r} × ${hoverCell.c} Table` : "Select table size"}
-              </p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 20px)", gap: "2px" }}>
-                {Array.from({ length: 64 }, (_, i) => {
-                  const r = Math.floor(i / 8) + 1;
-                  const c = (i % 8) + 1;
-                  const active = r <= hoverCell.r && c <= hoverCell.c;
-                  return (
-                    <div key={i}
-                      onMouseEnter={() => setHoverCell({ r, c })}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => insertTable(r, c)}
-                      style={{ width: "20px", height: "20px", border: `1px solid ${active ? "var(--primary)" : "var(--border)"}`, background: active ? "var(--primary-light, #e0f2fe)" : "var(--background)", borderRadius: "2px", cursor: "pointer", transition: "all 0.1s" }}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {/* Color picker triggers */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <label className="tb-color-picker-label" title="Text Color" style={{ display: "flex", alignItems: "center", gap: "3px", cursor: "pointer" }}>
+              <span style={{ fontSize: "12px", fontWeight: "bold", borderBottom: "3px solid #000" }}>A</span>
+              <input type="color" onMouseDown={(e) => e.stopPropagation()} onChange={(e) => exec("foreColor", e.target.value)}
+                style={{ width: "16px", height: "16px", border: "none", padding: 0, cursor: "pointer", background: "none" }} />
+            </label>
+
+            <label className="tb-color-picker-label" title="Highlight Color" style={{ display: "flex", alignItems: "center", gap: "3px", cursor: "pointer" }}>
+              <span style={{ fontSize: "12px", background: "#ffff00", padding: "1px 3px", borderRadius: "2px", color: "#000" }}>H</span>
+              <input type="color" defaultValue="#ffff00" onMouseDown={(e) => e.stopPropagation()} onChange={(e) => exec("hiliteColor", e.target.value)}
+                style={{ width: "16px", height: "16px", border: "none", padding: 0, cursor: "pointer", background: "none" }} />
+            </label>
+          </div>
         </div>
 
-        <Divider />
+        {/* Row 2: Alignment, Lists, Indents, Insertions, Tables, Links, Media, Clear */}
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px", borderTop: "1px dashed var(--border)", paddingTop: "6px" }}>
+          {/* Alignment */}
+          <Btn title="Align Left" onClick={() => exec("justifyLeft")} active={activeFormats.includes("justifyLeft")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+          </Btn>
+          <Btn title="Align Center" onClick={() => exec("justifyCenter")} active={activeFormats.includes("justifyCenter")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="10" x2="6" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="18" y1="18" x2="6" y2="18"/></svg>
+          </Btn>
+          <Btn title="Align Right" onClick={() => exec("justifyRight")} active={activeFormats.includes("justifyRight")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/></svg>
+          </Btn>
+          <Btn title="Justify" onClick={() => exec("justifyFull")} active={activeFormats.includes("justifyFull")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
+          </Btn>
 
-        {/* Emoji / Icon / Favicon picker */}
-        <div ref={pickerRef} style={{ position: "relative" }}>
-          <button
-            type="button"
-            title="Insert Emoji / Icon / Favicon"
-            onMouseDown={(e) => { e.preventDefault(); setShowEmojiPicker(p => !p); setShowTablePicker(false); }}
-            style={{ padding: "4px 7px", border: "1px solid var(--border)", borderRadius: "4px", background: showEmojiPicker ? "var(--primary)" : "var(--surface)", color: showEmojiPicker ? "#fff" : "var(--text-main)", cursor: "pointer", fontSize: "14px", lineHeight: 1.4 }}
-          >
-            😊
-          </button>
+          <Divider />
 
-          {showEmojiPicker && (
-            <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 200, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "12px", boxShadow: "0 12px 40px rgba(0,0,0,0.2)", width: "300px" }}>
-              {/* Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                <span style={{ fontWeight: 700, fontSize: "13px", color: "var(--text-main)" }}>😊 Emoji & Icons</span>
+          {/* Lists & Indents */}
+          <Btn title="Bullet List" onClick={() => exec("insertUnorderedList")} active={activeFormats.includes("insertUnorderedList")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </Btn>
+          <Btn title="Numbered List" onClick={() => exec("insertOrderedList")} active={activeFormats.includes("insertOrderedList")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M3 12h1v4H3m0-4v-1h1v1M3 6h2v1H3V6m0 12h2v1H3v-1z"/></svg>
+          </Btn>
+          <Btn title="Outdent" onClick={() => exec("outdent")} active={false}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
+          </Btn>
+          <Btn title="Indent" onClick={() => exec("indent")} active={false}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 14 12 9 7"/><line x1="21" y1="12" x2="9" y2="12"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
+          </Btn>
+
+          <Divider />
+
+          {/* Structures */}
+          <Btn title="Blockquote" onClick={() => exec("formatBlock", "<blockquote>")} active={activeFormats.includes("formatblock-blockquote")}>❝</Btn>
+          <Btn title="Divider Line" onClick={insertHR} active={false}>— HR</Btn>
+          <Btn title="Code Block" onClick={insertCodeBlock} active={false}>&lt;/&gt;</Btn>
+          <Btn title="Flow Diagram" onClick={insertFlowDiagram} active={false}>📊</Btn>
+          <Btn title="Insert Link" onClick={openLinkModal} active={false}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </Btn>
+
+          <Divider />
+
+          {/* Media & Interactive */}
+          {/* Image */}
+          <div style={{ display: "inline-block" }}>
+            <button
+              type="button"
+              title="Insert Image"
+              onMouseDown={(e) => { e.preventDefault(); saveSelection(); fileInputRef.current?.click(); }}
+              style={{ padding: "4px 7px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", cursor: "pointer", fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "26px", height: "26px" }}
+            >
+              🖼️
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleMediaFile(f); e.target.value = ""; }} />
+          </div>
+
+          {/* GIF */}
+          <div style={{ display: "inline-block" }}>
+            <button
+              type="button"
+              title="Insert GIF"
+              onMouseDown={(e) => { e.preventDefault(); saveSelection(); gifInputRef.current?.click(); }}
+              style={{ padding: "4px 7px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--surface)", color: "var(--text-main)", cursor: "pointer", fontSize: "10px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", minWidth: "26px", height: "26px" }}
+            >
+              GIF
+            </button>
+            <input ref={gifInputRef} type="file" accept="image/gif" style={{ display: "none" }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleMediaFile(f); e.target.value = ""; }} />
+          </div>
+
+          {/* Table */}
+          <div ref={tablePickerRef} style={{ position: "relative" }}>
+            <button
+              type="button"
+              title="Insert Table"
+              onMouseDown={(e) => { e.preventDefault(); setShowTablePicker(p => !p); setShowEmojiPicker(false); }}
+              style={{ padding: "4px 7px", border: "1px solid var(--border)", borderRadius: "4px", background: showTablePicker ? "var(--primary)" : "var(--surface)", color: showTablePicker ? "#fff" : "var(--text-main)", cursor: "pointer", fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "26px", height: "26px" }}
+            >
+              ⊞
+            </button>
+
+            {showTablePicker && (
+              <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 200, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", padding: "10px", boxShadow: "0 8px 24px rgba(0,0,0,0.18)" }}
+                onMouseLeave={() => setHoverCell({ r: 0, c: 0 })}>
+                <p style={{ margin: "0 0 7px", fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>
+                  {hoverCell.r > 0 ? `${hoverCell.r} × ${hoverCell.c} Table` : "Select table size"}
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 20px)", gap: "2px" }}>
+                  {Array.from({ length: 64 }, (_, i) => {
+                    const r = Math.floor(i / 8) + 1;
+                    const c = (i % 8) + 1;
+                    const active = r <= hoverCell.r && c <= hoverCell.c;
+                    return (
+                      <div key={i}
+                        onMouseEnter={() => setHoverCell({ r, c })}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => insertTable(r, c)}
+                        style={{ width: "20px", height: "20px", border: `1px solid ${active ? "var(--primary)" : "var(--border)"}`, background: active ? "var(--primary-light, #e0f2fe)" : "var(--background)", borderRadius: "2px", cursor: "pointer", transition: "all 0.1s" }}
+                      />
+                    );
+                  })}
+                </div>
               </div>
+            )}
+          </div>
 
-              {/* Tabs */}
-              <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginBottom: "10px" }}>
-                {EMOJI_GROUPS.map((g, i) => (
-                  <button key={i} type="button"
-                    onMouseDown={(e) => { e.preventDefault(); setEmojiTab(i); }}
-                    style={{ padding: "3px 8px", border: "1px solid var(--border)", borderRadius: "20px", background: emojiTab === i ? "var(--primary)" : "var(--surface)", color: emojiTab === i ? "#fff" : "var(--text-muted)", cursor: "pointer", fontSize: "11px", fontWeight: 600 }}>
-                    {g.group}
-                  </button>
-                ))}
-              </div>
+          {/* Emoji */}
+          <div ref={pickerRef} style={{ position: "relative" }}>
+            <button
+              type="button"
+              title="Insert Emoji"
+              onMouseDown={(e) => { e.preventDefault(); setShowEmojiPicker(p => !p); setShowTablePicker(false); }}
+              style={{ padding: "4px 7px", border: "1px solid var(--border)", borderRadius: "4px", background: showEmojiPicker ? "var(--primary)" : "var(--surface)", color: showEmojiPicker ? "#fff" : "var(--text-main)", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "26px", height: "26px" }}
+            >
+              😊
+            </button>
 
-              {/* Icons grid */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: "4px", maxHeight: "180px", overflowY: "auto" }}>
-                {EMOJI_GROUPS[emojiTab].icons.map((emoji, i) => (
-                  <button key={i} type="button"
-                    title={`Insert ${emoji}`}
-                    onMouseDown={(e) => { e.preventDefault(); insertEmoji(emoji); }}
-                    style={{ fontSize: "18px", padding: "4px", border: "1px solid transparent", borderRadius: "6px", background: "none", cursor: "pointer", textAlign: "center", lineHeight: 1, transition: "all 0.1s" }}
-                    onMouseEnter={(e) => { (e.target as HTMLElement).style.background = "var(--primary-light, #e0f2fe)"; (e.target as HTMLElement).style.borderColor = "var(--primary)"; }}
-                    onMouseLeave={(e) => { (e.target as HTMLElement).style.background = "none"; (e.target as HTMLElement).style.borderColor = "transparent"; }}>
-                    {emoji}
-                  </button>
-                ))}
-              </div>
+            {showEmojiPicker && (
+              <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 200, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "12px", boxShadow: "0 12px 40px rgba(0,0,0,0.2)", width: "300px" }}>
+                {/* Header */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                  <span style={{ fontWeight: 700, fontSize: "13px", color: "var(--text-main)" }}>😊 Emoji & Icons</span>
+                </div>
 
-              {/* Inline icon insert section */}
-              <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px solid var(--border)" }}>
-                <p style={{ margin: "0 0 6px", fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>📌 Insert as small inline icon (favicon-style):</p>
-                <div style={{ display: "flex", gap: "3px", flexWrap: "wrap" }}>
-                  {["🩺","💊","🏥","✅","⚠️","❓","🔴","🟢","★","•","→","💡","🔗","📌","🏷️","🔬","🧬","❤️","🛡️","📖"].map((emoji, i) => (
+                {/* Tabs */}
+                <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginBottom: "10px" }}>
+                  {EMOJI_GROUPS.map((g, i) => (
                     <button key={i} type="button"
-                      title={`Insert ${emoji} as icon`}
-                      onMouseDown={(e) => { e.preventDefault(); insertInlineIcon(emoji); }}
-                      style={{ fontSize: "16px", padding: "3px 5px", border: "1px solid var(--border)", borderRadius: "5px", background: "var(--background)", cursor: "pointer", lineHeight: 1 }}>
+                      onMouseDown={(e) => { e.preventDefault(); setEmojiTab(i); }}
+                      style={{ padding: "3px 8px", border: "1px solid var(--border)", borderRadius: "20px", background: emojiTab === i ? "var(--primary)" : "var(--surface)", color: emojiTab === i ? "#fff" : "var(--text-muted)", cursor: "pointer", fontSize: "11px", fontWeight: 600 }}>
+                      {g.group}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Icons grid */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: "4px", maxHeight: "180px", overflowY: "auto" }}>
+                  {EMOJI_GROUPS[emojiTab].icons.map((emoji, i) => (
+                    <button key={i} type="button"
+                      title={`Insert ${emoji}`}
+                      onMouseDown={(e) => { e.preventDefault(); insertEmoji(emoji); }}
+                      style={{ fontSize: "18px", padding: "4px", border: "1px solid transparent", borderRadius: "6px", background: "none", cursor: "pointer", textAlign: "center", lineHeight: 1, transition: "all 0.1s" }}
+                      onMouseEnter={(e) => { (e.target as HTMLElement).style.background = "var(--primary-light, #e0f2fe)"; (e.target as HTMLElement).style.borderColor = "var(--primary)"; }}
+                      onMouseLeave={(e) => { (e.target as HTMLElement).style.background = "none"; (e.target as HTMLElement).style.borderColor = "transparent"; }}>
                       {emoji}
                     </button>
                   ))}
                 </div>
+
+                {/* Inline icon insert section */}
+                <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px solid var(--border)" }}>
+                  <p style={{ margin: "0 0 6px", fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>📌 Insert as small inline icon (favicon-style):</p>
+                  <div style={{ display: "flex", gap: "3px", flexWrap: "wrap" }}>
+                    {["🩺","💊","🏥","✅","⚠️","❓","🔴","🟢","★","•","→","💡","🔗","📌","🏷️","🔬","🧬","❤️","🛡️","📖"].map((emoji, i) => (
+                      <button key={i} type="button"
+                        title={`Insert ${emoji} as icon`}
+                        onMouseDown={(e) => { e.preventDefault(); insertInlineIcon(emoji); }}
+                        style={{ fontSize: "16px", padding: "3px 5px", border: "1px solid var(--border)", borderRadius: "5px", background: "var(--background)", cursor: "pointer", lineHeight: 1 }}>
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+
+          <Divider />
+
+          {/* Remove format */}
+          <Btn title="Remove Formatting" onClick={() => exec("removeFormat")} active={false}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </Btn>
         </div>
-
-        <Divider />
-
-        {/* Clear formatting */}
-        <Btn title="Remove Formatting" onClick={() => exec("removeFormat")}>✕</Btn>
       </div>
 
       {/* ── Editable area ─────────────────────────────────────────────────── */}
@@ -755,7 +911,7 @@ export default function MiniRichEditor({
             minHeight,
             padding: "14px 16px",
             border: "1px solid var(--border)",
-            borderRadius: "0 0 8px 8px",
+            borderRadius: "0",
             background: "var(--surface, #fff)",
             color: "var(--text-main)",
             fontSize: "14px",
@@ -813,6 +969,28 @@ export default function MiniRichEditor({
             )}
           </div>
         )}
+      </div>
+
+      {/* ── Stats Bar ────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "6px 12px",
+          background: "var(--surface-alt, #f4f6f8)",
+          border: "1px solid var(--border)",
+          borderTop: "none",
+          borderRadius: "0 0 8px 8px",
+          fontSize: "11px",
+          color: "var(--text-muted)",
+        }}
+      >
+        <span>Type <kbd style={{ background: "rgba(0,0,0,0.06)", padding: "1px 4px", borderRadius: "3px" }}>/</kbd> for quick command insert</span>
+        <div style={{ display: "flex", gap: "12px" }}>
+          <span>Words: <strong>{wordCount}</strong></span>
+          <span>Characters: <strong>{charCount}</strong></span>
+        </div>
       </div>
 
       {/* ── Link Modal ────────────────────────────────────────────────────── */}
