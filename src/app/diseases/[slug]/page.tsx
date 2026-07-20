@@ -211,7 +211,7 @@ export default async function DiseaseDetailPage({ params }: PageProps) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
         />
-        <div className="container" style={{ padding: "3rem 1.5rem", minHeight: "80vh" }}>
+        <div className="container" style={{ paddingTop: "3rem", paddingBottom: "3rem", minHeight: "80vh" }}>
         {/* Breadcrumb */}
         <div style={{ marginBottom: "2rem" }}>
           <Link
