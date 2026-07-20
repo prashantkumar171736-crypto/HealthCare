@@ -1421,13 +1421,13 @@ h4 { font-size: 1.25rem; }
   font-style: italic;
 }
 .post-documentation-view table {
-  border-collapse: collapse;
-  width: 100%;
+  border-collapse: collapse !important;
+  width: 100% !important;
   margin: 1.5rem 0;
 }
 .post-documentation-view th, .post-documentation-view td {
-  border: 1px solid var(--border);
-  padding: 10px 14px;
+  border: 1px solid var(--border) !important;
+  padding: 10px 14px !important;
 }
 .post-documentation-view th {
   background: var(--primary-light);
@@ -1607,8 +1607,8 @@ h4 { font-size: 1.25rem; }
 
 /* Tables */
 .doc-content table {
-  border-collapse: collapse;
-  width: 100%;
+  border-collapse: collapse !important;
+  width: 100% !important;
   max-width: 100%;
   margin: 1.5rem 0;
   overflow-x: auto;
@@ -1617,8 +1617,8 @@ h4 { font-size: 1.25rem; }
 
 .doc-content th,
 .doc-content td {
-  border: 1px solid var(--border);
-  padding: 10px 14px;
+  border: 1px solid var(--border) !important;
+  padding: 10px 14px !important;
   word-break: break-word;
 }
 

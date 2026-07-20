@@ -1199,15 +1199,15 @@ graph TD
           pointer-events: none;
         }
         [contenteditable] table {
-          border-collapse: collapse;
-          width: 100%;
+          border-collapse: collapse !important;
+          width: 100% !important;
           margin: 0.75rem 0;
         }
         [contenteditable] table td,
         [contenteditable] table th {
-          border: 1px solid #d1d5db;
-          padding: 8px 12px;
-          min-width: 80px;
+          border: 1px solid #d1d5db !important;
+          padding: 8px 12px !important;
+          min-width: 80px !important;
         }
         [contenteditable] ul {
           list-style-type: disc;
