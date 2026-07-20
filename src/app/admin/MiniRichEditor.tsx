@@ -444,6 +444,28 @@ graph TD
     notifyChange();
   };
 
+  // ── Table border sanitizer ────────────────────────────────────────────────
+  // Strips inline styles that hide borders on pasted table elements and
+  // re-applies explicit border styles so gridlines always appear in the editor.
+  const sanitizeTableHtml = (doc: Document) => {
+    // Fix <table> elements
+    doc.querySelectorAll("table").forEach((table) => {
+      table.style.borderCollapse = "collapse";
+      table.style.width = "100%";
+      table.style.margin = "0.75rem 0";
+      // Remove any border-spacing that separates cells
+      table.style.borderSpacing = "0";
+    });
+
+    // Fix <td> and <th> cells — force visible border regardless of pasted styles
+    doc.querySelectorAll("td, th").forEach((cell) => {
+      const el = cell as HTMLElement;
+      el.style.border = "1px solid #d1d5db";
+      el.style.padding = "8px 12px";
+      el.style.minWidth = "60px";
+    });
+  };
+
   const handlePaste = async (e: React.ClipboardEvent<HTMLDivElement>) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -536,11 +558,34 @@ graph TD
         }
       }
 
+      // Fix table borders in this paste before inserting
+      sanitizeTableHtml(doc);
+
       // Restore selection and insert the updated HTML
       restoreSelection(mediaInsertRangeRef.current);
       editorRef.current?.focus();
       document.execCommand("insertHTML", false, doc.body.innerHTML);
       mediaInsertRangeRef.current = null;
+      notifyChange();
+      return;
+    }
+
+    // ── Intercept ALL other HTML pastes to fix table borders ────────────────
+    // This catches tables pasted from Google Docs, Word, Excel, web pages, etc.
+    // which carry inline styles like border:none that would hide cell gridlines.
+    if (html) {
+      e.preventDefault();
+      saveSelection();
+
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      // Fix table borders so pasted tables always show cell lines
+      sanitizeTableHtml(doc);
+
+      restoreSelection(savedSelRef.current);
+      editorRef.current?.focus();
+      document.execCommand("insertHTML", false, doc.body.innerHTML);
       notifyChange();
     }
   };

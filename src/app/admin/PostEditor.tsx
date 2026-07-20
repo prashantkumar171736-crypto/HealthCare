@@ -679,6 +679,67 @@ graph TD
     closeSlash();
   };
 
+  // ── Table border sanitizer ────────────────────────────────────────────────
+  // Re-applies explicit inline border styles on every table/td/th element so
+  // pasted tables from Google Docs, Word, Excel, etc. always show cell lines.
+  const sanitizeTableHtml = (doc: Document) => {
+    doc.querySelectorAll("table").forEach((table) => {
+      table.style.borderCollapse = "collapse";
+      table.style.width = "100%";
+      table.style.margin = "1rem 0";
+      table.style.borderSpacing = "0";
+    });
+    doc.querySelectorAll("td, th").forEach((cell) => {
+      const el = cell as HTMLElement;
+      el.style.border = "1px solid rgba(255,255,255,0.2)";
+      el.style.padding = "8px 12px";
+      el.style.minWidth = "60px";
+    });
+  };
+
+  // ── Paste handler for the main post/library content editor ────────────────
+  const handleEditorPaste = async (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    // Direct file image paste (e.g. screenshot)
+    let fileImage: File | null = null;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === "file" && item.type.startsWith("image/")) {
+        fileImage = item.getAsFile();
+        break;
+      }
+    }
+    if (fileImage) {
+      e.preventDefault();
+      saveSelection();
+      mediaInsertRangeRef.current = savedSelectionRef.current;
+      const reader = new FileReader();
+      reader.onload = (ev) => insertImageHtml(ev.target?.result as string);
+      reader.readAsDataURL(fileImage);
+      return;
+    }
+
+    const html = e.clipboardData.getData("text/html");
+    if (!html) return; // plain text — let browser handle naturally
+
+    // All HTML pastes: sanitize table borders before inserting
+    e.preventDefault();
+    saveSelection();
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+
+    sanitizeTableHtml(doc);
+
+    restoreSelection(savedSelectionRef.current);
+    editorRef.current?.focus();
+    document.execCommand("insertHTML", false, doc.body.innerHTML);
+    updateActiveFormats();
+    updateStats();
+  };
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (slashMenuRef.current && !slashMenuRef.current.contains(e.target as Node)) {
@@ -1572,6 +1633,7 @@ graph TD
                     onFocus={() => { updateActiveFormats(); updateStats(); }}
                     onKeyDown={handleEditorKeyDown}
                     onInput={(e) => { handleEditorInput(); saveSelection(); updateActiveFormats(); updateStats(); }}
+                    onPaste={handleEditorPaste}
                   />
 
                   {/* ── TABLE CONTEXT TOOLBAR ── */}
