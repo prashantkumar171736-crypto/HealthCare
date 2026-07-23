@@ -369,7 +369,7 @@ export default async function DiseaseDetailPage({ params }: PageProps) {
             ))}
           </div>
           <h1 style={{ fontSize: "2.75rem", marginBottom: "0.5rem" }}>{serializedDisease.name}</h1>
-          <p className="text-muted" style={{ fontSize: "1.1rem", maxWidth: "1100px" }}>
+          <p className="text-muted" style={{ fontSize: "1.1rem", maxWidth: "1450px" }}>
             Comprehensive guide covering clinical description, symptoms, risk factors, diagnosis, treatment, and prevention.
           </p>
         </div>

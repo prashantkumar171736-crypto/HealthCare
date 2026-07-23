@@ -136,7 +136,7 @@ export default async function CategoryPage({
               <h1 style={{ marginTop: "0.25rem", marginBottom: 0 }}>{category.name}</h1>
             </div>
           </div>
-          <p className="text-muted" style={{ fontSize: "1.15rem", maxWidth: "1100px", lineHeight: "1.6" }}>
+          <p className="text-muted" style={{ fontSize: "1.15rem", maxWidth: "1450px", lineHeight: "1.6" }}>
             {category.description}
           </p>
         </div>
@@ -175,7 +175,7 @@ export default async function CategoryPage({
 
       {/* Quick FAQ / Educational Info block */}
       <section style={{ padding: "4rem 0", backgroundColor: "var(--surface)", borderTop: "1px solid var(--border)" }}>
-        <div className="container" style={{ maxWidth: "1100px" }}>
+        <div className="container" style={{ maxWidth: "1450px" }}>
           <h2 className="text-center" style={{ marginBottom: "2.5rem" }}>Frequently Asked Questions</h2>
           
           <div className="disease-faq-item">
