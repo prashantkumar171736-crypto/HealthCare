@@ -71,7 +71,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const db = await getDb();
 
-    // Fetch categories
+    // Fetch categories (15 entries)
     const categories = await db
       .collection("categories")
       .find({})
@@ -91,7 +91,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     }));
 
-    // Fetch diseases
+    // Fetch diseases (105 entries)
     const diseases = await db
       .collection("diseases")
       .find({})
@@ -111,7 +111,47 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     }));
 
-    // Fetch posts
+    // Fetch health library articles (21 entries — symptoms, tests & treatments guides)
+    const libraryItems = await db
+      .collection("library")
+      .find({})
+      .project({ slug: 1, updatedAt: 1 })
+      .toArray();
+
+    const libraryUrls = libraryItems.map((item) => ({
+      url: `${baseUrl}/health-library/${item.slug}`,
+      lastModified: item.updatedAt ? new Date(item.updatedAt) : new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.75,
+      alternates: {
+        languages: {
+          en: `${baseUrl}/health-library/${item.slug}`,
+          hi: `${baseUrl}/health-library/${item.slug}`,
+        },
+      },
+    }));
+
+    // Fetch health tips articles (only those with a slug field)
+    const tipsItems = await db
+      .collection("tips")
+      .find({ slug: { $exists: true, $ne: null } })
+      .project({ slug: 1, updatedAt: 1 })
+      .toArray();
+
+    const tipsUrls = tipsItems.map((tip) => ({
+      url: `${baseUrl}/health-tips/${tip.slug}`,
+      lastModified: tip.updatedAt ? new Date(tip.updatedAt) : new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+      alternates: {
+        languages: {
+          en: `${baseUrl}/health-tips/${tip.slug}`,
+          hi: `${baseUrl}/health-tips/${tip.slug}`,
+        },
+      },
+    }));
+
+    // Fetch posts — long-form articles (e.g. Cancer overview, linked under /diseases/)
     const posts = await db
       .collection("posts")
       .find({})
@@ -122,7 +162,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${baseUrl}/diseases/${post.slug}`,
       lastModified: post.updatedAt ? new Date(post.updatedAt) : new Date(),
       changeFrequency: "weekly" as const,
-      priority: 0.85,
+      priority: 0.9,
       alternates: {
         languages: {
           en: `${baseUrl}/diseases/${post.slug}`,
@@ -131,7 +171,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     }));
 
-    return [...staticUrls, ...categoryUrls, ...diseaseUrls, ...postUrls];
+    return [
+      ...staticUrls,
+      ...categoryUrls,
+      ...diseaseUrls,
+      ...libraryUrls,
+      ...tipsUrls,
+      ...postUrls,
+    ];
   } catch (error) {
     console.error("Sitemap generation database error, returning static routes only:", error);
     return staticUrls;
