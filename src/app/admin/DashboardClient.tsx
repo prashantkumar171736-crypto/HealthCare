@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import PostEditor from "./PostEditor";
 import DonationSettings from "./DonationSettings";
 import CommentsManager from "./CommentsManager";
-import ThemeSettings, { AdminTheme, DEFAULT_THEME } from "./ThemeSettings";
+import ThemeSettings, { AdminTheme, DEFAULT_THEME, hexToRgb, luminance } from "./ThemeSettings";
 import { useLanguage } from "@/context/LanguageContext";
 import { LANG_MAP } from "@/lib/detectLanguage";
 
@@ -317,15 +317,25 @@ export default function DashboardClient() {
 
 
   // Build CSS variable inline style from theme
+  const bgRgb = hexToRgb(theme.bgColor);
+  const bgLum = bgRgb ? luminance(...bgRgb) : 0;
+  const isLight = bgLum > 0.4;
+
   const themeVars = {
-    "--admin-bg":          theme.bgColor,
-    "--admin-sidebar-bg": theme.sidebarColor,
-    "--admin-card-bg":    theme.cardColor,
-    "--admin-accent":     theme.accentColor,
+    "--admin-bg":             theme.bgColor,
+    "--admin-sidebar-bg":    theme.sidebarColor,
+    "--admin-card-bg":       theme.cardColor,
+    "--admin-accent":        theme.accentColor,
     "--admin-text-primary":   theme.textPrimary,
     "--admin-text-secondary": theme.textSecondary,
     "--admin-font-family":    theme.fontFamily,
     "--admin-font-size":      `${theme.fontSize}px`,
+    "--admin-border":         isLight ? "rgba(0, 0, 0, 0.08)" : "rgba(255, 255, 255, 0.08)",
+    "--admin-border-strong":  isLight ? "rgba(0, 0, 0, 0.16)" : "rgba(255, 255, 255, 0.16)",
+    "--admin-hover-bg":       isLight ? "rgba(0, 0, 0, 0.04)" : "rgba(255, 255, 255, 0.05)",
+    "--admin-input-bg":       isLight ? "#ffffff" : "rgba(0, 0, 0, 0.35)",
+    "--admin-input-border":   isLight ? "rgba(0, 0, 0, 0.18)" : "rgba(255, 255, 255, 0.12)",
+    "--admin-card-shadow":   isLight ? "0 4px 20px -2px rgba(0, 0, 0, 0.06)" : "0 4px 20px -2px rgba(0, 0, 0, 0.35)",
   } as React.CSSProperties;
 
   return (
@@ -832,7 +842,7 @@ export default function DashboardClient() {
         .admin-sidebar {
           width: 260px;
           background-color: var(--admin-sidebar-bg, #0b0f19);
-          border-right: 1px solid rgba(255, 255, 255, 0.05);
+          border-right: 1px solid var(--admin-border, rgba(255, 255, 255, 0.05));
           display: flex;
           flex-direction: column;
           padding: 2rem 1.5rem;
@@ -841,7 +851,7 @@ export default function DashboardClient() {
         .sidebar-brand {
           font-size: 1.5rem;
           font-weight: 700;
-          color: #ffffff;
+          color: var(--admin-text-primary, #ffffff);
           display: flex;
           align-items: center;
           gap: 0.5rem;
@@ -872,7 +882,7 @@ export default function DashboardClient() {
         .nav-item {
           background: none;
           border: none;
-          color: #9ca3af;
+          color: var(--admin-text-secondary, #9ca3af);
           text-align: left;
           padding: 0.75rem 1rem;
           font-size: 0.95rem;
@@ -884,7 +894,7 @@ export default function DashboardClient() {
 
         .nav-item:hover, .nav-item.active {
           color: var(--admin-text-primary, #ffffff);
-          background-color: rgba(255, 255, 255, 0.05);
+          background-color: var(--admin-hover-bg, rgba(255, 255, 255, 0.05));
         }
 
         .nav-item.active {
@@ -896,7 +906,7 @@ export default function DashboardClient() {
 
         .sidebar-footer {
           margin-top: auto;
-          border-top: 1px solid rgba(255, 255, 255, 0.05);
+          border-top: 1px solid var(--admin-border, rgba(255, 255, 255, 0.05));
           padding-top: 1.5rem;
         }
 
@@ -928,19 +938,19 @@ export default function DashboardClient() {
           justify-content: space-between;
           align-items: center;
           margin-bottom: 2.5rem;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          border-bottom: 1px solid var(--admin-border, rgba(255, 255, 255, 0.05));
           padding-bottom: 1.5rem;
         }
 
         .header-meta h1 {
           font-size: 1.75rem;
           font-weight: 700;
-          color: #ffffff;
+          color: var(--admin-text-primary, #ffffff);
           margin-bottom: 0.25rem;
         }
 
         .header-meta p {
-          color: #9ca3af;
+          color: var(--admin-text-secondary, #9ca3af);
           font-size: 0.9rem;
         }
 
@@ -956,17 +966,16 @@ export default function DashboardClient() {
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
-          border: none;
         }
 
         .btn-refresh {
-          background-color: #1f2937;
-          color: #ffffff;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          background-color: var(--admin-card-bg, #1f2937);
+          color: var(--admin-text-primary, #ffffff);
+          border: 1px solid var(--admin-border-strong, rgba(255, 255, 255, 0.1));
         }
 
         .btn-refresh:hover {
-          background-color: #374151;
+          background-color: var(--admin-hover-bg, #374151);
         }
 
         .btn-danger {
@@ -990,10 +999,10 @@ export default function DashboardClient() {
 
         .kpi-card {
           background-color: var(--admin-card-bg, #0b0f19);
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          border: 1px solid var(--admin-border, rgba(255, 255, 255, 0.05));
           border-radius: 12px;
           padding: 1.5rem;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          box-shadow: var(--admin-card-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
           position: relative;
         }
 
@@ -1015,7 +1024,7 @@ export default function DashboardClient() {
 
         .kpi-value .unit {
           font-size: 1rem;
-          color: #9ca3af;
+          color: var(--admin-text-secondary, #9ca3af);
           font-weight: 400;
         }
 
@@ -1074,9 +1083,10 @@ export default function DashboardClient() {
 
         .panel-card {
           background-color: var(--admin-card-bg, #0b0f19);
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          border: 1px solid var(--admin-border, rgba(255, 255, 255, 0.05));
           border-radius: 16px;
           padding: 1.75rem;
+          box-shadow: var(--admin-card-shadow);
         }
 
         .panel-title {
@@ -1084,7 +1094,7 @@ export default function DashboardClient() {
           font-weight: 700;
           margin-bottom: 1.25rem;
           color: var(--admin-text-primary, #ffffff);
-          border-bottom: 1px solid rgba(255,255,255,0.05);
+          border-bottom: 1px solid var(--admin-border, rgba(255,255,255,0.05));
           padding-bottom: 0.5rem;
         }
 
@@ -1097,7 +1107,7 @@ export default function DashboardClient() {
           align-items: center;
           justify-content: space-between;
           margin-bottom: 1.25rem;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
+          border-bottom: 1px solid var(--admin-border, rgba(255,255,255,0.05));
           padding-bottom: 0.75rem;
           gap: 1rem;
           flex-wrap: wrap;
@@ -1128,9 +1138,9 @@ export default function DashboardClient() {
         .chart-period-select {
           appearance: none;
           -webkit-appearance: none;
-          background-color: var(--admin-card-bg, #0f1621);
+          background-color: var(--admin-input-bg, #0f1621);
           color: var(--admin-text-primary, #e5e7eb);
-          border: 1px solid rgba(0, 200, 150, 0.35);
+          border: 1px solid var(--admin-input-border, rgba(0, 200, 150, 0.35));
           border-radius: 8px;
           padding: 0.45rem 2.2rem 0.45rem 0.85rem;
           font-size: 0.85rem;
@@ -1146,8 +1156,8 @@ export default function DashboardClient() {
         }
 
         .chart-period-select option {
-          background-color: #0f1621;
-          color: #f3f4f6;
+          background-color: var(--admin-card-bg, #0f1621);
+          color: var(--admin-text-primary, #f3f4f6);
         }
 
         .chart-period-arrow {
@@ -1185,12 +1195,12 @@ export default function DashboardClient() {
           gap: 0.35rem;
           padding: 0.6rem 0.75rem;
           border-radius: 10px;
-          background: rgba(255,255,255,0.02);
-          border: 1px solid rgba(255,255,255,0.04);
+          background: var(--admin-hover-bg, rgba(255,255,255,0.02));
+          border: 1px solid var(--admin-border, rgba(255,255,255,0.04));
           transition: background 0.2s;
         }
         .progress-row-v2:hover {
-          background: rgba(255,255,255,0.05);
+          background: var(--admin-border-strong, rgba(255,255,255,0.08));
         }
 
         .prv2-top {
@@ -1400,13 +1410,13 @@ export default function DashboardClient() {
         }
 
         .mini-table th {
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-          color: #9ca3af;
+          border-bottom: 1px solid var(--admin-border, rgba(255,255,255,0.05));
+          color: var(--admin-text-secondary, #9ca3af);
           font-weight: 600;
         }
 
         .mini-table tr:not(:last-child) td {
-          border-bottom: 1px solid rgba(255,255,255,0.02);
+          border-bottom: 1px solid var(--admin-border, rgba(255,255,255,0.02));
         }
 
         /* System Performance Status Circular bar */
@@ -1435,12 +1445,12 @@ export default function DashboardClient() {
         .progress-value .number {
           font-size: 1.75rem;
           font-weight: 800;
-          color: #ffffff;
+          color: var(--admin-text-primary, #ffffff);
         }
 
         .progress-value .sub {
           font-size: 0.7rem;
-          color: #9ca3af;
+          color: var(--admin-text-secondary, #9ca3af);
           text-transform: uppercase;
         }
 
@@ -1456,11 +1466,11 @@ export default function DashboardClient() {
         }
 
         .bg-circle {
-          stroke: rgba(255,255,255,0.05);
+          stroke: var(--admin-border, rgba(255,255,255,0.05));
         }
 
         .fill-circle {
-          stroke: #00c896;
+          stroke: var(--admin-accent, #00c896);
           stroke-dasharray: 377;
           transition: stroke-dashoffset 0.6s ease;
           stroke-linecap: round;
@@ -1468,7 +1478,7 @@ export default function DashboardClient() {
 
         .status-legend {
           font-size: 0.85rem;
-          color: #9ca3af;
+          color: var(--admin-text-secondary, #9ca3af);
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
@@ -1495,31 +1505,31 @@ export default function DashboardClient() {
         .main-table th {
           position: sticky;
           top: 0;
-          background-color: #0b0f19;
+          background-color: var(--admin-card-bg, #0b0f19);
           padding: 0.75rem 1rem;
-          color: #9ca3af;
+          color: var(--admin-text-secondary, #9ca3af);
           font-weight: 600;
-          border-bottom: 2px solid rgba(255,255,255,0.05);
+          border-bottom: 2px solid var(--admin-border, rgba(255,255,255,0.05));
           z-index: 10;
         }
 
         .main-table td {
           padding: 0.75rem 1rem;
-          border-bottom: 1px solid rgba(255,255,255,0.03);
+          border-bottom: 1px solid var(--admin-border, rgba(255,255,255,0.03));
           vertical-align: middle;
         }
 
         .main-table tr:hover td {
-          background-color: rgba(255, 255, 255, 0.02);
+          background-color: var(--admin-hover-bg, rgba(255, 255, 255, 0.02));
         }
 
-        .time-col { white-space: nowrap; }
-        .date-sub { font-size: 0.7rem; color: #9ca3af; }
-        .ip-col { color: #f3f4f6; }
-        .state-sub { font-size: 0.75rem; color: #9ca3af; }
-        .path-col { word-break: break-all; }
-        .ref-col { word-break: break-all; color: #9ca3af; }
-        .ua-col { color: #9ca3af; }
+        .time-col { white-space: nowrap; color: var(--admin-text-primary); }
+        .date-sub { font-size: 0.7rem; color: var(--admin-text-secondary, #9ca3af); }
+        .ip-col { color: var(--admin-text-primary, #f3f4f6); }
+        .state-sub { font-size: 0.75rem; color: var(--admin-text-secondary, #9ca3af); }
+        .path-col { word-break: break-all; color: var(--admin-text-primary); }
+        .ref-col { word-break: break-all; color: var(--admin-text-secondary, #9ca3af); }
+        .ua-col { color: var(--admin-text-secondary, #9ca3af); }
 
         /* System settings panel grid */
         .system-health-grid {
@@ -1530,31 +1540,31 @@ export default function DashboardClient() {
         }
 
         .health-box {
-          background-color: rgba(255,255,255,0.02);
-          border: 1px solid rgba(255,255,255,0.05);
+          background-color: var(--admin-hover-bg, rgba(255,255,255,0.02));
+          border: 1px solid var(--admin-border, rgba(255,255,255,0.05));
           border-radius: 12px;
           padding: 1.5rem;
         }
 
         .health-box h3 {
           font-size: 1.05rem;
-          color: #ffffff;
+          color: var(--admin-text-primary, #ffffff);
           margin-bottom: 1rem;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
+          border-bottom: 1px solid var(--admin-border, rgba(255,255,255,0.05));
           padding-bottom: 0.5rem;
         }
 
         .health-box p {
           margin-bottom: 0.5rem;
           font-size: 0.9rem;
-          color: #d1d5db;
+          color: var(--admin-text-secondary, #d1d5db);
         }
 
         .health-box code {
-          background-color: rgba(0,0,0,0.3);
+          background-color: var(--admin-input-bg, rgba(0,0,0,0.3));
           padding: 0.1rem 0.4rem;
           border-radius: 4px;
-          color: #00c896;
+          color: var(--admin-accent, #00c896);
           font-family: monospace;
           font-size: 0.85rem;
         }
@@ -1597,9 +1607,9 @@ export default function DashboardClient() {
 
         .lang-select {
           width: 100%;
-          background-color: #0f1621;
-          color: #f3f4f6;
-          border: 1px solid rgba(0, 200, 150, 0.3);
+          background-color: var(--admin-input-bg, #0f1621);
+          color: var(--admin-text-primary, #f3f4f6);
+          border: 1px solid var(--admin-input-border, rgba(0, 200, 150, 0.3));
           border-radius: 8px;
           padding: 0.55rem 2rem 0.55rem 0.75rem;
           font-size: 0.9rem;
@@ -1612,26 +1622,26 @@ export default function DashboardClient() {
         }
 
         .lang-select:focus {
-          border-color: #00c896;
+          border-color: var(--admin-accent, #00c896);
           box-shadow: 0 0 0 3px rgba(0, 200, 150, 0.15);
         }
 
         .lang-select option {
-          background-color: #0f1621;
-          color: #f3f4f6;
+          background-color: var(--admin-card-bg, #0f1621);
+          color: var(--admin-text-primary, #f3f4f6);
         }
 
         .lang-select-arrow {
           position: absolute;
           right: 0.65rem;
-          color: #00c896;
+          color: var(--admin-accent, #00c896);
           font-size: 0.8rem;
           pointer-events: none;
         }
 
         .lang-hint {
           font-size: 0.7rem;
-          color: #6b7280;
+          color: var(--admin-text-secondary, #6b7280);
           margin-top: 0.4rem;
           text-align: center;
         }

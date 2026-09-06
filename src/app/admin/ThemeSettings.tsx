@@ -126,7 +126,7 @@ const FONT_OPTIONS = [
 /* ─────────────────────────────────────────────────────────────
    Color Utilities
 ───────────────────────────────────────────────────────────── */
-function hexToRgb(hex: string): [number, number, number] | null {
+export function hexToRgb(hex: string): [number, number, number] | null {
   const cleaned = hex.replace("#", "");
   if (cleaned.length !== 6) return null;
   return [
@@ -136,7 +136,7 @@ function hexToRgb(hex: string): [number, number, number] | null {
   ];
 }
 
-function luminance(r: number, g: number, b: number): number {
+export function luminance(r: number, g: number, b: number): number {
   const toLinear = (c: number) => {
     const s = c / 255;
     return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
@@ -144,7 +144,7 @@ function luminance(r: number, g: number, b: number): number {
   return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 }
 
-function contrastRatio(hex1: string, hex2: string): number {
+export function contrastRatio(hex1: string, hex2: string): number {
   const rgb1 = hexToRgb(hex1);
   const rgb2 = hexToRgb(hex2);
   if (!rgb1 || !rgb2) return 1;
@@ -155,22 +155,26 @@ function contrastRatio(hex1: string, hex2: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-/** Given a background hex, return black or white with best contrast. */
-function bestTextColor(bg: string): string {
-  const withBlack = contrastRatio(bg, "#000000");
-  const withWhite = contrastRatio(bg, "#ffffff");
-  return withWhite >= withBlack ? "#ffffff" : "#000000";
+/** Given a background hex, return a high-contrast primary text color. */
+export function bestTextColor(bg: string): string {
+  const rgb = hexToRgb(bg);
+  if (!rgb) return "#ffffff";
+  const bgLum = luminance(...rgb);
+  // High contrast slate-900 (#0f172a) for light backgrounds, crisp white (#ffffff) for dark
+  return bgLum > 0.4 ? "#0f172a" : "#ffffff";
 }
 
-/** Derive a muted version of the best text color. */
-function mutedTextColor(bg: string): string {
-  const base = bestTextColor(bg);
-  return base === "#ffffff" ? "#9ca3af" : "#4b5563";
+/** Derive a muted secondary text color with WCAG AAA contrast. */
+export function mutedTextColor(bg: string): string {
+  const rgb = hexToRgb(bg);
+  if (!rgb) return "#9ca3af";
+  const bgLum = luminance(...rgb);
+  // High contrast slate-600 (#475569) for light backgrounds, gray-400 (#9ca3af) for dark
+  return bgLum > 0.4 ? "#475569" : "#9ca3af";
 }
 
 /** Auto-compute text colors based on backgrounds. */
-function autoAdjustColors(theme: AdminTheme): Pick<AdminTheme, "textPrimary" | "textSecondary"> {
-  // Use bgColor as the dominant surface for text
+export function autoAdjustColors(theme: AdminTheme): Pick<AdminTheme, "textPrimary" | "textSecondary"> {
   return {
     textPrimary: bestTextColor(theme.bgColor),
     textSecondary: mutedTextColor(theme.bgColor),
@@ -635,8 +639,8 @@ export default function ThemeSettings({ theme, onChange }: Props) {
 
         .ts-hex-input {
           width: 88px;
-          background: rgba(0,0,0,0.3);
-          border: 1px solid rgba(255,255,255,0.1);
+          background: var(--admin-input-bg, rgba(0,0,0,0.3));
+          border: 1px solid var(--admin-input-border, rgba(255,255,255,0.1));
           border-radius: 6px;
           color: var(--admin-text-primary, #f3f4f6);
           font-family: 'Fira Code', monospace;
@@ -656,8 +660,8 @@ export default function ThemeSettings({ theme, onChange }: Props) {
           align-items: center;
           justify-content: space-between;
           gap: 1.5rem;
-          background: rgba(0, 200, 150, 0.04);
-          border: 1px solid rgba(0, 200, 150, 0.2);
+          background: rgba(0, 200, 150, 0.05);
+          border: 1px solid rgba(0, 200, 150, 0.25);
           border-radius: 14px;
           padding: 1.25rem 1.5rem;
           flex-wrap: wrap;
@@ -689,7 +693,8 @@ export default function ThemeSettings({ theme, onChange }: Props) {
           gap: 0.4rem;
           font-size: 0.82rem;
           color: var(--admin-text-secondary, #9ca3af);
-          background: rgba(0,0,0,0.25);
+          background: var(--admin-hover-bg, rgba(0,0,0,0.2));
+          border: 1px solid var(--admin-border, rgba(255,255,255,0.08));
           padding: 0.3rem 0.75rem;
           border-radius: 999px;
         }
@@ -712,11 +717,11 @@ export default function ThemeSettings({ theme, onChange }: Props) {
         .ts-toggle-track {
           width: 52px;
           height: 28px;
-          background: rgba(255,255,255,0.1);
+          background: var(--admin-input-bg, rgba(255,255,255,0.1));
           border-radius: 999px;
           position: relative;
           transition: background 0.25s;
-          border: 1px solid rgba(255,255,255,0.08);
+          border: 1px solid var(--admin-input-border, rgba(255,255,255,0.08));
         }
 
         .ts-toggle input:checked + .ts-toggle-track {
@@ -742,8 +747,8 @@ export default function ThemeSettings({ theme, onChange }: Props) {
         .ts-manual-text {
           margin-top: 1rem;
           padding: 1rem;
-          background: rgba(255,255,255,0.02);
-          border: 1px dashed rgba(255,255,255,0.08);
+          background: var(--admin-hover-bg, rgba(255,255,255,0.02));
+          border: 1px dashed var(--admin-border, rgba(255,255,255,0.08));
           border-radius: 10px;
         }
 
@@ -782,15 +787,19 @@ export default function ThemeSettings({ theme, onChange }: Props) {
           width: 100%;
           appearance: none;
           -webkit-appearance: none;
-          background: #0f1621;
+          background: var(--admin-input-bg, #0f1621);
           color: var(--admin-text-primary, #f3f4f6);
-          border: 1px solid rgba(255,255,255,0.12);
+          border: 1px solid var(--admin-input-border, rgba(255,255,255,0.12));
           border-radius: 8px;
           padding: 0.55rem 2.2rem 0.55rem 0.85rem;
           font-size: 0.9rem;
           cursor: pointer;
           outline: none;
           transition: border-color 0.2s;
+        }
+        .ts-select option {
+          background-color: var(--admin-card-bg, #0f1621);
+          color: var(--admin-text-primary, #f3f4f6);
         }
         .ts-select:focus {
           border-color: var(--admin-accent, #00c896);
