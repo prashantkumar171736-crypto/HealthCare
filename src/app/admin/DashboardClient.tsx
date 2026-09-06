@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import PostEditor from "./PostEditor";
 import DonationSettings from "./DonationSettings";
 import CommentsManager from "./CommentsManager";
+import ThemeSettings, { AdminTheme, DEFAULT_THEME } from "./ThemeSettings";
 import { useLanguage } from "@/context/LanguageContext";
 import { LANG_MAP } from "@/lib/detectLanguage";
+
+const LS_THEME_KEY = "admin_panel_theme";
 
 interface KPI {
   totalViews: number;
@@ -82,9 +85,24 @@ export default function DashboardClient() {
   const [error, setError] = useState("");
   const [clearing, setClearing] = useState(false);
   const [chartPeriod, setChartPeriod] = useState("monthly");
-  const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation" | "comments">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation" | "comments" | "appearance">("overview");
+  const [theme, setTheme] = useState<AdminTheme>(DEFAULT_THEME);
   const router = useRouter();
   const { lang, setLangByCode } = useLanguage();
+
+  // Load theme from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LS_THEME_KEY);
+      if (saved) setTheme({ ...DEFAULT_THEME, ...JSON.parse(saved) });
+    } catch {}
+  }, []);
+
+  // Save theme to localStorage whenever it changes
+  const handleThemeChange = useCallback((t: AdminTheme) => {
+    setTheme(t);
+    try { localStorage.setItem(LS_THEME_KEY, JSON.stringify(t)); } catch {}
+  }, []);
 
   const fetchStats = async (period: string = chartPeriod) => {
     try {
@@ -251,8 +269,20 @@ export default function DashboardClient() {
 
   const periodLabel = PERIOD_OPTIONS.find((o) => o.value === chartPeriod)?.label ?? "";
 
+  // Build CSS variable inline style from theme
+  const themeVars = {
+    "--admin-bg":          theme.bgColor,
+    "--admin-sidebar-bg": theme.sidebarColor,
+    "--admin-card-bg":    theme.cardColor,
+    "--admin-accent":     theme.accentColor,
+    "--admin-text-primary":   theme.textPrimary,
+    "--admin-text-secondary": theme.textSecondary,
+    "--admin-font-family":    theme.fontFamily,
+    "--admin-font-size":      `${theme.fontSize}px`,
+  } as React.CSSProperties;
+
   return (
-    <div className="admin-dashboard-root">
+    <div className="admin-dashboard-root" style={themeVars}>
       {/* Sidebar Nav */}
       <aside className="admin-sidebar">
         <div className="sidebar-brand">
@@ -296,6 +326,12 @@ export default function DashboardClient() {
             onClick={() => setActiveTab("comments")}
           >
             💬 Community Comments
+          </button>
+          <button
+            className={`nav-item ${activeTab === "appearance" ? "active" : ""}`}
+            onClick={() => setActiveTab("appearance")}
+          >
+            🎨 Appearance
           </button>
         </nav>
 
@@ -630,6 +666,12 @@ export default function DashboardClient() {
             <CommentsManager />
           </div>
         )}
+
+        {activeTab === "appearance" && (
+          <div className="panel-card full-panel">
+            <ThemeSettings theme={theme} onChange={handleThemeChange} />
+          </div>
+        )}
       </main>
 
       <style jsx global>{`
@@ -637,14 +679,15 @@ export default function DashboardClient() {
         .admin-dashboard-root {
           display: flex;
           min-height: 90vh;
-          background-color: #030712;
-          color: #f3f4f6;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          background-color: var(--admin-bg, #030712);
+          color: var(--admin-text-primary, #f3f4f6);
+          font-family: var(--admin-font-family, system-ui, sans-serif);
+          font-size: var(--admin-font-size, 15px);
         }
 
         .admin-sidebar {
           width: 260px;
-          background-color: #0b0f19;
+          background-color: var(--admin-sidebar-bg, #0b0f19);
           border-right: 1px solid rgba(255, 255, 255, 0.05);
           display: flex;
           flex-direction: column;
@@ -696,12 +739,12 @@ export default function DashboardClient() {
         }
 
         .nav-item:hover, .nav-item.active {
-          color: #ffffff;
+          color: var(--admin-text-primary, #ffffff);
           background-color: rgba(255, 255, 255, 0.05);
         }
 
         .nav-item.active {
-          border-left: 3px solid #00c896;
+          border-left: 3px solid var(--admin-accent, #00c896);
           border-top-left-radius: 0;
           border-bottom-left-radius: 0;
           padding-left: calc(1rem - 3px);
@@ -802,7 +845,7 @@ export default function DashboardClient() {
         }
 
         .kpi-card {
-          background-color: #0b0f19;
+          background-color: var(--admin-card-bg, #0b0f19);
           border: 1px solid rgba(255, 255, 255, 0.05);
           border-radius: 12px;
           padding: 1.5rem;
@@ -812,7 +855,7 @@ export default function DashboardClient() {
 
         .kpi-title {
           font-size: 0.75rem;
-          color: #9ca3af;
+          color: var(--admin-text-secondary, #9ca3af);
           font-weight: 700;
           letter-spacing: 0.05em;
           margin-bottom: 0.5rem;
@@ -821,7 +864,7 @@ export default function DashboardClient() {
         .kpi-value {
           font-size: 2rem;
           font-weight: 800;
-          color: #ffffff;
+          color: var(--admin-text-primary, #ffffff);
           line-height: 1;
           margin-bottom: 0.5rem;
         }
@@ -834,7 +877,7 @@ export default function DashboardClient() {
 
         .kpi-footer {
           font-size: 0.8rem;
-          color: #9ca3af;
+          color: var(--admin-text-secondary, #9ca3af);
         }
 
         .text-green { color: #10b981; }
@@ -886,7 +929,7 @@ export default function DashboardClient() {
         }
 
         .panel-card {
-          background-color: #0b0f19;
+          background-color: var(--admin-card-bg, #0b0f19);
           border: 1px solid rgba(255, 255, 255, 0.05);
           border-radius: 16px;
           padding: 1.75rem;
@@ -896,7 +939,7 @@ export default function DashboardClient() {
           font-size: 1.1rem;
           font-weight: 700;
           margin-bottom: 1.25rem;
-          color: #ffffff;
+          color: var(--admin-text-primary, #ffffff);
           border-bottom: 1px solid rgba(255,255,255,0.05);
           padding-bottom: 0.5rem;
         }
@@ -941,8 +984,8 @@ export default function DashboardClient() {
         .chart-period-select {
           appearance: none;
           -webkit-appearance: none;
-          background-color: #0f1621;
-          color: #e5e7eb;
+          background-color: var(--admin-card-bg, #0f1621);
+          color: var(--admin-text-primary, #e5e7eb);
           border: 1px solid rgba(0, 200, 150, 0.35);
           border-radius: 8px;
           padding: 0.45rem 2.2rem 0.45rem 0.85rem;
@@ -954,7 +997,7 @@ export default function DashboardClient() {
         }
 
         .chart-period-select:focus {
-          border-color: #00c896;
+          border-color: var(--admin-accent, #00c896);
           box-shadow: 0 0 0 3px rgba(0, 200, 150, 0.15);
         }
 
@@ -966,7 +1009,7 @@ export default function DashboardClient() {
         .chart-period-arrow {
           position: absolute;
           right: 0.7rem;
-          color: #00c896;
+          color: var(--admin-accent, #00c896);
           font-size: 0.75rem;
           pointer-events: none;
         }
