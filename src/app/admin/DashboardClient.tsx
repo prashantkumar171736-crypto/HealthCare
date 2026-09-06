@@ -244,11 +244,11 @@ export default function DashboardClient() {
 
   // SVG Chart Setup
   const dailyViews = data.charts.dailyViews;
-  const maxViews = Math.max(...dailyViews.map((d) => d.views), 10);
-  const chartWidth = 600;
-  const chartHeight = 220;
-  const paddingX = 40;
-  const paddingY = 30;
+  const maxViews = Math.max(...dailyViews.map((d) => d.views), 1);
+  const chartWidth = 700;
+  const chartHeight = 260;
+  const paddingX = 55;
+  const paddingY = 35;
 
   // Thin out x-axis labels for dense periods
   const totalPoints = dailyViews.length;
@@ -262,12 +262,59 @@ export default function DashboardClient() {
     return { x, y, val: d.views, date: d.date };
   });
 
-  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-  const areaPath = points.length > 0
-    ? `${linePath} L ${points[points.length - 1].x} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`
+  // Smooth bezier curve path
+  const smoothPath = points.length > 1 ? points.reduce((path, p, i) => {
+    if (i === 0) return `M ${p.x} ${p.y}`;
+    const prev = points[i - 1];
+    const cpx = (prev.x + p.x) / 2;
+    return `${path} C ${cpx} ${prev.y}, ${cpx} ${p.y}, ${p.x} ${p.y}`;
+  }, "") : "";
+
+  const smoothArea = smoothPath
+    ? `${smoothPath} L ${points[points.length - 1].x} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`
     : "";
 
+  // Y-axis ticks
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(t => ({
+    y: chartHeight - paddingY - t * (chartHeight - paddingY * 2),
+    label: Math.round(t * maxViews),
+  }));
+
+  // Multi-color dot palette
+  const DOT_COLORS = [
+    "#00c896", "#3b82f6", "#a855f7", "#f59e0b", "#ef4444",
+    "#06b6d4", "#10b981", "#f97316", "#ec4899", "#84cc16",
+  ];
+  const getDotColor = (i: number) => DOT_COLORS[i % DOT_COLORS.length];
+
   const periodLabel = PERIOD_OPTIONS.find((o) => o.value === chartPeriod)?.label ?? "";
+
+  // Bar chart colors
+  const BAR_GRADIENTS = [
+    ["#00c896", "#10b981"],
+    ["#3b82f6", "#06b6d4"],
+    ["#a855f7", "#ec4899"],
+    ["#f59e0b", "#f97316"],
+    ["#ef4444", "#f43f5e"],
+    ["#84cc16", "#22c55e"],
+    ["#06b6d4", "#0ea5e9"],
+    ["#f97316", "#fb923c"],
+    ["#ec4899", "#d946ef"],
+    ["#14b8a6", "#2dd4bf"],
+  ];
+
+  // Geo row colors
+  const GEO_COLORS = [
+    { bg: "rgba(0,200,150,0.08)", border: "rgba(0,200,150,0.3)", text: "#00c896", badge: "rgba(0,200,150,0.15)" },
+    { bg: "rgba(59,130,246,0.08)", border: "rgba(59,130,246,0.3)", text: "#3b82f6", badge: "rgba(59,130,246,0.15)" },
+    { bg: "rgba(168,85,247,0.08)", border: "rgba(168,85,247,0.3)", text: "#a855f7", badge: "rgba(168,85,247,0.15)" },
+    { bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.3)", text: "#f59e0b", badge: "rgba(245,158,11,0.15)" },
+    { bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.3)", text: "#ef4444", badge: "rgba(239,68,68,0.15)" },
+    { bg: "rgba(6,182,212,0.08)", border: "rgba(6,182,212,0.3)", text: "#06b6d4", badge: "rgba(6,182,212,0.15)" },
+    { bg: "rgba(132,204,22,0.08)", border: "rgba(132,204,22,0.3)", text: "#84cc16", badge: "rgba(132,204,22,0.15)" },
+    { bg: "rgba(249,115,22,0.08)", border: "rgba(249,115,22,0.3)", text: "#f97316", badge: "rgba(249,115,22,0.15)" },
+  ];
+
 
   // Build CSS variable inline style from theme
   const themeVars = {
@@ -416,13 +463,19 @@ export default function DashboardClient() {
 
         {activeTab === "overview" && (
           <div className="dashboard-grid">
-            {/* SVG Line Graph */}
+            {/* SVG Line Graph — Premium Multi-Color */}
             <div className="panel-card chart-panel">
               <div className="chart-panel-header">
-                <h2 className="panel-title" style={{ marginBottom: 0, borderBottom: "none", paddingBottom: 0 }}>
-                  Visitor Frequency
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                  <h2 className="panel-title" style={{ marginBottom: 0, borderBottom: "none", paddingBottom: 0 }}>
+                    📈 Visitor Frequency
+                  </h2>
                   <span className="chart-period-badge">{periodLabel}</span>
-                </h2>
+                  <div className="chart-stats-row">
+                    <span className="chart-stat">Peak: <strong style={{ color: "#f59e0b" }}>{maxViews}</strong></span>
+                    <span className="chart-stat">Points: <strong style={{ color: "#3b82f6" }}>{totalPoints}</strong></span>
+                  </div>
+                </div>
                 <div className="chart-period-selector-wrap">
                   <select
                     id="chart-period-select"
@@ -437,103 +490,194 @@ export default function DashboardClient() {
                   <span className="chart-period-arrow">▾</span>
                 </div>
               </div>
+
               <div className="svg-container">
-                <svg width="100%" height="220" viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
+                <svg width="100%" height="260" viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
                   <defs>
-                    <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="rgba(0, 200, 150, 0.4)" />
-                      <stop offset="100%" stopColor="rgba(0, 200, 150, 0.0)" />
+                    {/* Multi-stop gradient fill */}
+                    <linearGradient id="chartGradMulti" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#00c896" stopOpacity="0.5" />
+                      <stop offset="35%" stopColor="#3b82f6" stopOpacity="0.25" />
+                      <stop offset="70%" stopColor="#a855f7" stopOpacity="0.1" />
+                      <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
                     </linearGradient>
+                    {/* Horizontal line gradient for stroke */}
+                    <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#00c896" />
+                      <stop offset="30%" stopColor="#3b82f6" />
+                      <stop offset="60%" stopColor="#a855f7" />
+                      <stop offset="100%" stopColor="#f59e0b" />
+                    </linearGradient>
+                    {/* Glow filter */}
+                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                    <filter id="dotGlow" x="-100%" y="-100%" width="300%" height="300%">
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
                   </defs>
-                  {/* Grid Lines */}
-                  <line x1={paddingX} y1={paddingY} x2={chartWidth - paddingX} y2={paddingY} stroke="rgba(255,255,255,0.05)" />
-                  <line x1={paddingX} y1={chartHeight - paddingY} x2={chartWidth - paddingX} y2={chartHeight - paddingY} stroke="rgba(255,255,255,0.1)" />
-                  <line x1={paddingX} y1={chartHeight / 2} x2={chartWidth - paddingX} y2={chartHeight / 2} stroke="rgba(255,255,255,0.05)" />
 
-                  {/* Gradient Area Fill */}
-                  {areaPath && <path d={areaPath} fill="url(#chartGrad)" />}
-
-                  {/* Drawing Line */}
-                  {linePath && <path d={linePath} fill="none" stroke="#00c896" strokeWidth="3" strokeLinecap="round" />}
-
-                  {/* Data Points */}
-                  {points.map((p, idx) => (
-                    <g key={idx} className="chart-dot-group">
-                      <circle cx={p.x} cy={p.y} r={totalPoints > 15 ? 3 : 5} fill="#030712" stroke="#00c896" strokeWidth="2" />
-                      {totalPoints <= 30 && (
-                        <text x={p.x} y={p.y - 10} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold">
-                          {p.val > 0 ? p.val : ""}
-                        </text>
-                      )}
-                      {idx % labelEvery === 0 && (
-                        <text x={p.x} y={chartHeight - 6} textAnchor="middle" fill="#9ca3af" fontSize="8">
-                          {p.date}
-                        </text>
-                      )}
+                  {/* Y-axis grid lines + labels */}
+                  {yTicks.map((tick, i) => (
+                    <g key={i}>
+                      <line
+                        x1={paddingX} y1={tick.y}
+                        x2={chartWidth - 10} y2={tick.y}
+                        stroke={i === 0 ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)"}
+                        strokeDasharray={i === 0 ? "none" : "4 4"}
+                      />
+                      <text x={paddingX - 8} y={tick.y + 4} textAnchor="end" fill="#6b7280" fontSize="9">
+                        {tick.label}
+                      </text>
                     </g>
                   ))}
+
+                  {/* Gradient area fill */}
+                  {smoothArea && <path d={smoothArea} fill="url(#chartGradMulti)" />}
+
+                  {/* Glowing smooth line */}
+                  {smoothPath && (
+                    <>
+                      <path d={smoothPath} fill="none" stroke="url(#lineGrad)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3" filter="url(#glow)" />
+                      <path d={smoothPath} fill="none" stroke="url(#lineGrad)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </>
+                  )}
+
+                  {/* Data Points — colored per index */}
+                  {points.map((p, idx) => {
+                    const color = getDotColor(idx);
+                    return (
+                      <g key={idx} className="chart-dot-group">
+                        {/* Outer glow ring */}
+                        <circle cx={p.x} cy={p.y} r={totalPoints > 15 ? 5 : 7} fill={color} opacity="0.18" />
+                        {/* Main dot */}
+                        <circle cx={p.x} cy={p.y} r={totalPoints > 15 ? 3 : 4.5} fill="#060d18" stroke={color} strokeWidth="2" filter="url(#dotGlow)" />
+                        {/* Value label */}
+                        {totalPoints <= 30 && p.val > 0 && (
+                          <text x={p.x} y={p.y - 11} textAnchor="middle" fill={color} fontSize="9" fontWeight="800">
+                            {p.val}
+                          </text>
+                        )}
+                        {/* Date label */}
+                        {idx % labelEvery === 0 && (
+                          <text x={p.x} y={chartHeight - 8} textAnchor="middle" fill="#6b7280" fontSize="8">
+                            {p.date}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
                 </svg>
+              </div>
+
+              {/* Color legend for multi-point */}
+              <div className="chart-legend-row">
+                <span className="legend-dot" style={{ background: "#00c896" }} />Start
+                <span className="legend-dot" style={{ background: "#3b82f6", marginLeft: "1rem" }} />Mid
+                <span className="legend-dot" style={{ background: "#f59e0b", marginLeft: "1rem" }} />Latest
+                <span style={{ marginLeft: "auto", color: "#6b7280", fontSize: "0.75rem" }}>
+                  Total: <strong style={{ color: "var(--admin-text-primary, #fff)" }}>
+                    {dailyViews.reduce((s, d) => s + d.views, 0)}
+                  </strong> views in period
+                </span>
               </div>
             </div>
 
-            {/* Top Visited Pages (Progress List) */}
+            {/* Top Visited Pages — Premium Multi-Color */}
             <div className="panel-card progress-panel">
-              <h2 className="panel-title">Top Visited Pages</h2>
+              <h2 className="panel-title">🏆 Top Visited Pages</h2>
               <div className="progress-list">
                 {data.charts.topPages.length > 0 ? (
-                  data.charts.topPages.map((page, idx) => {
+                  (() => {
                     const maxCount = Math.max(...data.charts.topPages.map((p) => p.count), 1);
-                    const pct = Math.round((page.count / maxCount) * 100);
-                    return (
-                      <div key={idx} className="progress-row">
-                        <div className="progress-label">
-                          <span className="rank">#{idx + 1}</span> {page.path}
+                    return data.charts.topPages.map((page, idx) => {
+                      const pct = Math.round((page.count / maxCount) * 100);
+                      const [c1, c2] = BAR_GRADIENTS[idx % BAR_GRADIENTS.length];
+                      const rankLabels = ["🥇", "🥈", "🥉"];
+                      return (
+                        <div key={idx} className="progress-row-v2">
+                          <div className="prv2-top">
+                            <div className="prv2-rank-badge" style={{ background: c1 + "22", color: c1, border: `1px solid ${c1}44` }}>
+                              {idx < 3 ? rankLabels[idx] : `#${idx + 1}`}
+                            </div>
+                            <span className="prv2-path">{page.path}</span>
+                            <span className="prv2-count" style={{ color: c1 }}>{page.count.toLocaleString()} views</span>
+                          </div>
+                          <div className="prv2-bar-track">
+                            <div
+                              className="prv2-bar-fill"
+                              style={{
+                                width: `${pct}%`,
+                                background: `linear-gradient(90deg, ${c1}, ${c2})`,
+                                boxShadow: `0 0 8px ${c1}55`,
+                              }}
+                            />
+                            <span className="prv2-pct" style={{ color: c1 }}>{pct}%</span>
+                          </div>
                         </div>
-                        <div className="progress-bar-wrapper">
-                          <div className="progress-bar" style={{ width: `${pct}%` }}></div>
-                          <span className="count-label">{page.count} views</span>
-                        </div>
-                      </div>
-                    );
-                  })
+                      );
+                    });
+                  })()
                 ) : (
-                  <p className="no-data">No traffic logged yet.</p>
+                  <div className="no-data-box">
+                    <span style={{ fontSize: "2rem" }}>📭</span>
+                    <p>No traffic logged yet.</p>
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* Top Geolocations */}
+            {/* Top Geolocations — Premium Card Style */}
             <div className="panel-card geo-panel">
-              <h2 className="panel-title">Top Country & State Geolocations</h2>
-              <div className="table-wrapper">
-                <table className="mini-table">
-                  <thead>
-                    <tr>
-                      <th>State / Region</th>
-                      <th>Country</th>
-                      <th align="right">Visits</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.charts.topRegions.length > 0 ? (
-                      data.charts.topRegions.map((reg, idx) => (
-                        <tr key={idx}>
-                          <td>{reg.region === "Unknown" ? "Generic Area" : reg.region}</td>
-                          <td>
-                            {reg.country === "Localhost" ? "🖥️ Localhost" : reg.country}
-                          </td>
-                          <td align="right" className="text-green font-bold">
-                            {reg.count}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={3} align="center">No locations logged.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+              <h2 className="panel-title">🌍 Top Country &amp; State Geolocations</h2>
+              <div className="geo-cards-list">
+                {data.charts.topRegions.length > 0 ? (() => {
+                  const geoMax = Math.max(...data.charts.topRegions.map(r => r.count), 1);
+                  return data.charts.topRegions.map((reg, idx) => {
+                    const gc = GEO_COLORS[idx % GEO_COLORS.length];
+                    const geoPct = Math.round((reg.count / geoMax) * 100);
+                    return (
+                      <div
+                        key={idx}
+                        className="geo-card"
+                        style={{ background: gc.bg, borderColor: gc.border }}
+                      >
+                        <div className="geo-card-left">
+                          <span className="geo-rank-badge" style={{ background: gc.badge, color: gc.text }}>
+                            #{idx + 1}
+                          </span>
+                          <div className="geo-info">
+                            <div className="geo-region" style={{ color: "var(--admin-text-primary, #fff)" }}>
+                              {reg.region === "Unknown" ? "📍 Generic Area" : `📍 ${reg.region}`}
+                            </div>
+                            <div className="geo-country" style={{ color: gc.text }}>
+                              {reg.country === "Localhost" ? "🖥️ Localhost" : `🌐 ${reg.country}`}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="geo-card-right">
+                          <div className="geo-visits" style={{ color: gc.text }}>{reg.count.toLocaleString()}</div>
+                          <div className="geo-mini-bar-track">
+                            <div className="geo-mini-bar-fill" style={{ width: `${geoPct}%`, background: gc.text }} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })() : (
+                  <div className="no-data-box">
+                    <span style={{ fontSize: "2rem" }}>🗺️</span>
+                    <p>No locations logged.</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1028,55 +1172,219 @@ export default function DashboardClient() {
           fill: #00c896;
         }
 
-        /* Progress List (Top Pages) */
+        /* Progress List V2 (Top Pages) */
         .progress-list {
           display: flex;
           flex-direction: column;
-          gap: 1rem;
+          gap: 0.65rem;
+          max-height: 320px;
+          overflow-y: auto;
+          padding-right: 0.25rem;
         }
 
-        .progress-row {
+        .progress-row-v2 {
           display: flex;
           flex-direction: column;
-          gap: 0.25rem;
+          gap: 0.35rem;
+          padding: 0.6rem 0.75rem;
+          border-radius: 10px;
+          background: rgba(255,255,255,0.02);
+          border: 1px solid rgba(255,255,255,0.04);
+          transition: background 0.2s;
+        }
+        .progress-row-v2:hover {
+          background: rgba(255,255,255,0.05);
         }
 
-        .progress-label {
+        .prv2-top {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+        }
+
+        .prv2-rank-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 32px;
+          height: 22px;
+          border-radius: 6px;
+          font-size: 0.78rem;
+          font-weight: 800;
+          flex-shrink: 0;
+          padding: 0 0.4rem;
+        }
+
+        .prv2-path {
+          font-size: 0.82rem;
+          color: var(--admin-text-primary, #e5e7eb);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          flex: 1;
+        }
+
+        .prv2-count {
+          font-size: 0.78rem;
+          font-weight: 700;
+          flex-shrink: 0;
+        }
+
+        .prv2-bar-track {
+          position: relative;
+          height: 6px;
+          background: rgba(255,255,255,0.06);
+          border-radius: 999px;
+          overflow: visible;
+          display: flex;
+          align-items: center;
+        }
+
+        .prv2-bar-fill {
+          height: 6px;
+          border-radius: 999px;
+          transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        .prv2-pct {
+          position: absolute;
+          right: -2.5rem;
+          font-size: 0.7rem;
+          font-weight: 700;
+        }
+
+        /* Geo Cards */
+        .geo-cards-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.55rem;
+          max-height: 320px;
+          overflow-y: auto;
+          padding-right: 0.25rem;
+        }
+
+        .geo-card {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          padding: 0.65rem 0.85rem;
+          border-radius: 10px;
+          border: 1px solid;
+          transition: filter 0.2s;
+        }
+        .geo-card:hover {
+          filter: brightness(1.15);
+        }
+
+        .geo-card-left {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          min-width: 0;
+        }
+
+        .geo-rank-badge {
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.72rem;
+          font-weight: 800;
+          flex-shrink: 0;
+        }
+
+        .geo-info { min-width: 0; }
+
+        .geo-region {
           font-size: 0.85rem;
-          color: #e5e7eb;
+          font-weight: 600;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
 
-        .progress-label .rank {
-          color: #9ca3af;
-          font-weight: bold;
-          margin-right: 0.3rem;
+        .geo-country {
+          font-size: 0.75rem;
+          font-weight: 600;
+          margin-top: 0.1rem;
         }
 
-        .progress-bar-wrapper {
+        .geo-card-right {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 0.3rem;
+          flex-shrink: 0;
+        }
+
+        .geo-visits {
+          font-size: 1rem;
+          font-weight: 800;
+        }
+
+        .geo-mini-bar-track {
+          width: 60px;
+          height: 4px;
+          background: rgba(255,255,255,0.08);
+          border-radius: 999px;
+          overflow: hidden;
+        }
+
+        .geo-mini-bar-fill {
+          height: 4px;
+          border-radius: 999px;
+          transition: width 0.6s ease;
+        }
+
+        .no-data-box {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 2rem;
+          color: var(--admin-text-secondary, #9ca3af);
+          font-size: 0.9rem;
+        }
+
+        /* Chart legend row */
+        .chart-legend-row {
           display: flex;
           align-items: center;
-          gap: 1rem;
-          height: 18px;
+          gap: 0.4rem;
+          margin-top: 0.75rem;
+          padding-top: 0.75rem;
+          border-top: 1px solid rgba(255,255,255,0.05);
+          font-size: 0.78rem;
+          color: var(--admin-text-secondary, #9ca3af);
+          flex-wrap: wrap;
         }
 
-        .progress-bar {
-          height: 8px;
-          background: linear-gradient(90deg, #00c896 0%, #10b981 100%);
-          border-radius: 4px;
-          transition: width 0.5s ease;
+        .legend-dot {
+          display: inline-block;
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
         }
 
-        .count-label {
-          font-size: 0.75rem;
-          color: #9ca3af;
-          white-space: nowrap;
+        .chart-stats-row {
+          display: flex;
+          gap: 0.75rem;
+        }
+
+        .chart-stat {
+          font-size: 0.78rem;
+          color: var(--admin-text-secondary, #9ca3af);
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.07);
+          padding: 0.15rem 0.55rem;
+          border-radius: 6px;
         }
 
         .no-data {
-          color: #9ca3af;
+          color: var(--admin-text-secondary, #9ca3af);
           font-style: italic;
           font-size: 0.9rem;
         }
