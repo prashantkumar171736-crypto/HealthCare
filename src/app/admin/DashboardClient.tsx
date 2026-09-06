@@ -188,7 +188,7 @@ export default function DashboardClient() {
         <span className="error-icon">⚠️</span>
         <h2>Error Accessing Dashboard</h2>
         <p>{error || "No dashboard data received."}</p>
-        <button onClick={fetchStats} className="btn-retry">Retry Connection</button>
+        <button onClick={() => fetchStats()} className="btn-retry">Retry Connection</button>
         <style jsx>{`
           .admin-error-container {
             min-height: 90vh;
@@ -337,7 +337,7 @@ export default function DashboardClient() {
             <p>Real-time site reachability, geolocation metrics, and traffic aggregation.</p>
           </div>
           <div className="header-actions">
-            <button onClick={fetchStats} className="btn-refresh">
+            <button onClick={() => fetchStats()} className="btn-refresh">
               🔄 Refresh Logs
             </button>
             <button
