@@ -1177,9 +1177,6 @@ export default function DashboardClient() {
           display: flex;
           flex-direction: column;
           gap: 0.65rem;
-          max-height: 320px;
-          overflow-y: auto;
-          padding-right: 0.25rem;
         }
 
         .progress-row-v2 {
@@ -1258,9 +1255,6 @@ export default function DashboardClient() {
           display: flex;
           flex-direction: column;
           gap: 0.55rem;
-          max-height: 320px;
-          overflow-y: auto;
-          padding-right: 0.25rem;
         }
 
         .geo-card {
