@@ -68,19 +68,28 @@ interface StatsResponse {
   systemHealth: SystemHealth;
 }
 
+const PERIOD_OPTIONS = [
+  { value: "1d",          label: "1 Day (24 Hours)" },
+  { value: "7d",          label: "7 Days (Weekly)" },
+  { value: "monthly",     label: "Monthly" },
+  { value: "half-yearly", label: "Half Yearly" },
+  { value: "yearly",      label: "Yearly" },
+];
+
 export default function DashboardClient() {
   const [data, setData] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [clearing, setClearing] = useState(false);
+  const [chartPeriod, setChartPeriod] = useState("monthly");
   const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation" | "comments">("overview");
   const router = useRouter();
   const { lang, setLangByCode } = useLanguage();
 
-  const fetchStats = async () => {
+  const fetchStats = async (period: string = chartPeriod) => {
     try {
       setError("");
-      const res = await fetch("/api/admin/stats");
+      const res = await fetch(`/api/admin/stats?period=${period}`);
       if (res.status === 401) {
         router.push("/admin/login");
         return;
@@ -97,13 +106,13 @@ export default function DashboardClient() {
     }
   };
 
+  // Initial load + 30-second auto-refresh
   useEffect(() => {
-    fetchStats();
-    // Auto refresh stats every 30 seconds
-    const interval = setInterval(fetchStats, 30000);
+    fetchStats(chartPeriod);
+    const interval = setInterval(() => fetchStats(chartPeriod), 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [chartPeriod]);
 
   const handleLogout = async () => {
     try {
@@ -223,16 +232,24 @@ export default function DashboardClient() {
   const paddingX = 40;
   const paddingY = 30;
 
+  // Thin out x-axis labels for dense periods
+  const totalPoints = dailyViews.length;
+  const labelEvery = totalPoints <= 12 ? 1 : totalPoints <= 30 ? Math.ceil(totalPoints / 10) : Math.ceil(totalPoints / 8);
+
   const points = dailyViews.map((d, i) => {
-    const x = paddingX + (i * (chartWidth - paddingX * 2)) / (dailyViews.length - 1);
+    const x = totalPoints > 1
+      ? paddingX + (i * (chartWidth - paddingX * 2)) / (totalPoints - 1)
+      : chartWidth / 2;
     const y = chartHeight - paddingY - (d.views / maxViews) * (chartHeight - paddingY * 2);
     return { x, y, val: d.views, date: d.date };
   });
 
   const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-  const areaPath = points.length > 0 
+  const areaPath = points.length > 0
     ? `${linePath} L ${points[points.length - 1].x} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`
     : "";
+
+  const periodLabel = PERIOD_OPTIONS.find((o) => o.value === chartPeriod)?.label ?? "";
 
   return (
     <div className="admin-dashboard-root">
@@ -365,7 +382,25 @@ export default function DashboardClient() {
           <div className="dashboard-grid">
             {/* SVG Line Graph */}
             <div className="panel-card chart-panel">
-              <h2 className="panel-title">Visitor Frequency (Last 7 Days)</h2>
+              <div className="chart-panel-header">
+                <h2 className="panel-title" style={{ marginBottom: 0, borderBottom: "none", paddingBottom: 0 }}>
+                  Visitor Frequency
+                  <span className="chart-period-badge">{periodLabel}</span>
+                </h2>
+                <div className="chart-period-selector-wrap">
+                  <select
+                    id="chart-period-select"
+                    className="chart-period-select"
+                    value={chartPeriod}
+                    onChange={(e) => setChartPeriod(e.target.value)}
+                  >
+                    {PERIOD_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <span className="chart-period-arrow">▾</span>
+                </div>
+              </div>
               <div className="svg-container">
                 <svg width="100%" height="220" viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
                   <defs>
@@ -377,7 +412,7 @@ export default function DashboardClient() {
                   {/* Grid Lines */}
                   <line x1={paddingX} y1={paddingY} x2={chartWidth - paddingX} y2={paddingY} stroke="rgba(255,255,255,0.05)" />
                   <line x1={paddingX} y1={chartHeight - paddingY} x2={chartWidth - paddingX} y2={chartHeight - paddingY} stroke="rgba(255,255,255,0.1)" />
-                  <line x1={paddingX} y1={(chartHeight) / 2} x2={chartWidth - paddingX} y2={(chartHeight) / 2} stroke="rgba(255,255,255,0.05)" />
+                  <line x1={paddingX} y1={chartHeight / 2} x2={chartWidth - paddingX} y2={chartHeight / 2} stroke="rgba(255,255,255,0.05)" />
 
                   {/* Gradient Area Fill */}
                   {areaPath && <path d={areaPath} fill="url(#chartGrad)" />}
@@ -388,13 +423,17 @@ export default function DashboardClient() {
                   {/* Data Points */}
                   {points.map((p, idx) => (
                     <g key={idx} className="chart-dot-group">
-                      <circle cx={p.x} cy={p.y} r="5" fill="#030712" stroke="#00c896" strokeWidth="2.5" />
-                      <text x={p.x} y={p.y - 10} textAnchor="middle" fill="#ffffff" fontSize="10" fontWeight="bold">
-                        {p.val}
-                      </text>
-                      <text x={p.x} y={chartHeight - 10} textAnchor="middle" fill="#9ca3af" fontSize="9">
-                        {p.date.substring(5)}
-                      </text>
+                      <circle cx={p.x} cy={p.y} r={totalPoints > 15 ? 3 : 5} fill="#030712" stroke="#00c896" strokeWidth="2" />
+                      {totalPoints <= 30 && (
+                        <text x={p.x} y={p.y - 10} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold">
+                          {p.val > 0 ? p.val : ""}
+                        </text>
+                      )}
+                      {idx % labelEvery === 0 && (
+                        <text x={p.x} y={chartHeight - 6} textAnchor="middle" fill="#9ca3af" fontSize="8">
+                          {p.date}
+                        </text>
+                      )}
                     </g>
                   ))}
                 </svg>
@@ -866,8 +905,74 @@ export default function DashboardClient() {
           grid-column: span 2;
         }
 
+        .chart-panel-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 1.25rem;
+          border-bottom: 1px solid rgba(255,255,255,0.05);
+          padding-bottom: 0.75rem;
+          gap: 1rem;
+          flex-wrap: wrap;
+        }
+
+        .chart-period-badge {
+          display: inline-block;
+          margin-left: 0.65rem;
+          font-size: 0.7rem;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          color: #00c896;
+          background: rgba(0, 200, 150, 0.1);
+          border: 1px solid rgba(0, 200, 150, 0.25);
+          border-radius: 999px;
+          padding: 0.1rem 0.55rem;
+          vertical-align: middle;
+          text-transform: uppercase;
+        }
+
+        .chart-period-selector-wrap {
+          position: relative;
+          display: flex;
+          align-items: center;
+          flex-shrink: 0;
+        }
+
+        .chart-period-select {
+          appearance: none;
+          -webkit-appearance: none;
+          background-color: #0f1621;
+          color: #e5e7eb;
+          border: 1px solid rgba(0, 200, 150, 0.35);
+          border-radius: 8px;
+          padding: 0.45rem 2.2rem 0.45rem 0.85rem;
+          font-size: 0.85rem;
+          font-weight: 600;
+          cursor: pointer;
+          outline: none;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .chart-period-select:focus {
+          border-color: #00c896;
+          box-shadow: 0 0 0 3px rgba(0, 200, 150, 0.15);
+        }
+
+        .chart-period-select option {
+          background-color: #0f1621;
+          color: #f3f4f6;
+        }
+
+        .chart-period-arrow {
+          position: absolute;
+          right: 0.7rem;
+          color: #00c896;
+          font-size: 0.75rem;
+          pointer-events: none;
+        }
+
         .svg-container {
-          margin-top: 1rem;
+          margin-top: 0.5rem;
         }
 
         .chart-dot-group circle {

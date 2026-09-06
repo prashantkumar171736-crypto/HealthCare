@@ -20,7 +20,7 @@ async function isAuthenticated(): Promise<boolean> {
  * GET /api/admin/stats
  * Authenticates admin session and returns compiled visitor and reachability stats.
  */
-export async function GET() {
+export async function GET(request: Request) {
   if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -28,6 +28,10 @@ export async function GET() {
   try {
     const db = await getDb();
     const analytics = db.collection("analytics");
+
+    // Parse period query param (default: monthly)
+    const { searchParams } = new URL(request.url);
+    const period = searchParams.get("period") || "monthly";
 
     // 1. Core KPIs
     const totalViews = await analytics.countDocuments({});
@@ -60,34 +64,144 @@ export async function GET() {
       { $limit: 8 }
     ]).toArray();
 
-    // 5. Daily Views (Past 7 Days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // include today
-    sevenDaysAgo.setHours(0, 0, 0, 0);
+    // 5. Chart Views — flexible period
+    const now = new Date();
+    let dailyViews: { date: string; views: number }[] = [];
 
-    const dailyViewsRaw = await analytics.aggregate([
-      { $match: { timestamp: { $gte: sevenDaysAgo } } },
-      {
-        $project: {
-          dateStr: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } }
-        }
-      },
-      { $group: { _id: "$dateStr", count: { $sum: 1 } } },
-      { $sort: { _id: 1 } }
-    ]).toArray();
+    if (period === "1d") {
+      // Last 24 hours grouped by hour
+      const startTime = new Date(now);
+      startTime.setHours(startTime.getHours() - 23, 0, 0, 0);
 
-    // Fill in missing days with 0 views
-    const dailyViewsMap = new Map(dailyViewsRaw.map((item) => [item._id, item.count]));
-    const dailyViews: { date: string; views: number }[] = [];
+      const rawHourly = await analytics.aggregate([
+        { $match: { timestamp: { $gte: startTime } } },
+        {
+          $project: {
+            hourStr: { $dateToString: { format: "%Y-%m-%dT%H", date: "$timestamp" } }
+          }
+        },
+        { $group: { _id: "$hourStr", count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+      ]).toArray();
 
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(sevenDaysAgo);
-      d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split("T")[0];
-      dailyViews.push({
-        date: dateStr,
-        views: dailyViewsMap.get(dateStr) || 0,
-      });
+      const hourMap = new Map(rawHourly.map((h) => [h._id, h.count]));
+      for (let i = 23; i >= 0; i--) {
+        const d = new Date(now);
+        d.setHours(d.getHours() - i, 0, 0, 0);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}`;
+        const label = `${String(d.getHours()).padStart(2, "0")}:00`;
+        dailyViews.push({ date: label, views: hourMap.get(key) || 0 });
+      }
+
+    } else if (period === "7d") {
+      // Last 7 days grouped by day
+      const start = new Date(now);
+      start.setDate(start.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+
+      const raw = await analytics.aggregate([
+        { $match: { timestamp: { $gte: start } } },
+        { $project: { dateStr: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } } } },
+        { $group: { _id: "$dateStr", count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+      ]).toArray();
+
+      const map = new Map(raw.map((r) => [r._id, r.count]));
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        const dateStr = d.toISOString().split("T")[0];
+        dailyViews.push({ date: dateStr.substring(5), views: map.get(dateStr) || 0 });
+      }
+
+    } else if (period === "monthly") {
+      // Last 30 days grouped by day
+      const start = new Date(now);
+      start.setDate(start.getDate() - 29);
+      start.setHours(0, 0, 0, 0);
+
+      const raw = await analytics.aggregate([
+        { $match: { timestamp: { $gte: start } } },
+        { $project: { dateStr: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } } } },
+        { $group: { _id: "$dateStr", count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+      ]).toArray();
+
+      const map = new Map(raw.map((r) => [r._id, r.count]));
+      for (let i = 0; i < 30; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        const dateStr = d.toISOString().split("T")[0];
+        dailyViews.push({ date: dateStr.substring(5), views: map.get(dateStr) || 0 });
+      }
+
+    } else if (period === "half-yearly") {
+      // Last 26 weeks grouped by week (ISO week start = Monday)
+      const start = new Date(now);
+      start.setDate(start.getDate() - 181);
+      start.setHours(0, 0, 0, 0);
+
+      const raw = await analytics.aggregate([
+        { $match: { timestamp: { $gte: start } } },
+        {
+          $project: {
+            weekStr: {
+              $dateToString: {
+                format: "%Y-W%V",
+                date: "$timestamp"
+              }
+            },
+            // truncate to week start for grouping
+            weekStart: {
+              $dateTrunc: { date: "$timestamp", unit: "week", startOfWeek: "monday" }
+            }
+          }
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$weekStart" } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]).toArray();
+
+      // Build 26 weekly buckets
+      // Find monday of the week containing `start`
+      const weekStart = new Date(start);
+      const dayOfWeek = weekStart.getDay(); // 0 = Sun
+      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      weekStart.setDate(weekStart.getDate() + diff);
+
+      const map = new Map(raw.map((r) => [r._id, r.count]));
+      for (let i = 0; i < 26; i++) {
+        const d = new Date(weekStart);
+        d.setDate(d.getDate() + i * 7);
+        const dateStr = d.toISOString().split("T")[0];
+        const label = dateStr.substring(5);
+        dailyViews.push({ date: label, views: map.get(dateStr) || 0 });
+      }
+
+    } else if (period === "yearly") {
+      // Last 12 months grouped by month
+      const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+      const raw = await analytics.aggregate([
+        { $match: { timestamp: { $gte: start } } },
+        { $project: { monthStr: { $dateToString: { format: "%Y-%m", date: "$timestamp" } } } },
+        { $group: { _id: "$monthStr", count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+      ]).toArray();
+
+      const map = new Map(raw.map((r) => [r._id, r.count]));
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+        const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        dailyViews.push({ date: monthStr, views: map.get(monthStr) || 0 });
+      }
+
+    } else {
+      dailyViews = [];
     }
 
     // 6. Recent Visitors Logs (Past 50)
