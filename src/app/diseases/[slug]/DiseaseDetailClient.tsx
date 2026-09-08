@@ -3,6 +3,50 @@
 import { useState } from "react";
 import Link from "next/link";
 
+/**
+ * Converts plain-text FAQ answers (typed in a <textarea>) into safe HTML.
+ * Handles:
+ *  - Paragraphs  → double newline blocks wrapped in <p>
+ *  - Bullet lists → lines starting with `-` or `*` grouped into <ul><li>…</li></ul>
+ *  - Single line breaks inside a paragraph → <br />
+ */
+function plainTextToHtml(text: string): string {
+  if (!text) return "";
+
+  // Split on one or more blank lines to form paragraph blocks
+  const blocks = text.split(/\n{2,}/);
+
+  return blocks
+    .map((block) => {
+      const lines = block.split("\n");
+
+      // Detect if the block is a bullet list
+      const isList = lines.every((l) => /^[\-\*]\s/.test(l.trim()) || l.trim() === "");
+      if (isList) {
+        const items = lines
+          .filter((l) => l.trim())
+          .map((l) => `<li>${escapeHtml(l.replace(/^[\-\*]\s*/, "").trim())}</li>`)
+          .join("");
+        return `<ul style="padding-left:1.4rem;margin:0.5rem 0">${items}</ul>`;
+      }
+
+      // Otherwise it's a paragraph – join lines with <br />
+      const inner = lines
+        .map((l) => escapeHtml(l))
+        .join("<br />");
+      return `<p style="margin:0.6rem 0">${inner}</p>`;
+    })
+    .join("");
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 interface FAQItem {
   q: string;
   a: string;
@@ -248,7 +292,10 @@ export default function DiseaseDetailClient({
                       <span>{openFaqIndex === idx ? "−" : "+"}</span>
                     </div>
                     {openFaqIndex === idx && (
-                      <div className="disease-faq-answer">{item.a}</div>
+                      <div
+                        className="disease-faq-answer"
+                        dangerouslySetInnerHTML={{ __html: plainTextToHtml(item.a) }}
+                      />
                     )}
                   </div>
                 ))}
