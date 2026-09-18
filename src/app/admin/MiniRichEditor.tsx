@@ -101,6 +101,54 @@ export default function MiniRichEditor({
   const slashRangeRef = useRef<Range | null>(null);
   const slashMenuRef = useRef<HTMLDivElement>(null);
 
+  // Right-click shortcut context menu state
+  const [ctxMenuOpen, setCtxMenuOpen] = useState(false);
+  const [ctxMenuPos, setCtxMenuPos] = useState({ top: 0, left: 0 });
+  const [ctxSubmenu, setCtxSubmenu] = useState<"headings" | "case" | "align" | "callouts" | null>(null);
+  const ctxMenuRef = useRef<HTMLDivElement>(null);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    saveSelection();
+
+    const menuWidth = 270;
+    const menuHeight = 440;
+    const left = Math.max(10, Math.min(e.clientX, window.innerWidth - menuWidth - 20));
+    const top = Math.max(10, Math.min(e.clientY, window.innerHeight - menuHeight - 20));
+
+    setCtxMenuPos({ top, left });
+    setCtxSubmenu(null);
+    setCtxMenuOpen(true);
+  };
+
+  const transformCase = (type: "upper" | "lower" | "title") => {
+    restoreSelection();
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      const range = sel.getRangeAt(0);
+      const original = range.toString();
+      let updated = original;
+      if (type === "upper") updated = original.toUpperCase();
+      if (type === "lower") updated = original.toLowerCase();
+      if (type === "title") {
+        updated = original.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+      }
+      exec("insertText", updated);
+    }
+    setCtxMenuOpen(false);
+  };
+
+  const handleCtxPaste = async () => {
+    restoreSelection();
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) exec("insertText", text);
+    } catch (err) {
+      document.execCommand("paste");
+    }
+    setCtxMenuOpen(false);
+  };
+
   // Update active formatting states based on current cursor selection
   const updateActiveFormats = useCallback(() => {
     if (typeof document === "undefined") return;
@@ -151,7 +199,7 @@ export default function MiniRichEditor({
     }
   }, [value, isFocused]);
 
-  // Close pickers on outside click
+  // Close pickers on outside click & escape key
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
@@ -163,9 +211,19 @@ export default function MiniRichEditor({
       if (slashMenuRef.current && !slashMenuRef.current.contains(e.target as Node)) {
         closeSlash();
       }
+      if (ctxMenuRef.current && !ctxMenuRef.current.contains(e.target as Node)) {
+        setCtxMenuOpen(false);
+      }
+    };
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCtxMenuOpen(false);
     };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("keydown", keyHandler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", keyHandler);
+    };
   }, []);
 
   const exec = (cmd: string, val?: string) => {
@@ -1020,6 +1078,7 @@ graph TD
           onKeyDown={handleEditorKeyDown}
           onInput={(e) => { handleEditorInput(); saveSelection(); notifyChange(); }}
           onPaste={handlePaste}
+          onContextMenu={handleContextMenu}
           data-placeholder={placeholder}
           style={{
             minHeight,
@@ -1037,6 +1096,136 @@ graph TD
             boxShadow: isFocused ? "0 0 0 2px rgba(59,130,246,0.2)" : "none",
           }}
         />
+
+        {/* ── RIGHT-CLICK CONTEXT MENU (TEXT EDITOR TOOL SHORTCUT) ── */}
+        {ctxMenuOpen && (
+          <div
+            ref={ctxMenuRef}
+            className="rich-ctx-menu"
+            style={{ top: ctxMenuPos.top, left: ctxMenuPos.left }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="ctx-header">
+              <span>🛠️ Text Formatting Tools</span>
+              <button type="button" className="ctx-close-btn" onClick={() => setCtxMenuOpen(false)}>✕</button>
+            </div>
+
+            {/* Row 1: Quick Formatting Icons */}
+            <div className="ctx-row-bar">
+              <button type="button" title="Bold (Ctrl+B)" className={`ctx-btn-icon ${activeFormats.includes("bold") ? "active" : ""}`} onClick={() => { restoreSelection(); exec("bold"); setCtxMenuOpen(false); }}>
+                <strong>B</strong>
+              </button>
+              <button type="button" title="Italic (Ctrl+I)" className={`ctx-btn-icon ${activeFormats.includes("italic") ? "active" : ""}`} onClick={() => { restoreSelection(); exec("italic"); setCtxMenuOpen(false); }}>
+                <em>I</em>
+              </button>
+              <button type="button" title="Underline (Ctrl+U)" className={`ctx-btn-icon ${activeFormats.includes("underline") ? "active" : ""}`} onClick={() => { restoreSelection(); exec("underline"); setCtxMenuOpen(false); }}>
+                <u>U</u>
+              </button>
+              <button type="button" title="Strikethrough" className={`ctx-btn-icon ${activeFormats.includes("strikeThrough") ? "active" : ""}`} onClick={() => { restoreSelection(); exec("strikeThrough"); setCtxMenuOpen(false); }}>
+                <s>S</s>
+              </button>
+              <div className="ctx-vsep" />
+              <button type="button" title="Text Color" className="ctx-btn-icon" onClick={() => { restoreSelection(); colorSelectionRef.current = savedSelRef.current; setPendingColor("#000000"); setColorPickerOpen("text"); setCtxMenuOpen(false); }}>
+                <span style={{ fontWeight: 900, borderBottom: "2px solid #000" }}>A</span>
+              </button>
+              <button type="button" title="Highlight Color" className="ctx-btn-icon" onClick={() => { restoreSelection(); colorSelectionRef.current = savedSelRef.current; setPendingColor("#ffff00"); setColorPickerOpen("highlight"); setCtxMenuOpen(false); }}>
+                <span style={{ background: "#ffff00", color: "#000", padding: "0 3px", borderRadius: "2px", fontWeight: 700 }}>H</span>
+              </button>
+            </div>
+
+            <div className="ctx-divider" />
+
+            {/* Headings */}
+            <button type="button" className="ctx-item" onClick={() => setCtxSubmenu(ctxSubmenu === "headings" ? null : "headings")}>
+              <span className="ctx-item-left"><span>H#</span> Headings (H1–H7)</span>
+              <span className="ctx-arrow">{ctxSubmenu === "headings" ? "▼" : "▶"}</span>
+            </button>
+            {ctxSubmenu === "headings" && (
+              <div className="ctx-submenu-panel">
+                <button type="button" className="ctx-sub-item" onClick={() => { restoreSelection(); exec("formatBlock", "<h1>"); setCtxMenuOpen(false); }}>H1 — Largest Header</button>
+                <button type="button" className="ctx-sub-item" onClick={() => { restoreSelection(); exec("formatBlock", "<h2>"); setCtxMenuOpen(false); }}>H2 — Large Header</button>
+                <button type="button" className="ctx-sub-item" onClick={() => { restoreSelection(); exec("formatBlock", "<h3>"); setCtxMenuOpen(false); }}>H3 — Medium Header</button>
+                <button type="button" className="ctx-sub-item" onClick={() => { restoreSelection(); exec("formatBlock", "<h4>"); setCtxMenuOpen(false); }}>H4 — Small Header</button>
+                <button type="button" className="ctx-sub-item" onClick={() => { restoreSelection(); exec("formatBlock", "<h5>"); setCtxMenuOpen(false); }}>H5 — Smaller Header</button>
+                <button type="button" className="ctx-sub-item" onClick={() => { restoreSelection(); exec("formatBlock", "<h6>"); setCtxMenuOpen(false); }}>H6 — Tiny Header</button>
+                <button type="button" className="ctx-sub-item" onClick={() => { restoreSelection(); exec("insertHTML", `<div style="font-size:0.75rem;font-weight:700;line-height:1.4;margin:0.75rem 0 0.4rem;"><br></div>`); setCtxMenuOpen(false); }}>H7 — Micro Header</button>
+                <button type="button" className="ctx-sub-item" onClick={() => { restoreSelection(); exec("formatBlock", "<p>"); setCtxMenuOpen(false); }}>¶ Paragraph</button>
+              </div>
+            )}
+
+            {/* Transform Text Case */}
+            <button type="button" className="ctx-item" onClick={() => setCtxSubmenu(ctxSubmenu === "case" ? null : "case")}>
+              <span className="ctx-item-left"><span>Aa</span> Transform Text Case</span>
+              <span className="ctx-arrow">{ctxSubmenu === "case" ? "▼" : "▶"}</span>
+            </button>
+            {ctxSubmenu === "case" && (
+              <div className="ctx-submenu-panel">
+                <button type="button" className="ctx-sub-item" onClick={() => transformCase("upper")}>UPPERCASE (ALL CAPS)</button>
+                <button type="button" className="ctx-sub-item" onClick={() => transformCase("lower")}>lowercase (all small)</button>
+                <button type="button" className="ctx-sub-item" onClick={() => transformCase("title")}>Title Case (First Capital)</button>
+              </div>
+            )}
+
+            {/* Alignment */}
+            <button type="button" className="ctx-item" onClick={() => setCtxSubmenu(ctxSubmenu === "align" ? null : "align")}>
+              <span className="ctx-item-left"><span>≡</span> Text Alignment</span>
+              <span className="ctx-arrow">{ctxSubmenu === "align" ? "▼" : "▶"}</span>
+            </button>
+            {ctxSubmenu === "align" && (
+              <div className="ctx-submenu-panel flex-row-sub">
+                <button type="button" className="ctx-sub-btn" onClick={() => { restoreSelection(); exec("justifyLeft"); setCtxMenuOpen(false); }}>Left</button>
+                <button type="button" className="ctx-sub-btn" onClick={() => { restoreSelection(); exec("justifyCenter"); setCtxMenuOpen(false); }}>Center</button>
+                <button type="button" className="ctx-sub-btn" onClick={() => { restoreSelection(); exec("justifyRight"); setCtxMenuOpen(false); }}>Right</button>
+                <button type="button" className="ctx-sub-btn" onClick={() => { restoreSelection(); exec("justifyFull"); setCtxMenuOpen(false); }}>Justify</button>
+              </div>
+            )}
+
+            {/* Lists */}
+            <div className="ctx-row-bar">
+              <button type="button" className="ctx-row-btn" onClick={() => { restoreSelection(); exec("insertUnorderedList"); setCtxMenuOpen(false); }}>• Bullet List</button>
+              <button type="button" className="ctx-row-btn" onClick={() => { restoreSelection(); exec("insertOrderedList"); setCtxMenuOpen(false); }}>1. Numbered List</button>
+            </div>
+
+            <div className="ctx-divider" />
+
+            {/* Insertions */}
+            <button type="button" className="ctx-item" onClick={() => { openLinkModal(); setCtxMenuOpen(false); }}>
+              <span className="ctx-item-left"><span>🔗</span> Insert Hyperlink...</span>
+            </button>
+            <button type="button" className="ctx-item" onClick={() => { restoreSelection(); setShowTablePicker(true); setCtxMenuOpen(false); }}>
+              <span className="ctx-item-left"><span>⊞</span> Insert Table</span>
+            </button>
+            <button type="button" className="ctx-item" onClick={() => { restoreSelection(); fileInputRef.current?.click(); setCtxMenuOpen(false); }}>
+              <span className="ctx-item-left"><span>🖼️</span> Insert Image</span>
+            </button>
+            <button type="button" className="ctx-item" onClick={() => { restoreSelection(); setShowEmojiPicker(true); setCtxMenuOpen(false); }}>
+              <span className="ctx-item-left"><span>😊</span> Insert Emoji / Icon</span>
+            </button>
+
+            <div className="ctx-divider" />
+
+            {/* Edit & Clipboard Actions */}
+            <button type="button" className="ctx-item" onClick={() => { restoreSelection(); document.execCommand("cut"); setCtxMenuOpen(false); }}>
+              <span className="ctx-item-left"><span>✂️</span> Cut</span>
+              <kbd>Ctrl+X</kbd>
+            </button>
+            <button type="button" className="ctx-item" onClick={() => { restoreSelection(); document.execCommand("copy"); setCtxMenuOpen(false); }}>
+              <span className="ctx-item-left"><span>📋</span> Copy</span>
+              <kbd>Ctrl+C</kbd>
+            </button>
+            <button type="button" className="ctx-item" onClick={handleCtxPaste}>
+              <span className="ctx-item-left"><span>📌</span> Paste</span>
+              <kbd>Ctrl+V</kbd>
+            </button>
+            <button type="button" className="ctx-item" onClick={() => { restoreSelection(); exec("selectAll"); setCtxMenuOpen(false); }}>
+              <span className="ctx-item-left"><span>🔲</span> Select All</span>
+              <kbd>Ctrl+A</kbd>
+            </button>
+            <button type="button" className="ctx-item danger" onClick={() => { restoreSelection(); exec("removeFormat"); setCtxMenuOpen(false); }}>
+              <span className="ctx-item-left"><span>🧹</span> Clear Formatting</span>
+            </button>
+          </div>
+        )}
 
         {/* ── SLASH COMMAND MENU ── */}
         {slashOpen && (
@@ -1393,6 +1582,145 @@ graph TD
           text-align: center;
         }
         @keyframes fadeSlide { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Right-click Context Menu Styles */
+        .rich-ctx-menu {
+          position: fixed;
+          z-index: 99999;
+          width: 270px;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
+          padding: 8px;
+          font-family: inherit;
+          animation: ctxFadeIn 0.15s ease-out;
+        }
+        @keyframes ctxFadeIn {
+          from { opacity: 0; transform: scale(0.96); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .ctx-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 4px 8px 8px;
+          font-size: 11px;
+          font-weight: 700;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border-bottom: 1px solid #f3f4f6;
+        }
+        .ctx-close-btn {
+          background: none;
+          border: none;
+          color: #9ca3af;
+          cursor: pointer;
+          font-size: 12px;
+          padding: 2px 4px;
+        }
+        .ctx-close-btn:hover { color: #111827; }
+        .ctx-row-bar {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          margin: 6px 0;
+        }
+        .ctx-btn-icon {
+          flex: 1;
+          height: 28px;
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
+          background: #f9fafb;
+          color: #374151;
+          font-size: 13px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.12s;
+        }
+        .ctx-btn-icon:hover { background: #3b82f6; color: #ffffff; border-color: #3b82f6; }
+        .ctx-btn-icon.active { background: #2563eb; color: #ffffff; border-color: #2563eb; }
+        .ctx-vsep { width: 1px; height: 18px; background: #e5e7eb; margin: 0 2px; }
+        .ctx-divider { height: 1px; background: #f3f4f6; margin: 4px 0; }
+        .ctx-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          padding: 6px 8px;
+          border: none;
+          background: transparent;
+          border-radius: 6px;
+          color: #1f2937;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          text-align: left;
+          transition: background 0.12s;
+        }
+        .ctx-item:hover { background: #eff6ff; color: #1d4ed8; }
+        .ctx-item.danger:hover { background: #fef2f2; color: #dc2626; }
+        .ctx-item-left { display: flex; align-items: center; gap: 8px; }
+        .ctx-item-left span { font-size: 13px; display: inline-block; width: 18px; text-align: center; }
+        .ctx-arrow { font-size: 10px; color: #9ca3af; }
+        .ctx-item kbd {
+          font-size: 10px;
+          background: #f3f4f6;
+          border: 1px solid #e5e7eb;
+          border-radius: 4px;
+          padding: 1px 4px;
+          color: #6b7280;
+        }
+        .ctx-submenu-panel {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
+          padding: 4px;
+          margin: 4px 0;
+          max-height: 160px;
+          overflow-y: auto;
+        }
+        .ctx-sub-item {
+          padding: 5px 8px;
+          border: none;
+          background: transparent;
+          border-radius: 4px;
+          color: #374151;
+          font-size: 11px;
+          font-weight: 500;
+          cursor: pointer;
+          text-align: left;
+        }
+        .ctx-sub-item:hover { background: #2563eb; color: #ffffff; }
+        .ctx-submenu-panel.flex-row-sub { flex-direction: row; flex-wrap: wrap; }
+        .ctx-sub-btn {
+          flex: 1;
+          padding: 4px 6px;
+          border: 1px solid #d1d5db;
+          border-radius: 4px;
+          background: #fff;
+          font-size: 11px;
+          cursor: pointer;
+        }
+        .ctx-sub-btn:hover { background: #2563eb; color: #fff; border-color: #2563eb; }
+        .ctx-row-btn {
+          flex: 1;
+          padding: 6px 8px;
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
+          background: #f9fafb;
+          color: #374151;
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .ctx-row-btn:hover { background: #3b82f6; color: #fff; border-color: #3b82f6; }
       `}</style>
     </div>
   );
