@@ -1,0 +1,1831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HealthCare Web App — Technical Documentation</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap');
+
+    :root {
+      --primary: #2563eb;
+      --primary-light: #dbeafe;
+      --accent: #16a34a;
+      --accent-light: #dcfce7;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --surface: #f8fafc;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --heading: #0f172a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.65;
+      color: var(--text);
+      background: #fff;
+    }
+
+    /* ── Cover Page ── */
+    .cover {
+      page-break-after: always;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f4c75 100%);
+      color: #fff;
+      text-align: center;
+      padding: 4rem 3rem;
+    }
+    .cover-logo { font-size: 4rem; margin-bottom: 1rem; }
+    .cover-badge {
+      display: inline-block;
+      padding: 0.4rem 1.2rem;
+      background: rgba(37,99,235,0.6);
+      border: 1px solid rgba(96,165,250,0.4);
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #93c5fd;
+      margin-bottom: 1.5rem;
+    }
+    .cover h1 {
+      font-size: 2.6rem;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 0.75rem;
+      color: #fff;
+    }
+    .cover-subtitle {
+      font-size: 1.1rem;
+      color: #94a3b8;
+      max-width: 560px;
+      margin: 0 auto 2.5rem;
+    }
+    .cover-meta {
+      display: flex;
+      gap: 3rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 2rem;
+    }
+    .cover-meta-item { text-align: center; }
+    .cover-meta-item .val {
+      font-size: 1.5rem; font-weight: 700; color: #60a5fa;
+    }
+    .cover-meta-item .lbl {
+      font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .cover-date {
+      margin-top: 3rem;
+      font-size: 0.85rem;
+      color: #64748b;
+    }
+    .cover-divider {
+      width: 80px;
+      height: 3px;
+      background: linear-gradient(90deg, #3b82f6, #06b6d4);
+      border-radius: 2px;
+      margin: 2rem auto;
+    }
+
+    /* ── TOC ── */
+    .toc-page {
+      page-break-after: always;
+      padding: 3rem 3.5rem;
+    }
+    .toc-page h2 { font-size: 1.5rem; color: var(--heading); margin-bottom: 1.5rem; border-bottom: 2px solid var(--primary); padding-bottom: 0.5rem; }
+    .toc-item {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      padding: 0.3rem 0;
+      font-size: 0.92rem;
+      border-bottom: 1px dotted var(--border);
+    }
+    .toc-item .num { color: var(--primary); font-weight: 700; min-width: 2rem; }
+    .toc-item .title { flex: 1; }
+    .toc-item.sub { padding-left: 1.5rem; font-size: 0.85rem; color: var(--text-muted); }
+    .toc-section { margin: 1rem 0 0.25rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--primary); font-weight: 700; }
+
+    /* ── Sections ── */
+    .section {
+      padding: 2.5rem 3.5rem;
+      page-break-before: always;
+    }
+    .section:first-of-type { page-break-before: auto; }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--border);
+    }
+    .section-num {
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      letter-spacing: 0.05em;
+    }
+    .section-header h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--heading);
+    }
+    .section-icon { font-size: 1.4rem; }
+
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--heading);
+      margin: 1.5rem 0 0.6rem;
+    }
+    h4 {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin: 1rem 0 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    p { margin-bottom: 0.75rem; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--heading);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .card p { margin-bottom: 0.4rem; font-size: 0.9rem; }
+
+    /* ── Info boxes ── */
+    .info-box {
+      border-left: 4px solid var(--primary);
+      background: var(--primary-light);
+      border-radius: 0 8px 8px 0;
+      padding: 0.85rem 1.25rem;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+    .info-box.green { border-color: var(--accent); background: var(--accent-light); }
+    .info-box.amber { border-color: var(--warning); background: #fffbeb; }
+    .info-box.red { border-color: var(--danger); background: #fef2f2; }
+
+    /* ── Tables ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.88rem;
+    }
+    th {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      padding: 0.6rem 0.85rem;
+      text-align: left;
+    }
+    td {
+      padding: 0.55rem 0.85rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tr:nth-child(even) td { background: var(--surface); }
+
+    /* ── Code ── */
+    code {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      background: #f1f5f9;
+      color: #be185d;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+    }
+    pre {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1.25rem;
+      border-radius: 10px;
+      overflow-x: auto;
+      margin: 1rem 0;
+      line-height: 1.6;
+    }
+
+    /* ── Tags / Badges ── */
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 0.4rem;
+    }
+    .badge-blue { background: var(--primary-light); color: var(--primary); }
+    .badge-green { background: var(--accent-light); color: var(--accent); }
+    .badge-amber { background: #fef3c7; color: #92400e; }
+    .badge-red { background: #fee2e2; color: var(--danger); }
+    .badge-purple { background: #ede9fe; color: #7c3aed; }
+    .badge-gray { background: #f1f5f9; color: #475569; }
+
+    /* ── Grid ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin: 1rem 0; }
+
+    /* ── Route item ── */
+    .route-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      page-break-inside: avoid;
+    }
+    .route-path {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--primary);
+      font-weight: 600;
+      min-width: 180px;
+    }
+    .route-desc { font-size: 0.88rem; }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1.5rem 0;
+    }
+
+    /* ── Feature list ── */
+    .feature-list { list-style: none; margin: 0.5rem 0 1rem; }
+    .feature-list li {
+      padding: 0.3rem 0;
+      padding-left: 1.4rem;
+      position: relative;
+      font-size: 0.9rem;
+    }
+    .feature-list li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* ── Button doc ── */
+    .ui-element {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 1rem;
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      page-break-inside: avoid;
+    }
+    .ui-label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--heading);
+      min-width: 160px;
+    }
+    .ui-desc { font-size: 0.85rem; color: var(--text-muted); }
+
+    /* ── Component diagram ── */
+    .comp-box {
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .comp-header {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 0.5rem 1rem;
+    }
+    .comp-body { padding: 1rem; font-size: 0.88rem; }
+
+    /* ── API endpoint ── */
+    .api-endpoint {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 0.75rem;
+      page-break-inside: avoid;
+    }
+    .api-method {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      margin-right: 0.5rem;
+    }
+    .method-get { background: var(--accent-light); color: var(--accent); }
+    .method-post { background: #dbeafe; color: var(--primary); }
+    .method-delete { background: #fee2e2; color: var(--danger); }
+    .method-put { background: #fef3c7; color: #92400e; }
+    .api-path {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .api-header-bar {
+      background: #f8fafc;
+      padding: 0.55rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .api-body { padding: 0.75rem 1rem; font-size: 0.85rem; }
+
+    /* Print */
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .section { page-break-before: always; }
+      .no-break { page-break-inside: avoid; }
+    }
+
+    /* Footer */
+    .page-footer {
+      margin-top: 3rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    /* Header label */
+    .sub-section-label {
+      display: inline-block;
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+    }
+
+    .flow-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.5rem 0;
+      font-size: 0.88rem;
+    }
+    .flow-arrow { color: var(--primary); font-size: 1rem; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════
+     COVER PAGE
+════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-logo">⚕️</div>
+  <div class="cover-badge">Technical Documentation</div>
+  <h1>HealthEdu / Rog Care Hindi<br>Web Application</h1>
+  <p class="cover-subtitle">
+    A comprehensive technical reference covering all pages, menus, buttons, options, components, API routes, and data models of the HealthCare education platform.
+  </p>
+  <div class="cover-divider"></div>
+  <div class="cover-meta">
+    <div class="cover-meta-item"><div class="val">14</div><div class="lbl">Pages / Routes</div></div>
+    <div class="cover-meta-item"><div class="val">6</div><div class="lbl">API Groups</div></div>
+    <div class="cover-meta-item"><div class="val">5</div><div class="lbl">Components</div></div>
+    <div class="cover-meta-item"><div class="val">7</div><div class="lbl">Admin Panels</div></div>
+  </div>
+  <div class="cover-date">Generated: September 18, 2026 &nbsp;|&nbsp; Stack: Next.js 16 · React 19 · MongoDB · TypeScript · Tailwind CSS v4</div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     TABLE OF CONTENTS
+════════════════════════════════════════════════════════ -->
+<div class="toc-page">
+  <h2>📋 Table of Contents</h2>
+
+  <div class="toc-section">Project Overview</div>
+  <div class="toc-item"><span class="num">1</span><span class="title">Project Overview &amp; Technology Stack</span></div>
+  <div class="toc-item"><span class="num">2</span><span class="title">Application Architecture</span></div>
+  <div class="toc-item"><span class="num">3</span><span class="title">Folder &amp; File Structure</span></div>
+
+  <div class="toc-section">Public Pages</div>
+  <div class="toc-item"><span class="num">4</span><span class="title">Navigation Bar (Navbar)</span></div>
+  <div class="toc-item"><span class="num">5</span><span class="title">Home Page</span></div>
+  <div class="toc-item"><span class="num">6</span><span class="title">Disease A-Z Directory</span></div>
+  <div class="toc-item"><span class="num">7</span><span class="title">Disease Category Page</span></div>
+  <div class="toc-item"><span class="num">8</span><span class="title">Disease Detail Page</span></div>
+  <div class="toc-item"><span class="num">9</span><span class="title">Health Library Page</span></div>
+  <div class="toc-item"><span class="num">10</span><span class="title">Health Tips Page</span></div>
+  <div class="toc-item"><span class="num">11</span><span class="title">FAQ Page</span></div>
+  <div class="toc-item"><span class="num">12</span><span class="title">About Page</span></div>
+  <div class="toc-item"><span class="num">13</span><span class="title">Donate Page</span></div>
+  <div class="toc-item"><span class="num">14</span><span class="title">Feedback / Community Forum</span></div>
+  <div class="toc-item"><span class="num">15</span><span class="title">Legal Pages (Privacy, Terms, Disclaimer)</span></div>
+  <div class="toc-item"><span class="num">16</span><span class="title">Footer</span></div>
+
+  <div class="toc-section">Admin Panel</div>
+  <div class="toc-item"><span class="num">17</span><span class="title">Admin Login Page</span></div>
+  <div class="toc-item"><span class="num">18</span><span class="title">Admin Dashboard — Overview</span></div>
+  <div class="toc-item"><span class="num">19</span><span class="title">Admin Dashboard — Live Access Logs</span></div>
+  <div class="toc-item"><span class="num">20</span><span class="title">Admin Dashboard — Server Monitoring</span></div>
+  <div class="toc-item"><span class="num">21</span><span class="title">Admin Dashboard — Content Manager</span></div>
+  <div class="toc-item"><span class="num">22</span><span class="title">Admin Dashboard — Donation Settings</span></div>
+  <div class="toc-item"><span class="num">23</span><span class="title">Admin Dashboard — Community Comments</span></div>
+  <div class="toc-item"><span class="num">24</span><span class="title">Admin Dashboard — Appearance</span></div>
+
+  <div class="toc-section">Components &amp; API</div>
+  <div class="toc-item"><span class="num">25</span><span class="title">Shared Components</span></div>
+  <div class="toc-item"><span class="num">26</span><span class="title">API Routes Reference</span></div>
+  <div class="toc-item"><span class="num">27</span><span class="title">Multi-Language System</span></div>
+  <div class="toc-item"><span class="num">28</span><span class="title">Database Collections &amp; Data Models</span></div>
+  <div class="toc-item"><span class="num">29</span><span class="title">SEO &amp; Performance Features</span></div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 1 — PROJECT OVERVIEW
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 1</span>
+    <span class="section-icon">🏗️</span>
+    <h2>Project Overview &amp; Technology Stack</h2>
+  </div>
+
+  <p>
+    <strong>Rog Care Hindi</strong> (deployed as <em>HealthEdu</em> in the codebase) is a free, peer-reviewed healthcare education platform targeting Indian users in Hindi and English. It allows visitors to read about 100+ diseases, browse health tips, donate, and interact via a community forum — all without any paywalls or advertisements.
+  </p>
+
+  <div class="info-box green">
+    <strong>Live URL:</strong> <code>https://rogcarehindi.vercel.app</code> &nbsp;|&nbsp; <strong>Deployment:</strong> Vercel &nbsp;|&nbsp; <strong>DB:</strong> MongoDB Atlas
+  </div>
+
+  <h3>Technology Stack</h3>
+  <table>
+    <tr><th>Layer</th><th>Technology</th><th>Version</th><th>Purpose</th></tr>
+    <tr><td>Framework</td><td>Next.js</td><td>16.2.9</td><td>Full-stack SSR/SSG React framework</td></tr>
+    <tr><td>UI Library</td><td>React</td><td>19.2.4</td><td>Component-based UI rendering</td></tr>
+    <tr><td>Language</td><td>TypeScript</td><td>5.x</td><td>Type-safe development</td></tr>
+    <tr><td>Database</td><td>MongoDB</td><td>7.3.0</td><td>NoSQL document store for all content</td></tr>
+    <tr><td>Styling</td><td>Tailwind CSS</td><td>v4</td><td>Utility-first CSS framework</td></tr>
+    <tr><td>Fonts</td><td>Google Fonts (Geist, Noto)</td><td>—</td><td>Multi-script typography</td></tr>
+    <tr><td>Hosting</td><td>Vercel</td><td>—</td><td>Edge deployment &amp; CDN</td></tr>
+    <tr><td>Analytics</td><td>Google Analytics 4</td><td>—</td><td>User behavior tracking</td></tr>
+    <tr><td>SEO</td><td>Next.js Metadata API + Schema.org</td><td>—</td><td>Search engine optimization</td></tr>
+  </table>
+
+  <h3>Key Functional Areas</h3>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🌐 Public Education Platform</div>
+      <p>Disease directory (100+ articles), 15 categories, health library, tips, FAQ, About.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">💰 Donation System</div>
+      <p>UPI/QR donation flow with configurable amounts, dynamic QR generation, modal confirmation.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🌏 Multi-Language Support</div>
+      <p>Auto-detection of 20+ scripts (Hindi, Arabic, Bengali, Tamil etc.) with automatic Google Translate integration.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🛡️ Admin Control Panel</div>
+      <p>Secure admin with analytics dashboard, content editor, donation config, comments moderation, appearance theming.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 2 — ARCHITECTURE
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 2</span>
+    <span class="section-icon">🔀</span>
+    <h2>Application Architecture</h2>
+  </div>
+
+  <h3>Request Flow</h3>
+  <div class="flow-row">
+    <span>User Browser</span>
+    <span class="flow-arrow">→</span>
+    <span>Vercel Edge Network / CDN</span>
+    <span class="flow-arrow">→</span>
+    <span>Next.js App Router</span>
+    <span class="flow-arrow">→</span>
+    <span>Server Component / API Route</span>
+    <span class="flow-arrow">→</span>
+    <span>MongoDB Atlas</span>
+  </div>
+
+  <h3>Rendering Strategy</h3>
+  <table>
+    <tr><th>Page</th><th>Strategy</th><th>Cache / Revalidation</th></tr>
+    <tr><td>Home (<code>/</code>)</td><td>Server Component (SSR)</td><td>Revalidate every 3600s</td></tr>
+    <tr><td>Disease Detail (<code>/diseases/[slug]</code>)</td><td>SSR + generateStaticParams</td><td>Static at build, ISR fallback</td></tr>
+    <tr><td>Disease Directory (<code>/diseases</code>)</td><td>Server Component</td><td>Dynamic (search params)</td></tr>
+    <tr><td>Admin Dashboard</td><td>Client Component</td><td>No cache; 30-second auto-refresh</td></tr>
+    <tr><td>Donate Page</td><td>Client Component</td><td>Dynamic</td></tr>
+    <tr><td>Health Library</td><td>Server + Client Component</td><td>Dynamic</td></tr>
+  </table>
+
+  <h3>Context &amp; State</h3>
+  <div class="card">
+    <div class="card-title">LanguageContext (Global)</div>
+    <p>Wraps the entire app in <code>src/context/LanguageContext.tsx</code>. Provides: current language code, <code>setLangByCode()</code>, <code>setLangFromText()</code>, <code>resetToEnglish()</code>, <code>isTranslating</code> boolean. Language preference is persisted to localStorage and applied to <code>&lt;html lang&gt;</code> and <code>&lt;html dir&gt;</code>.</p>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 3 — FOLDER STRUCTURE
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 3</span>
+    <span class="section-icon">📁</span>
+    <h2>Folder &amp; File Structure</h2>
+  </div>
+
+  <pre>
+/HealthCare (project root)
+├── src/
+│   ├── app/                          ← Next.js App Router
+│   │   ├── layout.tsx                ← Root layout (Navbar, Footer, Context)
+│   │   ├── page.tsx                  ← Home Page
+│   │   ├── globals.css               ← Global CSS design system (41 KB)
+│   │   ├── robots.ts                 ← robots.txt generator
+│   │   ├── sitemap.ts                ← XML sitemap generator
+│   │   ├── not-found.tsx             ← 404 page
+│   │   │
+│   │   ├── diseases/
+│   │   │   ├── page.tsx              ← Disease A-Z Directory
+│   │   │   ├── category/[slug]/      ← Category listing page
+│   │   │   └── [slug]/
+│   │   │       ├── page.tsx          ← Disease Detail (SSR, SEO)
+│   │   │       └── DiseaseDetailClient.tsx ← Client tab UI
+│   │   │
+│   │   ├── health-library/
+│   │   │   ├── page.tsx              ← Health Library SSR
+│   │   │   └── HealthLibraryClient.tsx ← Filter/expand UI
+│   │   │
+│   │   ├── health-tips/page.tsx      ← Health Tips page
+│   │   ├── faq/
+│   │   │   ├── page.tsx              ← FAQ SSR page
+│   │   │   └── FAQClient.tsx         ← Accordion UI
+│   │   ├── about/page.tsx            ← About Us
+│   │   ├── donate/
+│   │   │   ├── page.tsx              ← Donate SSR wrapper
+│   │   │   └── DonateClient.tsx      ← Donation form & QR modal
+│   │   ├── feedback/
+│   │   │   ├── page.tsx              ← Community Forum
+│   │   │   └── CommentsSection.tsx   ← Comment threading UI
+│   │   ├── privacy-policy/page.tsx   ← Privacy Policy
+│   │   ├── terms/page.tsx            ← Terms & Conditions
+│   │   ├── disclaimer/page.tsx       ← Medical Disclaimer
+│   │   │
+│   │   ├── admin/
+│   │   │   ├── page.tsx              ← Admin entry (auth check)
+│   │   │   ├── login/page.tsx        ← Admin Login form
+│   │   │   ├── DashboardClient.tsx   ← Full dashboard UI (55 KB)
+│   │   │   ├── PostEditor.tsx        ← Rich content editor (133 KB)
+│   │   │   ├── CommentsManager.tsx   ← Comment moderation
+│   │   │   ├── DonationSettings.tsx  ← Donation config form
+│   │   │   ├── ThemeSettings.tsx     ← UI theme customiser
+│   │   │   └── MiniRichEditor.tsx    ← Inline rich text widget
+│   │   │
+│   │   └── api/
+│   │       ├── search/route.ts       ← GET disease search
+│   │       ├── track/route.ts        ← POST page view tracking
+│   │       ├── translate/route.ts    ← GET translation proxy
+│   │       ├── feedback/route.ts     ← GET/POST community comments
+│   │       ├── donation-settings/route.ts ← GET donation config
+│   │       └── admin/
+│   │           ├── login/route.ts    ← POST admin authentication
+│   │           ├── logout/route.ts   ← POST session destroy
+│   │           ├── stats/route.ts    ← GET analytics + DELETE clear
+│   │           ├── posts/route.ts    ← CRUD for content posts
+│   │           ├── content/route.ts  ← Manage diseases/categories
+│   │           ├── upload/route.ts   ← Image/file upload
+│   │           └── donation-settings/route.ts ← Admin donation config CRUD
+│   │
+│   ├── components/
+│   │   ├── Navbar.tsx                ← Navigation bar
+│   │   ├── Footer.tsx                ← Site footer
+│   │   ├── SearchBar.tsx             ← Live search with autocomplete
+│   │   ├── Tracker.tsx               ← Invisible analytics tracker
+│   │   └── PageTranslator.tsx        ← Auto-translate injector
+│   │
+│   ├── context/
+│   │   └── LanguageContext.tsx       ← Global language state
+│   │
+│   ├── hooks/
+│   │   └── useTranslation.ts         ← Translates string map via API
+│   │
+│   └── lib/
+│       ├── db.ts                     ← MongoDB connection singleton
+│       ├── detectLanguage.ts         ← Unicode-based language detector
+│       ├── env.ts                    ← Environment variable validation
+│       └── seed.ts                   ← Database seeder (97 KB data)
+│
+├── public/                           ← Static assets (logo, images)
+├── next.config.ts                    ← Next.js config
+├── package.json                      ← Dependencies
+└── .env.local                        ← Environment secrets
+</pre>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 4 — NAVBAR
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 4</span>
+    <span class="section-icon">🧭</span>
+    <h2>Navigation Bar (Navbar)</h2>
+  </div>
+
+  <p>File: <code>src/components/Navbar.tsx</code> — Client Component. Renders on every page via <code>layout.tsx</code>.</p>
+
+  <h3>Desktop Layout (left → right)</h3>
+  <div class="ui-element">
+    <span class="ui-label">⚕️ HealthEdu (Logo)</span>
+    <span class="ui-desc">Clickable link, navigates to <code>/</code> (Home). Always visible.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">🌐 Language Selector</span>
+    <span class="ui-desc">A <code>&lt;select&gt;</code> dropdown beside the logo. Lists 20+ languages (English, Hindi, Arabic, Bengali, Tamil, Telugu, etc.). Changing the selection calls <code>setLangByCode()</code> which triggers global page translation. Styled with primary-colored border.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Home (nav link)</span>
+    <span class="ui-desc">Routes to <code>/</code>. Highlighted when active (current path matches).</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Diseases (nav link)</span>
+    <span class="ui-desc">Routes to <code>/diseases</code> — the A-Z directory.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Health Library (nav link)</span>
+    <span class="ui-desc">Routes to <code>/health-library</code>.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Health Tips (nav link)</span>
+    <span class="ui-desc">Routes to <code>/health-tips</code>.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">FAQ (nav link)</span>
+    <span class="ui-desc">Routes to <code>/faq</code>.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">About (nav link)</span>
+    <span class="ui-desc">Routes to <code>/about</code>.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Donate ❤️ (CTA button)</span>
+    <span class="ui-desc">Highlighted accent button. Routes to <code>/donate</code>. Always visible; intentionally distinct styling.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">🌐 [Language] · Reset to English</span>
+    <span class="ui-desc">Conditionally rendered only when a non-English language is active. Pill-shaped button; clicking calls <code>resetToEnglish()</code>. Shows spinning loader SVG during translation.</span>
+  </div>
+
+  <h3>Mobile Layout</h3>
+  <div class="ui-element">
+    <span class="ui-label">Hamburger Icon (☰)</span>
+    <span class="ui-desc">Visible only on small screens. Clicking toggles <code>isOpen</code> state, revealing the side drawer.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Mobile Drawer (Slide-in)</span>
+    <span class="ui-desc">Contains all navigation links + Donate button + Language selector + Reset button. Backdrop overlay closes drawer on click-outside.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Close (✕) Icon</span>
+    <span class="ui-desc">Inside the drawer header; closes the mobile menu.</span>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 5 — HOME PAGE
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 5</span>
+    <span class="section-icon">🏠</span>
+    <h2>Home Page</h2>
+  </div>
+
+  <p>File: <code>src/app/page.tsx</code> — Server Component. Route: <code>/</code>. Cached for 3600 seconds (ISR). Contains JSON-LD structured data for WebSite + Organization schemas.</p>
+
+  <h3>Section 1 — Hero</h3>
+  <div class="card">
+    <div class="card-title">Hero Section</div>
+    <p><strong>Heading:</strong> "Your Trusted Health Education Resource"</p>
+    <p><strong>Subtitle:</strong> Description of the platform's mission.</p>
+    <div class="ui-element">
+      <span class="ui-label">Explore Diseases button</span>
+      <span class="ui-desc">Primary CTA button → navigates to <code>/diseases</code>.</span>
+    </div>
+    <div class="ui-element">
+      <span class="ui-label">Donate ❤️ button</span>
+      <span class="ui-desc">Accent glowing CTA button → navigates to <code>/donate</code>.</span>
+    </div>
+  </div>
+
+  <h3>Section 2 — Search</h3>
+  <div class="card">
+    <div class="card-title">Search Any Disease</div>
+    <p>Renders the shared <code>&lt;SearchBar /&gt;</code> component (see §25). Provides live autocomplete suggestions with a 350ms debounce. Examples shown below: Cancer, Heart Attack, Diabetes, Asthma, Dengue.</p>
+  </div>
+
+  <h3>Section 3 — Disease Categories Grid</h3>
+  <div class="card">
+    <div class="card-title">Disease Categories (3-column grid)</div>
+    <p>Loaded dynamically from MongoDB <code>categories</code> collection. Falls back to 4 static entries if DB is unavailable. Each card shows: icon emoji, category name, description, and a "View Diseases →" link. Clicking routes to <code>/diseases/category/[slug]</code>.</p>
+    <p>Default categories: Cancer 🩺, Heart Diseases ❤️, Diabetes 🍬, Respiratory Diseases 🫁, Infectious Diseases 🦠, Neurological Disorders 🧠, Mental Health 🧑‍⚕️, Skin Diseases 🩹, Kidney Diseases, Digestive Diseases, Eye Diseases 👁, Bone &amp; Joint Diseases 🦴, Blood Disorders 🩸, Autoimmune Diseases 🧬, Rare Diseases.</p>
+  </div>
+
+  <h3>Section 4 — Statistics Bar</h3>
+  <div class="card">
+    <div class="card-title">Live Stats (4 tiles)</div>
+    <div class="grid-2">
+      <div>• <strong>X+ Medical Categories</strong> (from DB count)</div>
+      <div>• <strong>X+ Disease Articles</strong> (from DB count)</div>
+      <div>• <strong>X+ Library Guides</strong> (from DB count)</div>
+      <div>• <strong>100% Free &amp; Accessible</strong> (static)</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 6 — DISEASE DIRECTORY
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 6</span>
+    <span class="section-icon">📋</span>
+    <h2>Disease A-Z Directory</h2>
+  </div>
+
+  <p>File: <code>src/app/diseases/page.tsx</code> — Server Component. Route: <code>/diseases</code>. Accepts query params: <code>?search=</code> and <code>?letter=</code>. Includes BreadcrumbList JSON-LD.</p>
+
+  <h3>Page Elements</h3>
+  <div class="ui-element">
+    <span class="ui-label">Page Heading</span>
+    <span class="ui-desc">"Disease A-Z Directory" with a description paragraph.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">SearchBar</span>
+    <span class="ui-desc">Same shared component with custom placeholder: "Type to search... (e.g. Cancer, Dengue, Anemia)"</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Alphabet Filter Bar</span>
+    <span class="ui-desc">A row of 27 buttons: "All" + A–Z. Active letter highlighted in primary color. Clicking sets <code>?letter=X</code> URL param and filters diseases by first letter.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Disease Grid (3-column)</span>
+    <span class="ui-desc">Each card shows: category badges (colored pills), disease name, 160-char overview snippet, and a "Read Article" button → navigates to <code>/diseases/[slug]</code>.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Empty State</span>
+    <span class="ui-desc">Shown when no diseases match — displays 🔍 emoji, "No diseases found" heading, and help text.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Search Results Header</span>
+    <span class="ui-desc">When <code>?search=</code> is set, shows "Search Results for '{query}' (N found)".</span>
+  </div>
+
+  <h3>Search Relevance Algorithm</h3>
+  <div class="info-box">
+    Scoring: +100 for exact query in name, +50 in overview, +15 per word in name, +8 per category match, +5 per word in overview. Results sorted by score descending. Both diseases and blog posts are merged in results.
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 7 — CATEGORY PAGE
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 7</span>
+    <span class="section-icon">🗂️</span>
+    <h2>Disease Category Page</h2>
+  </div>
+
+  <p>File: <code>src/app/diseases/category/[slug]/page.tsx</code>. Route: <code>/diseases/category/[slug]</code> (e.g. <code>/diseases/category/cancer</code>).</p>
+
+  <p>Lists all diseases belonging to the selected category. Each disease card links to its detail page. Includes breadcrumb navigation: Home → Diseases → [Category Name].</p>
+
+  <div class="ui-element">
+    <span class="ui-label">Category Hero</span>
+    <span class="ui-desc">Icon + category name + description from MongoDB.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Disease Grid</span>
+    <span class="ui-desc">3-column card grid. Each card: name + overview excerpt + "Read More" link.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Breadcrumb</span>
+    <span class="ui-desc">← Back to All Diseases link with JSON-LD BreadcrumbList structured data.</span>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 8 — DISEASE DETAIL PAGE
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 8</span>
+    <span class="section-icon">🩺</span>
+    <h2>Disease Detail Page</h2>
+  </div>
+
+  <p>Files: <code>src/app/diseases/[slug]/page.tsx</code> (SSR) + <code>DiseaseDetailClient.tsx</code> (Client). Route: <code>/diseases/[slug]</code>.</p>
+
+  <h3>Layout: Two-Column (Sidebar + Content)</h3>
+
+  <h4>Left Sidebar — Tab Navigation</h4>
+  <p>Sticky sidebar on desktop; scrolls to top as tabs on mobile. Seven tabs:</p>
+
+  <table>
+    <tr><th>Tab</th><th>Icon</th><th>Content</th></tr>
+    <tr><td>Overview</td><td>📖</td><td>Disease description (HTML), key details paragraph</td></tr>
+    <tr><td>Symptoms</td><td>🤒</td><td>Symptom list (HTML or bullet array) + "When to see a doctor" amber box</td></tr>
+    <tr><td>Causes &amp; Development</td><td>🧬</td><td>Causes (HTML/list) + Risk Factors subsection</td></tr>
+    <tr><td>Diagnosis &amp; Tests</td><td>🔍</td><td>Diagnosis text in a primary-bordered box</td></tr>
+    <tr><td>Treatments</td><td>💊</td><td>Treatment options (HTML/list with ✔️ icons)</td></tr>
+    <tr><td>Prevention</td><td>🛡️</td><td>Prevention guide in a primary-light background box</td></tr>
+    <tr><td>FAQs</td><td>❓</td><td>Accordion: click question to expand/collapse answer</td></tr>
+  </table>
+
+  <h4>Content Panel — Additional Elements</h4>
+  <div class="ui-element">
+    <span class="ui-label">← Back to Directory</span>
+    <span class="ui-desc">Navigation link at the top returning to <code>/diseases</code>.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Sources &amp; References</span>
+    <span class="ui-desc">Bulleted list of reference strings at bottom of content panel.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Share Article</span>
+    <span class="ui-desc">4 share buttons: Facebook (f), WhatsApp (W), LinkedIn (in), Twitter/X (X). Each opens a popup window to native share URL.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Related Diseases</span>
+    <span class="ui-desc">Card grid below the main layout showing related conditions as clickable links to their own detail pages.</span>
+  </div>
+
+  <h3>SEO Elements (Server Component)</h3>
+  <ul class="feature-list">
+    <li>Dynamic <code>&lt;title&gt;</code> and <code>&lt;meta description&gt;</code> per disease</li>
+    <li>OpenGraph and Twitter card metadata</li>
+    <li>JSON-LD MedicalCondition schema</li>
+    <li>JSON-LD BreadcrumbList schema</li>
+    <li>Canonical URL</li>
+  </ul>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 9 — HEALTH LIBRARY
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 9</span>
+    <span class="section-icon">📚</span>
+    <h2>Health Library Page</h2>
+  </div>
+
+  <p>Files: <code>src/app/health-library/page.tsx</code> + <code>HealthLibraryClient.tsx</code>. Route: <code>/health-library</code>.</p>
+
+  <h3>Filter Tab Bar</h3>
+  <table>
+    <tr><th>Filter Button</th><th>Icon</th><th>Shows</th></tr>
+    <tr><td>All Resources</td><td>📚</td><td>All library items</td></tr>
+    <tr><td>Symptoms Guides</td><td>🤒</td><td>type === "symptoms"</td></tr>
+    <tr><td>Medical Tests</td><td>🧪</td><td>type === "tests"</td></tr>
+    <tr><td>Treatment Guides</td><td>💊</td><td>type === "treatments"</td></tr>
+  </table>
+
+  <h3>Library Cards (3-column Grid)</h3>
+  <div class="ui-element">
+    <span class="ui-label">Type Emoji + Tag Badge</span>
+    <span class="ui-desc">Shows category icon and type label (e.g. "symptoms", "tests").</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Title &amp; Description</span>
+    <span class="ui-desc">Card title and short description text.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Read Full Guide / Hide Details</span>
+    <span class="ui-desc">Toggle button. Expands the card to show full content in-place. Only one card can be expanded at a time.</span>
+  </div>
+
+  <div class="info-box">
+    Example library entries include: Chest Pain guide (symptoms), CBC Blood Test (tests), Chemotherapy overview (treatments), MRI Scan guide (tests), Physical Therapy guide (treatments).
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 10 — HEALTH TIPS
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 10</span>
+    <span class="section-icon">💡</span>
+    <h2>Health Tips Page</h2>
+  </div>
+
+  <p>Route: <code>/health-tips</code>. Server Component. Content loaded from MongoDB <code>health-tips</code> collection.</p>
+
+  <p>Displays educational health tips cards organized by categories: Nutrition, Fitness, Mental Wellness, Sleep Hygiene, Disease Prevention, Hydration. Each tip card includes a headline, body text, and relevant icon/emoji. SEO metadata includes tips-specific keywords in Hindi and English.</p>
+
+  <div class="info-box green">
+    Topics covered in seeded content: whole grains, healthy fats, omega-3, sodium intake, walking 10,000 steps, strength training, aerobic exercise, gratitude journaling, social connections, digital detox, sleep schedule, circadian rhythm, annual health checkups, quit smoking, handwashing, sunscreen.
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 11 — FAQ PAGE
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 11</span>
+    <span class="section-icon">❓</span>
+    <h2>FAQ Page</h2>
+  </div>
+
+  <p>Files: <code>src/app/faq/page.tsx</code> + <code>FAQClient.tsx</code>. Route: <code>/faq</code>.</p>
+
+  <p>Frequently asked questions are loaded from MongoDB and displayed as an accordion. Each question is a clickable row — clicking expands/collapses the answer. Includes JSON-LD FAQPage schema for Google rich results.</p>
+
+  <div class="ui-element">
+    <span class="ui-label">FAQ accordion item</span>
+    <span class="ui-desc">Question row with +/− toggle indicator. Answer area expands below with smooth animation. Only one FAQ can be open at a time (tracked by <code>openIndex</code> state).</span>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 12 — ABOUT PAGE
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 12</span>
+    <span class="section-icon">ℹ️</span>
+    <h2>About Page</h2>
+  </div>
+
+  <p>File: <code>src/app/about/page.tsx</code>. Route: <code>/about</code>. Server Component.</p>
+
+  <p>Describes the platform's mission, editorial team, peer-review process, and commitment to free education. Sections include: Mission Statement, Why We Exist, Editorial Standards, and a call-to-action linking to Donate and Feedback pages.</p>
+
+  <div class="info-box">
+    Contains JSON-LD Organization schema with logo and social media profile links.
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 13 — DONATE PAGE
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 13</span>
+    <span class="section-icon">❤️</span>
+    <h2>Donate Page</h2>
+  </div>
+
+  <p>Files: <code>src/app/donate/page.tsx</code> + <code>DonateClient.tsx</code>. Route: <code>/donate</code>. Donation configuration is loaded from <code>/api/donation-settings</code> on mount.</p>
+
+  <h3>Page Hero</h3>
+  <div class="card">
+    <div class="card-title">Support Free Healthcare Education</div>
+    <p>Heading + subtitle describing where donations go. "Support Us" badge tag.</p>
+  </div>
+
+  <h3>Donation Form Card</h3>
+  <div class="ui-element">
+    <span class="ui-label">Preset Amount Buttons</span>
+    <span class="ui-desc">5 pre-defined amounts: ₹5, ₹11, ₹21, ₹51, ₹101. Clicking sets the amount and deselects custom input. Active button highlighted.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Custom Amount Input</span>
+    <span class="ui-desc">Number input with ₹ symbol prefix. Entering a value deselects preset buttons.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Payment Method Selector</span>
+    <span class="ui-desc">Currently shows "UPI / QR Code (GPay, PhonePe, Paytm)" — one option available, styled as active. Expandable for future methods.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Donate ₹X Now (Submit Button)</span>
+    <span class="ui-desc">Full-width accent button. On submit: validates amount, generates UPI URL, fetches QR from qrserver.com API, shows modal.</span>
+  </div>
+
+  <h3>Donation Confirmation Modal</h3>
+  <div class="card">
+    <div class="card-title">🎉 Thank You Modal</div>
+    <p><strong>Trigger:</strong> On successful form submit. Overlay darkens background.</p>
+    <p><strong>Contents:</strong> Animated 🎉 emoji (bounce), "Thank you for donating" heading, 🙏 pulsing emoji, QR code image (360×360px), Close button.</p>
+    <p><strong>Dismiss:</strong> Click overlay background OR click "Close" button.</p>
+  </div>
+
+  <h3>Transparency Card (Right Column)</h3>
+  <ul class="feature-list">
+    <li>Create Educational Content</li>
+    <li>Maintain Web Infrastructure</li>
+    <li>Improve User Performance</li>
+    <li>Zero Advertisement Model</li>
+  </ul>
+
+  <h3>Donation Config (from DB)</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Purpose</th></tr>
+    <tr><td><code>bankName</code></td><td>string</td><td>Bank name for display</td></tr>
+    <tr><td><code>accountHolder</code></td><td>string</td><td>Recipient name in UPI URL</td></tr>
+    <tr><td><code>accountNumber</code></td><td>string</td><td>Bank account number</td></tr>
+    <tr><td><code>ifscCode</code></td><td>string</td><td>IFSC code</td></tr>
+    <tr><td><code>upiId</code></td><td>string</td><td>UPI ID for QR generation</td></tr>
+    <tr><td><code>qrCodeBase64</code></td><td>string</td><td>Static QR fallback</td></tr>
+  </table>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 14 — FEEDBACK PAGE
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 14</span>
+    <span class="section-icon">💬</span>
+    <h2>Feedback / Community Forum Page</h2>
+  </div>
+
+  <p>Files: <code>src/app/feedback/page.tsx</code> + <code>CommentsSection.tsx</code>. Route: <code>/feedback</code>.</p>
+
+  <h3>Comment Submission Form</h3>
+  <div class="ui-element">
+    <span class="ui-label">Name Input</span>
+    <span class="ui-desc">Text input for commenter's name.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Comment Textarea</span>
+    <span class="ui-desc">Multi-line text area for comment body.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Submit Comment Button</span>
+    <span class="ui-desc">POSTs to <code>/api/feedback</code>. Shows loading state. On success, refreshes comment list.</span>
+  </div>
+
+  <h3>Comment Thread Display</h3>
+  <div class="ui-element">
+    <span class="ui-label">Comment Card</span>
+    <span class="ui-desc">Shows: commenter name, date, comment text, reply count, Like button (POST to toggle like), Reply button (expands inline reply form).</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Inline Reply Form</span>
+    <span class="ui-desc">Appears below comment on "Reply" click. Same name + message inputs. POSTs with parent comment ID.</span>
+  </div>
+  <div class="ui-element">
+    <span class="ui-label">Nested Replies</span>
+    <span class="ui-desc">Replies shown indented under their parent comment with collapsible "View N Replies" toggle.</span>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 15 — LEGAL PAGES
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 15</span>
+    <span class="section-icon">⚖️</span>
+    <h2>Legal Pages</h2>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Privacy Policy</div>
+      <p>Route: <code>/privacy-policy</code><br>Covers: data collection, cookies, analytics, MongoDB storage, user rights, GDPR notes.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Terms &amp; Conditions</div>
+      <p>Route: <code>/terms</code><br>Usage terms, intellectual property, donation conditions, prohibited conduct.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Medical Disclaimer</div>
+      <p>Route: <code>/disclaimer</code><br>States content is educational only, not medical advice. Directs users to qualified physicians.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">404 Not Found</div>
+      <p>File: <code>src/app/not-found.tsx</code><br>Custom styled error page with a link back to Home.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 16 — FOOTER
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 16</span>
+    <span class="section-icon">🦶</span>
+    <h2>Footer</h2>
+  </div>
+
+  <p>File: <code>src/components/Footer.tsx</code> — Client Component. Renders on every page. 4-column grid layout.</p>
+
+  <h3>Column 1 — Brand &amp; Social</h3>
+  <div class="ui-element"><span class="ui-label">⚕️ HealthEdu</span><span class="ui-desc">Brand logo/name + description tagline text.</span></div>
+  <div class="ui-element"><span class="ui-label">Instagram icon</span><span class="ui-desc">External link → instagram.com (placeholder).</span></div>
+  <div class="ui-element"><span class="ui-label">Facebook icon</span><span class="ui-desc">External link → facebook.com (placeholder).</span></div>
+  <div class="ui-element"><span class="ui-label">LinkedIn icon</span><span class="ui-desc">External link → linkedin.com (placeholder).</span></div>
+  <div class="ui-element"><span class="ui-label">YouTube icon</span><span class="ui-desc">External link → youtube.com (placeholder).</span></div>
+
+  <h3>Column 2 — Quick Links</h3>
+  <p>Home, Disease Index (<code>/diseases</code>), Health Library, Health Tips, FAQs, Donate ❤️</p>
+
+  <h3>Column 3 — Legal Links</h3>
+  <p>Privacy Policy, Terms &amp; Conditions, Medical Disclaimer, 🛡️ Admin Portal</p>
+
+  <h3>Column 4 — Contact Us</h3>
+  <div class="ui-element"><span class="ui-label">Comment / Feedback button</span><span class="ui-desc">Primary button → <code>/feedback</code>. Includes speech-bubble SVG icon.</span></div>
+
+  <h3>Disease Categories Sitemap Strip</h3>
+  <p>Row of links: Cancer (कैंसर), Heart Diseases (हृदय रोग), Diabetes (मधुमेह), Respiratory Diseases (श्वास रोग), Health Tips (स्वास्थ्य सुझाव), Health Library (चिकित्सा संदर्भ), Community Forum (प्रतिक्रिया और चर्चा).</p>
+
+  <h3>Medical Disclaimer Bar</h3>
+  <p>Full legal disclaimer text: "Content is for educational purposes only…" + copyright line.</p>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 17 — ADMIN LOGIN
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 17</span>
+    <span class="section-icon">🔐</span>
+    <h2>Admin Login Page</h2>
+  </div>
+
+  <p>File: <code>src/app/admin/login/page.tsx</code>. Route: <code>/admin/login</code>. Client Component.</p>
+
+  <div class="ui-element"><span class="ui-label">Username Input</span><span class="ui-desc">Text input field for admin username.</span></div>
+  <div class="ui-element"><span class="ui-label">Password Input</span><span class="ui-desc">Password type input; characters masked.</span></div>
+  <div class="ui-element"><span class="ui-label">Login Button</span><span class="ui-desc">POSTs credentials to <code>/api/admin/login</code>. On success, sets HTTP-only session cookie and redirects to <code>/admin</code>. Shows error message on failure.</span></div>
+
+  <div class="info-box amber">
+    <strong>Auth:</strong> Session-based (HTTP-only cookie). Unauthenticated requests to <code>/admin</code> redirect to <code>/admin/login</code>. API returns 401 if cookie is missing/invalid.
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 18 — ADMIN DASHBOARD: OVERVIEW
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 18</span>
+    <span class="section-icon">📊</span>
+    <h2>Admin Dashboard — Overview Tab</h2>
+  </div>
+
+  <p>File: <code>src/app/admin/DashboardClient.tsx</code>. Route: <code>/admin</code>. Auto-refreshes every 30 seconds via <code>setInterval</code>.</p>
+
+  <h3>Sidebar Navigation</h3>
+  <table>
+    <tr><th>Button</th><th>Icon</th><th>Tab ID</th></tr>
+    <tr><td>Dashboard Overview</td><td>📊</td><td>overview</td></tr>
+    <tr><td>Live Access Logs</td><td>📋</td><td>logs</td></tr>
+    <tr><td>Server Monitoring</td><td>⚙️</td><td>system</td></tr>
+    <tr><td>Content Manager</td><td>🗂️</td><td>posts</td></tr>
+    <tr><td>Donation Settings</td><td>💰</td><td>donation</td></tr>
+    <tr><td>Community Comments</td><td>💬</td><td>comments</td></tr>
+    <tr><td>Appearance</td><td>🎨</td><td>appearance</td></tr>
+  </table>
+  <div class="ui-element"><span class="ui-label">🌐 Language Settings</span><span class="ui-desc">Language dropdown in sidebar. Changes global app language. Saved to localStorage site-wide.</span></div>
+  <div class="ui-element"><span class="ui-label">🚪 Logout Session</span><span class="ui-desc">POSTs to <code>/api/admin/logout</code>. Clears session cookie, redirects to login page.</span></div>
+
+  <h3>Header Buttons</h3>
+  <div class="ui-element"><span class="ui-label">🔄 Refresh Logs</span><span class="ui-desc">Manually triggers <code>fetchStats()</code> to reload all dashboard data.</span></div>
+  <div class="ui-element"><span class="ui-label">⚠️ Clear Database</span><span class="ui-desc">Shows browser confirm dialog. On confirm, sends DELETE to <code>/api/admin/stats</code> permanently erasing visitor analytics. Disabled during operation.</span></div>
+
+  <h3>KPI Cards (always visible, 4 tiles)</h3>
+  <div class="grid-2">
+    <div class="card"><div class="card-title">TOTAL PAGE VIEWS</div><p>All-time total views from tracker collection.</p></div>
+    <div class="card"><div class="card-title">UNIQUE VISITORS</div><p>Count of unique daily sessions.</p></div>
+    <div class="card"><div class="card-title">GUI SERVER PING</div><p>MongoDB ping latency in ms. Shows Online/Offline pulse badge.</p></div>
+    <div class="card"><div class="card-title">SERVER UPTIME</div><p>Node.js process uptime formatted as Xd Xh Xm.</p></div>
+  </div>
+
+  <h3>Chart Panel — Visitor Frequency</h3>
+  <div class="ui-element"><span class="ui-label">Period Selector</span><span class="ui-desc">Dropdown with: 1 Day (24 Hours), 7 Days, Monthly, Half Yearly, Yearly. Changing re-fetches data.</span></div>
+  <div class="info-box">
+    SVG line chart with: multi-color gradient fill, smooth bezier curve stroke, multi-color data point dots with glow filters, value labels above each point, date labels below. Color legend: Start=green, Mid=blue, Latest=amber.
+  </div>
+
+  <h3>Top Visited Pages Panel</h3>
+  <p>Multi-color horizontal progress bars showing top pages by view count. Rank badges: 🥇🥈🥉 for top 3, then #N. Each bar labeled with page path and view count.</p>
+
+  <h3>Top Geolocations Panel</h3>
+  <p>Country + Region cards. Each card shows: rank badge, country name, region name, visit count, mini horizontal bar. Each card color-coded uniquely.</p>
+
+  <h3>Server Memory Status</h3>
+  <p>Circular SVG progress gauge showing MB Used / Allocated Heap. Shows Node.js version and server status.</p>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 19 — ADMIN: LIVE LOGS
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 19</span>
+    <span class="section-icon">📋</span>
+    <h2>Admin Dashboard — Live Access Logs</h2>
+  </div>
+
+  <p>Shows a scrollable table of the latest 50 visitor requests from the <code>tracker</code> MongoDB collection.</p>
+
+  <table>
+    <tr><th>Column</th><th>Data</th></tr>
+    <tr><td>Timestamp</td><td>Time (HH:MM:SS) + Date below</td></tr>
+    <tr><td>IP Address</td><td>Visitor's IP (monospace)</td></tr>
+    <tr><td>Country / State</td><td>Country bold + Region · City</td></tr>
+    <tr><td>Visited Path</td><td>URL path in green monospace</td></tr>
+    <tr><td>Referrer Source</td><td>HTTP Referer header value</td></tr>
+    <tr><td>User Agent Details</td><td>First 45 chars of UA string</td></tr>
+  </table>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 20 — ADMIN: SERVER MONITORING
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 20</span>
+    <span class="section-icon">⚙️</span>
+    <h2>Admin Dashboard — Server Monitoring</h2>
+  </div>
+
+  <p>System health information from the <code>/api/admin/stats</code> endpoint.</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">MongoDB Infrastructure</div>
+      <p>Status: ONLINE badge, latency ping in ms, database name.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Server Environment</div>
+      <p>Node.js version, server uptime in seconds, host platform.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Client Reachability Tracker</div>
+      <p>API endpoint path, collector script status, current local time.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 21 — ADMIN: CONTENT MANAGER
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 21</span>
+    <span class="section-icon">🗂️</span>
+    <h2>Admin Dashboard — Content Manager</h2>
+  </div>
+
+  <p>File: <code>src/app/admin/PostEditor.tsx</code> (133 KB). A feature-complete rich content management system.</p>
+
+  <h3>Content Types Managed</h3>
+  <ul class="feature-list">
+    <li>Disease articles (name, slug, categories, overview, symptoms, causes, riskFactors, whenToSeeDoctor, diagnosis, treatmentOptions, prevention, FAQ, references, relatedDiseases)</li>
+    <li>Blog/article posts (title, slug, category, content)</li>
+    <li>Disease categories (name, slug, icon, description)</li>
+    <li>Health Library items (title, type, description, content)</li>
+  </ul>
+
+  <h3>Editor Features</h3>
+  <div class="ui-element"><span class="ui-label">Rich Text Editor</span><span class="ui-desc">WYSIWYG editor with bold, italic, lists, headings, images, links, code blocks.</span></div>
+  <div class="ui-element"><span class="ui-label">Content Type Tabs</span><span class="ui-desc">Switch between: Diseases, Posts, Categories, Library.</span></div>
+  <div class="ui-element"><span class="ui-label">Search/Filter</span><span class="ui-desc">Search bar within content lists.</span></div>
+  <div class="ui-element"><span class="ui-label">Create New</span><span class="ui-desc">Opens blank editor form for new content entry.</span></div>
+  <div class="ui-element"><span class="ui-label">Edit Button</span><span class="ui-desc">Loads existing record into editor.</span></div>
+  <div class="ui-element"><span class="ui-label">Delete Button</span><span class="ui-desc">Confirms then DELETE-requests <code>/api/admin/content</code> or <code>/api/admin/posts</code>.</span></div>
+  <div class="ui-element"><span class="ui-label">Image Upload</span><span class="ui-desc">File picker POSTs to <code>/api/admin/upload</code>; returns URL inserted into editor.</span></div>
+  <div class="ui-element"><span class="ui-label">Save/Publish</span><span class="ui-desc">PUT/POST to relevant API endpoint.</span></div>
+  <div class="ui-element"><span class="ui-label">FAQ Builder</span><span class="ui-desc">Dynamic list — add/remove Q&amp;A pairs for disease FAQs.</span></div>
+  <div class="ui-element"><span class="ui-label">Related Diseases</span><span class="ui-desc">Multi-select or comma-separated slug list.</span></div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 22 — ADMIN: DONATION SETTINGS
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 22</span>
+    <span class="section-icon">💰</span>
+    <h2>Admin Dashboard — Donation Settings</h2>
+  </div>
+
+  <p>File: <code>src/app/admin/DonationSettings.tsx</code>. Manages donation configuration stored in MongoDB.</p>
+
+  <table>
+    <tr><th>Field</th><th>Input Type</th><th>Purpose</th></tr>
+    <tr><td>Bank Name</td><td>Text</td><td>Bank name shown to donor</td></tr>
+    <tr><td>Account Holder Name</td><td>Text</td><td>Recipient name in UPI string</td></tr>
+    <tr><td>Account Number</td><td>Text</td><td>Bank account number</td></tr>
+    <tr><td>IFSC Code</td><td>Text</td><td>IFSC routing code</td></tr>
+    <tr><td>UPI ID</td><td>Text</td><td>pa= parameter in UPI URL</td></tr>
+    <tr><td>QR Code Upload</td><td>File / Base64</td><td>Static QR fallback image</td></tr>
+  </table>
+
+  <div class="ui-element"><span class="ui-label">Save Settings Button</span><span class="ui-desc">PUTs updated donation config to <code>/api/admin/donation-settings</code>.</span></div>
+  <div class="ui-element"><span class="ui-label">Preview Panel</span><span class="ui-desc">Shows live preview of the donation page as the config is edited.</span></div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 23 — ADMIN: COMMUNITY COMMENTS
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 23</span>
+    <span class="section-icon">💬</span>
+    <h2>Admin Dashboard — Community Comments</h2>
+  </div>
+
+  <p>File: <code>src/app/admin/CommentsManager.tsx</code> (20 KB). Moderate all community comments from one interface.</p>
+
+  <div class="ui-element"><span class="ui-label">Comment List Table</span><span class="ui-desc">Shows: date, commenter name, comment excerpt, likes count, reply count, status.</span></div>
+  <div class="ui-element"><span class="ui-label">Approve / Reject buttons</span><span class="ui-desc">Change comment status; updates displayed on public Feedback page.</span></div>
+  <div class="ui-element"><span class="ui-label">Delete button</span><span class="ui-desc">Permanently removes comment and all its replies from MongoDB.</span></div>
+  <div class="ui-element"><span class="ui-label">Search/Filter bar</span><span class="ui-desc">Filter comments by keyword or status.</span></div>
+  <div class="ui-element"><span class="ui-label">View Thread</span><span class="ui-desc">Expand to see full comment + all nested replies.</span></div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 24 — ADMIN: APPEARANCE
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 24</span>
+    <span class="section-icon">🎨</span>
+    <h2>Admin Dashboard — Appearance</h2>
+  </div>
+
+  <p>File: <code>src/app/admin/ThemeSettings.tsx</code> (29 KB). Customizes the admin panel UI theme. Settings saved to <code>localStorage</code> under key <code>admin_panel_theme</code>.</p>
+
+  <table>
+    <tr><th>Setting</th><th>Input</th><th>CSS Variable</th></tr>
+    <tr><td>Background Color</td><td>Color picker</td><td><code>--admin-bg</code></td></tr>
+    <tr><td>Sidebar Color</td><td>Color picker</td><td><code>--admin-sidebar-bg</code></td></tr>
+    <tr><td>Card Color</td><td>Color picker</td><td><code>--admin-card-bg</code></td></tr>
+    <tr><td>Accent Color</td><td>Color picker</td><td><code>--admin-accent</code></td></tr>
+    <tr><td>Primary Text Color</td><td>Color picker</td><td><code>--admin-text-primary</code></td></tr>
+    <tr><td>Secondary Text Color</td><td>Color picker</td><td><code>--admin-text-secondary</code></td></tr>
+    <tr><td>Font Family</td><td>Select dropdown</td><td><code>--admin-font-family</code></td></tr>
+    <tr><td>Font Size</td><td>Range slider</td><td><code>--admin-font-size</code></td></tr>
+  </table>
+
+  <div class="info-box">
+    The system auto-detects if the background is light or dark (via luminance calculation) and adjusts border, hover, input, and shadow variables accordingly.
+  </div>
+
+  <div class="ui-element"><span class="ui-label">Reset to Defaults</span><span class="ui-desc">Resets all theme values to <code>DEFAULT_THEME</code> and clears localStorage.</span></div>
+  <div class="ui-element"><span class="ui-label">Live Preview</span><span class="ui-desc">Theme changes apply instantly to the admin panel without page reload.</span></div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 25 — SHARED COMPONENTS
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 25</span>
+    <span class="section-icon">🧩</span>
+    <h2>Shared Components</h2>
+  </div>
+
+  <div class="comp-box">
+    <div class="comp-header">SearchBar — src/components/SearchBar.tsx</div>
+    <div class="comp-body">
+      <p>Props: <code>placeholder?</code> string. Used on Home and Disease Directory pages.</p>
+      <ul class="feature-list">
+        <li>350ms debounced search — fetches <code>/api/search?q=</code></li>
+        <li>Language auto-detection from typed text</li>
+        <li>Autocomplete dropdown (up to 10 suggestions)</li>
+        <li>Enter key submits → navigates to <code>/diseases?search=</code></li>
+        <li>Example searches: Cancer, Heart Attack, Diabetes, Asthma, Dengue (clickable)</li>
+        <li>Spinner shown while loading or translating</li>
+        <li>"🌐 [Language] detected" badge when non-English is typed</li>
+        <li>Click-outside closes dropdown</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="comp-box">
+    <div class="comp-header">Tracker — src/components/Tracker.tsx</div>
+    <div class="comp-body">
+      <p>Invisible component. On each route change, POSTs to <code>/api/track</code> with: current path, referrer, user agent. Server enriches with IP geolocation (country, region, city) and stores in MongoDB <code>tracker</code> collection.</p>
+    </div>
+  </div>
+
+  <div class="comp-box">
+    <div class="comp-header">PageTranslator — src/components/PageTranslator.tsx</div>
+    <div class="comp-body">
+      <p>Monitors <code>LanguageContext</code>. When language changes to non-English, traverses DOM text nodes and calls <code>/api/translate</code> to translate visible text. Skips elements with <code>data-no-translate</code> attribute (e.g. the language selector itself). Loads appropriate Google Font for the target script.</p>
+    </div>
+  </div>
+
+  <div class="comp-box">
+    <div class="comp-header">MiniRichEditor — src/app/admin/MiniRichEditor.tsx</div>
+    <div class="comp-body">
+      <p>Inline rich text editor widget (67 KB). Used within the admin PostEditor for individual field editing. Supports: bold, italic, underline, headings H1–H3, ordered/unordered lists, blockquote, code block, image insertion, link insertion, horizontal rule, undo/redo.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 26 — API ROUTES
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 26</span>
+    <span class="section-icon">🔌</span>
+    <h2>API Routes Reference</h2>
+  </div>
+
+  <h3>Public APIs</h3>
+
+  <div class="api-endpoint">
+    <div class="api-header-bar">
+      <span class="api-method method-get">GET</span>
+      <span class="api-path">/api/search?q={query}</span>
+    </div>
+    <div class="api-body">Returns up to 10 disease name/slug/categories matches. Searches name and categories fields case-insensitively. Used by SearchBar autocomplete.</div>
+  </div>
+
+  <div class="api-endpoint">
+    <div class="api-header-bar">
+      <span class="api-method method-post">POST</span>
+      <span class="api-path">/api/track</span>
+    </div>
+    <div class="api-body">Body: <code>{path, referrer, userAgent}</code>. Resolves IP from headers, performs geolocation lookup, stores tracking record in <code>tracker</code> collection.</div>
+  </div>
+
+  <div class="api-endpoint">
+    <div class="api-header-bar">
+      <span class="api-method method-get">GET</span>
+      <span class="api-path">/api/translate?text={text}&target={lang}</span>
+    </div>
+    <div class="api-body">Proxies translation request to Google Translate API. Returns translated text string.</div>
+  </div>
+
+  <div class="api-endpoint">
+    <div class="api-header-bar">
+      <span class="api-method method-get">GET</span>
+      <span class="api-path">/api/feedback</span>
+      <span class="api-method method-post" style="margin-left:0.5rem">POST</span>
+    </div>
+    <div class="api-body">GET: Returns all approved comments with nested replies. POST body: <code>{name, message, parentId?}</code>. Creates new comment or reply. Returns created document.</div>
+  </div>
+
+  <div class="api-endpoint">
+    <div class="api-header-bar">
+      <span class="api-method method-get">GET</span>
+      <span class="api-path">/api/donation-settings</span>
+    </div>
+    <div class="api-body">Returns donation configuration document (UPI ID, bank details, QR code). Public endpoint.</div>
+  </div>
+
+  <h3>Admin APIs (require auth cookie)</h3>
+
+  <div class="api-endpoint">
+    <div class="api-header-bar">
+      <span class="api-method method-post">POST</span>
+      <span class="api-path">/api/admin/login</span>
+    </div>
+    <div class="api-body">Body: <code>{username, password}</code>. Validates against env vars. Sets HTTP-only session cookie on success. Returns 401 on failure.</div>
+  </div>
+
+  <div class="api-endpoint">
+    <div class="api-header-bar">
+      <span class="api-method method-post">POST</span>
+      <span class="api-path">/api/admin/logout</span>
+    </div>
+    <div class="api-body">Clears session cookie. Returns 200.</div>
+  </div>
+
+  <div class="api-endpoint">
+    <div class="api-header-bar">
+      <span class="api-method method-get">GET</span>
+      <span class="api-path">/api/admin/stats?period={1d|7d|monthly|half-yearly|yearly}</span>
+      <span class="api-method method-delete" style="margin-left:0.5rem">DELETE</span>
+    </div>
+    <div class="api-body">GET: Returns summary KPIs, daily view chart data, top pages, top countries, top regions, recent 50 visitor logs, system health. DELETE: Clears all tracker records from MongoDB.</div>
+  </div>
+
+  <div class="api-endpoint">
+    <div class="api-header-bar">
+      <span class="api-method method-get">GET</span>
+      <span class="api-path">/api/admin/posts</span>
+      <span class="api-method method-post" style="margin-left:0.5rem">POST</span>
+      <span class="api-method method-put" style="margin-left:0.5rem">PUT</span>
+      <span class="api-method method-delete" style="margin-left:0.5rem">DELETE</span>
+    </div>
+    <div class="api-body">Full CRUD for blog posts collection. GET with <code>?id=</code> returns single post. DELETE with <code>?id=</code> removes post.</div>
+  </div>
+
+  <div class="api-endpoint">
+    <div class="api-header-bar">
+      <span class="api-method method-get">GET</span>
+      <span class="api-path">/api/admin/content</span>
+      <span class="api-method method-post" style="margin-left:0.5rem">POST</span>
+      <span class="api-method method-put" style="margin-left:0.5rem">PUT</span>
+      <span class="api-method method-delete" style="margin-left:0.5rem">DELETE</span>
+    </div>
+    <div class="api-body">CRUD for diseases, categories, library items. Query param <code>?collection=diseases|categories|library</code> selects target.</div>
+  </div>
+
+  <div class="api-endpoint">
+    <div class="api-header-bar">
+      <span class="api-method method-post">POST</span>
+      <span class="api-path">/api/admin/upload</span>
+    </div>
+    <div class="api-body">Accepts multipart form file. Stores and returns CDN/public URL for use in content editor.</div>
+  </div>
+
+  <div class="api-endpoint">
+    <div class="api-header-bar">
+      <span class="api-method method-get">GET</span>
+      <span class="api-path">/api/admin/donation-settings</span>
+      <span class="api-method method-put" style="margin-left:0.5rem">PUT</span>
+    </div>
+    <div class="api-body">GET returns full donation config. PUT updates donation config document in MongoDB.</div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 27 — MULTI-LANGUAGE SYSTEM
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 27</span>
+    <span class="section-icon">🌏</span>
+    <h2>Multi-Language System</h2>
+  </div>
+
+  <p>The application supports 20+ languages via a two-mechanism system: automatic Unicode script detection for input language inference, and Google Translate API proxy for UI translation.</p>
+
+  <h3>Supported Languages</h3>
+  <div class="grid-3">
+    <div><span class="badge badge-blue">hi</span> Hindi (LTR)</div>
+    <div><span class="badge badge-blue">ar</span> Arabic (RTL)</div>
+    <div><span class="badge badge-blue">ur</span> Urdu (RTL)</div>
+    <div><span class="badge badge-blue">zh</span> Chinese (LTR)</div>
+    <div><span class="badge badge-blue">ja</span> Japanese (LTR)</div>
+    <div><span class="badge badge-blue">ko</span> Korean (LTR)</div>
+    <div><span class="badge badge-blue">bn</span> Bengali (LTR)</div>
+    <div><span class="badge badge-blue">ta</span> Tamil (LTR)</div>
+    <div><span class="badge badge-blue">te</span> Telugu (LTR)</div>
+    <div><span class="badge badge-blue">kn</span> Kannada (LTR)</div>
+    <div><span class="badge badge-blue">gu</span> Gujarati (LTR)</div>
+    <div><span class="badge badge-blue">pa</span> Punjabi (LTR)</div>
+    <div><span class="badge badge-blue">ml</span> Malayalam (LTR)</div>
+    <div><span class="badge badge-blue">th</span> Thai (LTR)</div>
+    <div><span class="badge badge-blue">ru</span> Russian (LTR)</div>
+    <div><span class="badge badge-blue">he</span> Hebrew (RTL)</div>
+    <div><span class="badge badge-blue">mr</span> Marathi (LTR)</div>
+    <div><span class="badge badge-blue">as</span> Assamese (LTR)</div>
+    <div><span class="badge badge-blue">or</span> Odia (LTR)</div>
+    <div><span class="badge badge-blue">de</span> German (LTR)</div>
+    <div><span class="badge badge-blue">en</span> English (LTR)</div>
+  </div>
+
+  <h3>How It Works</h3>
+  <div class="flow-row">
+    <span>User types text</span>
+    <span class="flow-arrow">→</span>
+    <span>detectLanguage() scans Unicode code points</span>
+    <span class="flow-arrow">→</span>
+    <span>Best-matching script identified</span>
+    <span class="flow-arrow">→</span>
+    <span>setLangFromText() updates context</span>
+  </div>
+  <div class="flow-row">
+    <span>Lang context changes</span>
+    <span class="flow-arrow">→</span>
+    <span>PageTranslator traverses DOM</span>
+    <span class="flow-arrow">→</span>
+    <span>Calls /api/translate</span>
+    <span class="flow-arrow">→</span>
+    <span>Replaces text nodes</span>
+  </div>
+
+  <div class="info-box amber">
+    <strong>Note:</strong> RTL languages (Arabic, Urdu, Hebrew) automatically set <code>dir="rtl"</code> on the <code>&lt;html&gt;</code> element. Each language loads its appropriate Google Font (Noto family) dynamically.
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 28 — DATABASE COLLECTIONS
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 28</span>
+    <span class="section-icon">🗄️</span>
+    <h2>Database Collections &amp; Data Models</h2>
+  </div>
+
+  <p>Database name: <code>healthcare</code> (MongoDB Atlas). Connection managed by singleton in <code>src/lib/db.ts</code>.</p>
+
+  <h3>diseases</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>name</code></td><td>string</td><td>Disease name (e.g. "Lung Cancer")</td></tr>
+    <tr><td><code>slug</code></td><td>string</td><td>URL-safe identifier (e.g. "lung-cancer")</td></tr>
+    <tr><td><code>categories</code></td><td>string[]</td><td>Category slugs (e.g. ["cancer", "respiratory-diseases"])</td></tr>
+    <tr><td><code>overview</code></td><td>HTML string</td><td>Full disease overview content</td></tr>
+    <tr><td><code>symptoms</code></td><td>HTML string | string[]</td><td>Symptoms list or rich text</td></tr>
+    <tr><td><code>causes</code></td><td>HTML string | string[]</td><td>Causes and contributing factors</td></tr>
+    <tr><td><code>riskFactors</code></td><td>HTML string | string[]</td><td>Risk factor items</td></tr>
+    <tr><td><code>whenToSeeDoctor</code></td><td>HTML string</td><td>Warning signs for urgent care</td></tr>
+    <tr><td><code>diagnosis</code></td><td>HTML string</td><td>Diagnostic procedures description</td></tr>
+    <tr><td><code>treatmentOptions</code></td><td>HTML string | string[]</td><td>Available treatments</td></tr>
+    <tr><td><code>prevention</code></td><td>HTML string</td><td>Prevention strategies</td></tr>
+    <tr><td><code>faq</code></td><td>{q: string, a: string}[]</td><td>Frequently asked questions</td></tr>
+    <tr><td><code>references</code></td><td>string[]</td><td>Medical reference sources</td></tr>
+    <tr><td><code>relatedDiseases</code></td><td>string[]</td><td>Slug references to related diseases</td></tr>
+  </table>
+
+  <h3>categories</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>slug</code></td><td>string</td><td>URL-safe identifier</td></tr>
+    <tr><td><code>name</code></td><td>string</td><td>Display name</td></tr>
+    <tr><td><code>icon</code></td><td>string</td><td>Emoji icon</td></tr>
+    <tr><td><code>description</code></td><td>string</td><td>Category description</td></tr>
+  </table>
+
+  <h3>library</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>type</code></td><td>"symptoms"|"tests"|"treatments"</td><td>Resource type</td></tr>
+    <tr><td><code>slug</code></td><td>string</td><td>URL-safe identifier</td></tr>
+    <tr><td><code>title</code></td><td>string</td><td>Guide title</td></tr>
+    <tr><td><code>description</code></td><td>string</td><td>Short description</td></tr>
+    <tr><td><code>content</code></td><td>string</td><td>Full guide content</td></tr>
+  </table>
+
+  <h3>posts</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>title</code></td><td>string</td><td>Article title</td></tr>
+    <tr><td><code>slug</code></td><td>string</td><td>URL slug</td></tr>
+    <tr><td><code>category</code></td><td>string</td><td>Category label or letter</td></tr>
+    <tr><td><code>content</code></td><td>HTML string</td><td>Rich text article body</td></tr>
+  </table>
+
+  <h3>tracker</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>path</code></td><td>string</td><td>Visited URL path</td></tr>
+    <tr><td><code>referrer</code></td><td>string</td><td>HTTP Referer header</td></tr>
+    <tr><td><code>ip</code></td><td>string</td><td>Visitor IP address</td></tr>
+    <tr><td><code>userAgent</code></td><td>string</td><td>Browser user agent</td></tr>
+    <tr><td><code>country</code></td><td>string</td><td>Geolocated country</td></tr>
+    <tr><td><code>region</code></td><td>string</td><td>Geolocated state/region</td></tr>
+    <tr><td><code>city</code></td><td>string</td><td>Geolocated city</td></tr>
+    <tr><td><code>timestamp</code></td><td>Date</td><td>Visit date/time (UTC)</td></tr>
+  </table>
+
+  <h3>comments (feedback)</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>name</code></td><td>string</td><td>Commenter's display name</td></tr>
+    <tr><td><code>message</code></td><td>string</td><td>Comment text</td></tr>
+    <tr><td><code>parentId</code></td><td>ObjectId | null</td><td>null for top-level, ref for reply</td></tr>
+    <tr><td><code>likes</code></td><td>number</td><td>Like count</td></tr>
+    <tr><td><code>status</code></td><td>"approved"|"pending"|"rejected"</td><td>Moderation status</td></tr>
+    <tr><td><code>createdAt</code></td><td>Date</td><td>Creation timestamp</td></tr>
+  </table>
+
+  <h3>donation_settings</h3>
+  <p>Single document collection storing: bankName, accountHolder, accountNumber, ifscCode, upiId, qrCodeBase64.</p>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 29 — SEO & PERFORMANCE
+════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">§ 29</span>
+    <span class="section-icon">🚀</span>
+    <h2>SEO &amp; Performance Features</h2>
+  </div>
+
+  <h3>SEO Implementations</h3>
+  <ul class="feature-list">
+    <li>Next.js Metadata API — dynamic title/description per page using template <code>%s | Rog Care Hindi</code></li>
+    <li>OpenGraph meta tags for all pages (image: /logo.png, 1200×630)</li>
+    <li>Twitter Card meta tags (summary_large_image)</li>
+    <li>Canonical URLs via <code>alternates.canonical</code></li>
+    <li>Bilingual hreflang tags: <code>en-US</code> and <code>hi-IN</code></li>
+    <li>250+ keywords in root layout metadata (English + Hindi)</li>
+    <li>JSON-LD structured data: WebSite, Organization, MedicalCondition, BreadcrumbList, FAQPage</li>
+    <li>Robots.txt via <code>src/app/robots.ts</code></li>
+    <li>Dynamic XML sitemap via <code>src/app/sitemap.ts</code></li>
+    <li>Google Search Console verification via env variable</li>
+    <li>Bing Webmaster Tools verification via env variable</li>
+  </ul>
+
+  <h3>Performance Features</h3>
+  <ul class="feature-list">
+    <li>ISR (Incremental Static Regeneration) — Home page cached 3600s</li>
+    <li>Static params pre-generation for disease detail pages</li>
+    <li>MongoDB connection singleton (reused across requests in same process)</li>
+    <li>Google Analytics 4 loaded <code>afterInteractive</code> (non-blocking)</li>
+    <li>Google Fonts loaded dynamically only for active language</li>
+    <li>Image optimization via Next.js Image component</li>
+    <li>Edge-compatible deployment on Vercel</li>
+  </ul>
+
+  <h3>Environment Variables</h3>
+  <table>
+    <tr><th>Variable</th><th>Purpose</th></tr>
+    <tr><td><code>MONGODB_URI</code></td><td>MongoDB Atlas connection string</td></tr>
+    <tr><td><code>NEXT_PUBLIC_GA_ID</code></td><td>Google Analytics measurement ID</td></tr>
+    <tr><td><code>NEXT_PUBLIC_GSC_VERIFICATION</code></td><td>Google Search Console verify token</td></tr>
+    <tr><td><code>NEXT_PUBLIC_BING_VERIFICATION</code></td><td>Bing Webmaster verify token</td></tr>
+    <tr><td><code>ADMIN_USERNAME</code></td><td>Admin panel username</td></tr>
+    <tr><td><code>ADMIN_PASSWORD</code></td><td>Admin panel password</td></tr>
+    <tr><td><code>SESSION_SECRET</code></td><td>Cookie signing secret</td></tr>
+  </table>
+
+  <div class="page-footer">
+    ⚕️ HealthEdu / Rog Care Hindi — Technical Documentation &nbsp;|&nbsp; Generated September 18, 2026
+    &nbsp;|&nbsp; Next.js 16 · React 19 · MongoDB · TypeScript
+  </div>
+</div>
+
+</body>
+</html>

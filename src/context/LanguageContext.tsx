@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { detectLanguage, DetectedLanguage, ENGLISH_LANG, LANG_MAP } from "@/lib/detectLanguage";
+import { detectLanguage, DetectedLanguage, ENGLISH_LANG, LANG_MAP, getBrowserLanguage, getUrlLanguage } from "@/lib/detectLanguage";
 
 const HINDI_LANG = LANG_MAP.find((l) => l.code === "hi")!;
 
@@ -54,23 +54,48 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [isTranslating, setIsTranslating] = useState(false);
   const pendingRef = useRef<AbortController | null>(null);
 
-  // Restore from localStorage on mount; default to Hindi if nothing saved
+  // Resolution Cascade on Mount:
+  // 1. URL search parameter (?lang=code or ?hl=code)
+  // 2. User preference saved in localStorage
+  // 3. User browser language setting (navigator.languages)
+  // 4. Default fallback (Hindi)
   useEffect(() => {
     try {
+      // 1. Check URL query string e.g. ?lang=hi, ?lang=ta, ?lang=ja, ?lang=zh
+      const urlLang = getUrlLanguage();
+      if (urlLang) {
+        setLang(urlLang);
+        applyLang(urlLang);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(urlLang));
+        return;
+      }
+
+      // 2. Check saved preference in localStorage
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed: DetectedLanguage = JSON.parse(saved);
         setLang(parsed);
         applyLang(parsed);
-      } else {
-        // No saved preference — apply Hindi as the default
-        setLang(HINDI_LANG);
-        applyLang(HINDI_LANG);
+        return;
       }
+
+      // 3. Check browser language (navigator.languages / navigator.language)
+      const browserLang = getBrowserLanguage();
+      if (browserLang) {
+        setLang(browserLang);
+        applyLang(browserLang);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(browserLang));
+        return;
+      }
+
+      // 4. Default fallback
+      setLang(HINDI_LANG);
+      applyLang(HINDI_LANG);
     } catch {
       // ignore parse errors
     }
   }, []);
+
 
   const setLangFromText = useCallback((text: string) => {
     const detected = detectLanguage(text);

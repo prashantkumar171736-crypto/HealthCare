@@ -84,7 +84,7 @@ export default function DiseaseDetailClient({
   const tabs = [
     { id: "overview", label: "Overview", icon: "📖" },
     { id: "symptoms", label: "Symptoms", icon: "🤒" },
-    { id: "causes", label: "Causes & Risks", icon: "🧬" },
+    { id: "causes", label: "Causes & Development", icon: "🧬" },
     { id: "diagnosis", label: "Diagnosis & Tests", icon: "🔍" },
     { id: "treatments", label: "Treatments", icon: "💊" },
     { id: "prevention", label: "Prevention", icon: "🛡️" },
@@ -189,7 +189,7 @@ export default function DiseaseDetailClient({
             </div>
           </section>
 
-          {/* Causes & Risks Section */}
+          {/* Causes & Development Section */}
           <section className={`disease-section ${activeTab === "causes" ? "active" : ""}`}>
             <h2>Causes &amp; Development</h2>
             <p style={{ marginBottom: "1.5rem" }}>

@@ -236,4 +236,33 @@ export function detectLanguage(text: string): DetectedLanguage {
   return best.lang;
 }
 
+/**
+ * Detect language from user browser settings (`navigator.languages` or `navigator.language`).
+ */
+export function getBrowserLanguage(): DetectedLanguage | null {
+  if (typeof window === "undefined" || !navigator) return null;
+  const languages = navigator.languages || [navigator.language];
+  for (const langStr of languages) {
+    const code = langStr.toLowerCase().split("-")[0];
+    const match = LANG_MAP.find((l) => l.code === code);
+    if (match) return match;
+  }
+  return null;
+}
+
+/**
+ * Detect language from URL search parameter (`?lang=code` or `?hl=code`).
+ */
+export function getUrlLanguage(): DetectedLanguage | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const langCode = params.get("lang") || params.get("hl");
+  if (langCode) {
+    const match = LANG_MAP.find((l) => l.code === langCode.toLowerCase());
+    if (match) return match;
+  }
+  return null;
+}
+
 export { LANG_MAP, ENGLISH_LANG };
+
