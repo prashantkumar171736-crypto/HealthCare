@@ -204,6 +204,49 @@ export async function GET(request: Request) {
       dailyViews = [];
     }
 
+    // Prepare the same time buckets for the chart hover breakdown.
+    let detailStart: Date | null = null;
+    let detailBucket: Record<string, unknown> | null = null;
+    if (period === "1d") {
+      detailStart = new Date(now);
+      detailStart.setHours(detailStart.getHours() - 23, 0, 0, 0);
+      detailBucket = { $dateToString: { format: "%H:00", date: "$timestamp" } };
+    } else if (period === "7d" || period === "monthly") {
+      detailStart = new Date(now);
+      detailStart.setDate(detailStart.getDate() - (period === "7d" ? 6 : 29));
+      detailStart.setHours(0, 0, 0, 0);
+      detailBucket = { $dateToString: { format: "%m-%d", date: "$timestamp" } };
+    } else if (period === "half-yearly") {
+      detailStart = new Date(now);
+      detailStart.setDate(detailStart.getDate() - 181);
+      detailStart.setHours(0, 0, 0, 0);
+      detailBucket = { $dateToString: { format: "%m-%d", date: { $dateTrunc: { date: "$timestamp", unit: "week", startOfWeek: "monday" } } } };
+    } else if (period === "yearly") {
+      detailStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      detailBucket = { $dateToString: { format: "%Y-%m", date: "$timestamp" } };
+    }
+
+    const detailMap = new Map<string, { country: string; page: string; visits: number }[]>();
+    if (detailStart && detailBucket) {
+      const detailRows = await analytics.aggregate([
+        { $match: { timestamp: { $gte: detailStart } } },
+        { $project: { bucket: detailBucket, country: 1, page: "$path" } },
+        { $group: { _id: { bucket: "$bucket", country: "$country", page: "$page" }, visits: { $sum: 1 } } },
+        { $sort: { "_id.bucket": 1, visits: -1 } },
+      ]).toArray();
+
+      for (const row of detailRows) {
+        const bucket = row._id.bucket as string;
+        const details = detailMap.get(bucket) || [];
+        if (details.length < 8) {
+          details.push({ country: row._id.country || "Unknown", page: row._id.page || "/", visits: row.visits });
+          detailMap.set(bucket, details);
+        }
+      }
+    }
+
+    dailyViews = dailyViews.map((view) => ({ ...view, details: detailMap.get(view.date) || [] }));
+
     // 6. Recent Visitors Logs (Past 50)
     const recentLogs = await analytics
       .find({})

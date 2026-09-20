@@ -19,6 +19,13 @@ interface KPI {
 interface DailyView {
   date: string;
   views: number;
+  details: DailyViewDetail[];
+}
+
+interface DailyViewDetail {
+  country: string;
+  page: string;
+  visits: number;
 }
 
 interface TopPath {
@@ -85,6 +92,7 @@ export default function DashboardClient() {
   const [error, setError] = useState("");
   const [clearing, setClearing] = useState(false);
   const [chartPeriod, setChartPeriod] = useState("monthly");
+  const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation" | "comments" | "appearance">("overview");
   const [theme, setTheme] = useState<AdminTheme>(DEFAULT_THEME);
   const router = useRouter();
@@ -259,8 +267,22 @@ export default function DashboardClient() {
       ? paddingX + (i * (chartWidth - paddingX * 2)) / (totalPoints - 1)
       : chartWidth / 2;
     const y = chartHeight - paddingY - (d.views / maxViews) * (chartHeight - paddingY * 2);
-    return { x, y, val: d.views, date: d.date };
+    return { x, y, val: d.views, date: d.date, details: d.details };
   });
+
+  const hoveredDetails = hoveredPoint !== null ? points[hoveredPoint]?.details || [] : [];
+  const countryDetails = Array.from(
+    hoveredDetails.reduce((countries, detail) => {
+      countries.set(detail.country, (countries.get(detail.country) || 0) + detail.visits);
+      return countries;
+    }, new Map<string, number>())
+  ).sort(([, firstVisits], [, secondVisits]) => secondVisits - firstVisits);
+  const pageDetails = Array.from(
+    hoveredDetails.reduce((pages, detail) => {
+      pages.set(detail.page, (pages.get(detail.page) || 0) + detail.visits);
+      return pages;
+    }, new Map<string, number>())
+  ).sort(([, firstVisits], [, secondVisits]) => secondVisits - firstVisits);
 
   // Smooth bezier curve path
   const smoothPath = points.length > 1 ? points.reduce((path, p, i) => {
@@ -565,7 +587,17 @@ export default function DashboardClient() {
                   {points.map((p, idx) => {
                     const color = getDotColor(idx);
                     return (
-                      <g key={idx} className="chart-dot-group">
+                      <g
+                        key={idx}
+                        className="chart-dot-group"
+                        onMouseEnter={() => setHoveredPoint(idx)}
+                        onMouseLeave={() => setHoveredPoint(null)}
+                        onFocus={() => setHoveredPoint(idx)}
+                        onBlur={() => setHoveredPoint(null)}
+                        tabIndex={0}
+                        role="img"
+                        aria-label={`${p.date}: ${p.val} views`}
+                      >
                         {/* Outer glow ring */}
                         <circle cx={p.x} cy={p.y} r={totalPoints > 15 ? 5 : 7} fill={color} opacity="0.18" />
                         {/* Main dot */}
@@ -586,6 +618,42 @@ export default function DashboardClient() {
                     );
                   })}
                 </svg>
+                {hoveredPoint !== null && points[hoveredPoint] && (
+                  <div
+                    className="chart-hover-card"
+                    style={{
+                      left: `${(points[hoveredPoint].x / chartWidth) * 100}%`,
+                      top: `${(points[hoveredPoint].y / chartHeight) * 100}%`,
+                    }}
+                  >
+                    <div className="chart-hover-heading">
+                      <strong>{points[hoveredPoint].date}</strong>
+                      <span>{points[hoveredPoint].val.toLocaleString()} views</span>
+                    </div>
+                    <div className="chart-hover-section">
+                      <span className="chart-hover-label">Countries</span>
+                      {countryDetails.length > 0 ? (
+                        countryDetails.slice(0, 4).map(([country, visits]) => (
+                          <div className="chart-hover-row" key={`country-${country}`}>
+                            <span>{country}</span>
+                            <strong>{visits}</strong>
+                          </div>
+                        ))
+                      ) : <span className="chart-hover-empty">No visitor breakdown</span>}
+                    </div>
+                    <div className="chart-hover-section">
+                      <span className="chart-hover-label">Visited pages</span>
+                      {pageDetails.length > 0 ? (
+                        pageDetails.slice(0, 4).map(([page, visits]) => (
+                          <div className="chart-hover-row" key={`page-${page}`}>
+                            <span title={page}>{page}</span>
+                            <strong>{visits}</strong>
+                          </div>
+                        ))
+                      ) : <span className="chart-hover-empty">No page breakdown</span>}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Color legend for multi-point */}
@@ -1169,6 +1237,7 @@ export default function DashboardClient() {
         }
 
         .svg-container {
+          position: relative;
           margin-top: 0.5rem;
         }
 
@@ -1180,6 +1249,69 @@ export default function DashboardClient() {
         .chart-dot-group:hover circle {
           r: 7;
           fill: #00c896;
+        }
+
+        .chart-hover-card {
+          position: absolute;
+          z-index: 2;
+          width: min(260px, calc(100% - 1rem));
+          transform: translate(-50%, calc(-100% - 0.85rem));
+          padding: 0.8rem;
+          border: 1px solid rgba(0, 200, 150, 0.35);
+          border-radius: 10px;
+          background: var(--admin-card-bg, #0b0f19);
+          color: var(--admin-text-primary, #fff);
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+          pointer-events: none;
+          font-size: 0.72rem;
+        }
+
+        .chart-hover-heading,
+        .chart-hover-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.75rem;
+        }
+
+        .chart-hover-heading {
+          padding-bottom: 0.55rem;
+          border-bottom: 1px solid var(--admin-border, rgba(255, 255, 255, 0.08));
+        }
+
+        .chart-hover-heading span,
+        .chart-hover-label,
+        .chart-hover-empty {
+          color: var(--admin-text-secondary, #9ca3af);
+        }
+
+        .chart-hover-section {
+          display: flex;
+          flex-direction: column;
+          gap: 0.3rem;
+          margin-top: 0.6rem;
+        }
+
+        .chart-hover-label {
+          font-size: 0.62rem;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .chart-hover-row span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .chart-hover-row strong {
+          flex-shrink: 0;
+          color: #00c896;
+        }
+
+        .chart-hover-empty {
+          font-size: 0.68rem;
         }
 
         /* Progress List V2 (Top Pages) */
