@@ -272,18 +272,27 @@ export default function DashboardClient() {
   });
 
   const hoveredDetails = hoveredPoint !== null ? points[hoveredPoint]?.details || [] : [];
-  const countryDetails = Array.from(
-    hoveredDetails.reduce((countries, detail) => {
-      countries.set(detail.country, (countries.get(detail.country) || 0) + detail.visits);
-      return countries;
-    }, new Map<string, number>())
-  ).sort(([, firstVisits], [, secondVisits]) => secondVisits - firstVisits);
-  const pageDetails = Array.from(
-    hoveredDetails.reduce((pages, detail) => {
-      pages.set(detail.page, (pages.get(detail.page) || 0) + detail.visits);
-      return pages;
-    }, new Map<string, number>())
-  ).sort(([, firstVisits], [, secondVisits]) => secondVisits - firstVisits);
+
+  // Group by country → pages, sorted by total country visits desc
+  const countryPageGroups: Array<{
+    country: string;
+    totalVisits: number;
+    pages: Array<[string, number]>;
+  }> = Array.from(
+    hoveredDetails.reduce((acc, detail) => {
+      const c = detail.country || "Unknown";
+      if (!acc.has(c)) acc.set(c, new Map<string, number>());
+      const pMap = acc.get(c)!;
+      pMap.set(detail.page, (pMap.get(detail.page) || 0) + detail.visits);
+      return acc;
+    }, new Map<string, Map<string, number>>())
+  )
+    .map(([country, pMap]) => ({
+      country,
+      totalVisits: Array.from(pMap.values()).reduce((s, v) => s + v, 0),
+      pages: Array.from(pMap.entries()).sort(([, a], [, b]) => b - a),
+    }))
+    .sort((a, b) => b.totalVisits - a.totalVisits);
 
   // Smooth bezier curve path
   const smoothPath = points.length > 1 ? points.reduce((path, p, i) => {
@@ -647,8 +656,11 @@ export default function DashboardClient() {
                 </svg>
                 {hoveredPoint !== null && points[hoveredPoint] && tooltipPos && (() => {
                   const pt = points[hoveredPoint];
-                  // Keep tooltip inside container: flip horizontally if too close to right edge
                   const flipX = tooltipPos.x > (260 * 1.5) ? "-100%" : "0%";
+                  const COUNTRY_COLORS = [
+                    "#00c896", "#3b82f6", "#a855f7", "#f59e0b",
+                    "#ef4444", "#06b6d4", "#84cc16", "#f97316",
+                  ];
                   return (
                     <div
                       className="chart-hover-card"
@@ -658,31 +670,56 @@ export default function DashboardClient() {
                         transform: `translate(${flipX}, calc(-100% - 12px))`,
                       }}
                     >
-                      <div className="chart-hover-heading">
-                        <strong>{pt.date}</strong>
+                      {/* Header: date + total views */}
+                      <div className="chc-header">
+                        <span className="chc-date">{pt.date}</span>
                         <span className="chc-views-badge">{pt.val.toLocaleString()} views</span>
                       </div>
-                      <div className="chart-hover-section">
-                        <span className="chart-hover-label">🌍 Countries</span>
-                        {countryDetails.length > 0 ? (
-                          countryDetails.slice(0, 5).map(([country, visits]) => (
-                            <div className="chart-hover-row" key={`country-${country}`}>
-                              <span>{country || "Unknown"}</span>
-                              <strong>{visits}</strong>
-                            </div>
-                          ))
-                        ) : <span className="chart-hover-empty">No country data</span>}
-                      </div>
-                      <div className="chart-hover-section">
-                        <span className="chart-hover-label">📄 Visited Pages</span>
-                        {pageDetails.length > 0 ? (
-                          pageDetails.slice(0, 5).map(([page, visits]) => (
-                            <div className="chart-hover-row" key={`page-${page}`}>
-                              <span title={page} className="chc-page-path">{page}</span>
-                              <strong>{visits}</strong>
-                            </div>
-                          ))
-                        ) : <span className="chart-hover-empty">No page data</span>}
+
+                      {/* Column header row */}
+                      {countryPageGroups.length > 0 && (
+                        <div className="chc-col-header">
+                          <span>Visited Page</span>
+                          <span>Views</span>
+                        </div>
+                      )}
+
+                      {/* Country groups body */}
+                      <div className="chc-body">
+                        {countryPageGroups.length > 0 ? (
+                          countryPageGroups.slice(0, 5).map((group, gi) => {
+                            const color = COUNTRY_COLORS[gi % COUNTRY_COLORS.length];
+                            return (
+                              <div className="chc-country-block" key={`cg-${group.country}`}>
+                                {/* Country header */}
+                                <div className="chc-country-header" style={{ borderLeftColor: color }}>
+                                  <span className="chc-country-flag">🌍</span>
+                                  <span className="chc-country-name" style={{ color }}>
+                                    {group.country}
+                                  </span>
+                                  <span className="chc-country-total" style={{ color }}>
+                                    {group.totalVisits} total
+                                  </span>
+                                </div>
+                                {/* Pages under this country */}
+                                <div className="chc-pages-list">
+                                  {group.pages.slice(0, 6).map(([page, visits]) => (
+                                    <div className="chc-page-row" key={`pg-${page}`}>
+                                      <span className="chc-page-path" title={page}>
+                                        {page}
+                                      </span>
+                                      <span className="chc-page-views" style={{ color }}>
+                                        {visits}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="chc-empty">No visitor data for this date</div>
+                        )}
                       </div>
                     </div>
                   );
@@ -1284,87 +1321,158 @@ export default function DashboardClient() {
           fill: #00c896;
         }
 
+        /* ── Chart Hover Tooltip ── */
         .chart-hover-card {
           position: absolute;
           z-index: 20;
-          width: min(280px, calc(100% - 1rem));
-          padding: 0.85rem 1rem;
-          border: 1px solid rgba(0, 200, 150, 0.4);
+          width: min(320px, calc(100vw - 2rem));
+          padding: 0;
+          border: 1px solid rgba(0, 200, 150, 0.35);
           border-radius: 12px;
-          background: rgba(6, 13, 24, 0.97);
-          backdrop-filter: blur(12px);
-          color: var(--admin-text-primary, #fff);
-          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0,200,150,0.12);
+          background: rgba(5, 10, 20, 0.97);
+          backdrop-filter: blur(16px);
+          color: #e5e7eb;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,200,150,0.1);
           pointer-events: none;
-          font-size: 0.73rem;
-          animation: tooltipFadeIn 0.12s ease;
-        }
-        @keyframes tooltipFadeIn {
-          from { opacity: 0; transform: translateY(4px) translateX(var(--tx, 0)); }
-          to   { opacity: 1; transform: translateY(0)   translateX(var(--tx, 0)); }
-        }
-        .chc-views-badge {
-          background: rgba(0,200,150,0.15);
-          color: #00c896;
-          border-radius: 4px;
-          padding: 1px 6px;
-          font-weight: 700;
-          font-size: 0.7rem;
-        }
-        .chc-page-path {
+          font-size: 0.72rem;
+          font-family: var(--admin-font-family, inherit);
+          animation: chcFadeIn 0.13s ease;
           overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          max-width: 160px;
-          display: inline-block;
+        }
+        @keyframes chcFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
 
-        .chart-hover-heading,
-        .chart-hover-row {
+        /* Header */
+        .chc-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 0.75rem;
+          gap: 0.5rem;
+          padding: 0.65rem 0.9rem 0.5rem;
+          border-bottom: 1px solid rgba(255,255,255,0.07);
+          background: rgba(0,200,150,0.06);
+        }
+        .chc-date {
+          font-weight: 700;
+          font-size: 0.78rem;
+          color: #f3f4f6;
+          letter-spacing: 0.02em;
+        }
+        .chc-views-badge {
+          background: rgba(0,200,150,0.18);
+          color: #00c896;
+          border: 1px solid rgba(0,200,150,0.3);
+          border-radius: 5px;
+          padding: 2px 8px;
+          font-weight: 700;
+          font-size: 0.68rem;
+          flex-shrink: 0;
+          white-space: nowrap;
         }
 
-        .chart-hover-heading {
-          padding-bottom: 0.55rem;
-          border-bottom: 1px solid var(--admin-border, rgba(255, 255, 255, 0.08));
-        }
-
-        .chart-hover-heading span,
-        .chart-hover-label,
-        .chart-hover-empty {
-          color: var(--admin-text-secondary, #9ca3af);
-        }
-
-        .chart-hover-section {
+        /* Column header */
+        .chc-col-header {
           display: flex;
-          flex-direction: column;
-          gap: 0.3rem;
-          margin-top: 0.6rem;
-        }
-
-        .chart-hover-label {
-          font-size: 0.62rem;
+          justify-content: space-between;
+          padding: 0.32rem 0.9rem 0.28rem;
+          font-size: 0.6rem;
           font-weight: 800;
-          letter-spacing: 0.08em;
+          letter-spacing: 0.09em;
           text-transform: uppercase;
+          color: #6b7280;
+          border-bottom: 1px solid rgba(255,255,255,0.05);
+          background: rgba(255,255,255,0.02);
         }
 
-        .chart-hover-row span {
+        /* Scrollable body */
+        .chc-body {
+          max-height: 300px;
+          overflow-y: auto;
+          overflow-x: hidden;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(0,200,150,0.3) transparent;
+        }
+        .chc-body::-webkit-scrollbar { width: 3px; }
+        .chc-body::-webkit-scrollbar-thumb { background: rgba(0,200,150,0.3); border-radius: 4px; }
+
+        /* Country block */
+        .chc-country-block {
+          border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .chc-country-block:last-child { border-bottom: none; }
+
+        /* Country header row */
+        .chc-country-header {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.45rem 0.9rem 0.3rem;
+          border-left: 3px solid;
+          background: rgba(255,255,255,0.025);
+        }
+        .chc-country-flag {
+          font-size: 0.8rem;
+          flex-shrink: 0;
+        }
+        .chc-country-name {
+          font-weight: 700;
+          font-size: 0.73rem;
+          flex: 1;
+          min-width: 0;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
-
-        .chart-hover-row strong {
+        .chc-country-total {
+          font-size: 0.62rem;
+          font-weight: 600;
+          opacity: 0.75;
           flex-shrink: 0;
-          color: #00c896;
+          white-space: nowrap;
         }
 
-        .chart-hover-empty {
+        /* Page rows */
+        .chc-pages-list {
+          display: flex;
+          flex-direction: column;
+          padding: 0.2rem 0 0.35rem 1.1rem;
+        }
+        .chc-page-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.5rem;
+          padding: 0.22rem 0.9rem 0.22rem 0.4rem;
+          border-radius: 4px;
+          transition: background 0.15s;
+        }
+        .chc-page-row:hover { background: rgba(255,255,255,0.04); }
+        .chc-page-path {
+          flex: 1;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          color: #9ca3af;
           font-size: 0.68rem;
+          font-family: "Courier New", monospace;
+        }
+        .chc-page-views {
+          flex-shrink: 0;
+          font-weight: 700;
+          font-size: 0.68rem;
+          min-width: 24px;
+          text-align: right;
+        }
+
+        /* Empty state */
+        .chc-empty {
+          padding: 0.7rem 0.9rem;
+          color: #6b7280;
+          font-size: 0.7rem;
+          text-align: center;
         }
 
         /* Progress List V2 (Top Pages) */
