@@ -93,6 +93,7 @@ export default function DashboardClient() {
   const [clearing, setClearing] = useState(false);
   const [chartPeriod, setChartPeriod] = useState("monthly");
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation" | "comments" | "appearance">("overview");
   const [theme, setTheme] = useState<AdminTheme>(DEFAULT_THEME);
   const router = useRouter();
@@ -524,7 +525,34 @@ export default function DashboardClient() {
               </div>
 
               <div className="svg-container">
-                <svg width="100%" height="260" viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
+                <svg
+                  width="100%"
+                  height="260"
+                  viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                  preserveAspectRatio="none"
+                  style={{ display: "block" }}
+                  onMouseMove={(e) => {
+                    const svgEl = e.currentTarget;
+                    const rect = svgEl.getBoundingClientRect();
+                    const scaleX = chartWidth / rect.width;
+                    const mouseX = (e.clientX - rect.left) * scaleX;
+                    const mouseY = (e.clientY - rect.top) * (chartHeight / rect.height);
+                    let nearest = 0;
+                    let minDist = Infinity;
+                    points.forEach((p, i) => {
+                      const dist = Math.abs(p.x - mouseX);
+                      if (dist < minDist) { minDist = dist; nearest = i; }
+                    });
+                    setHoveredPoint(nearest);
+                    // Tooltip position relative to svg-container div
+                    const containerRect = svgEl.parentElement!.getBoundingClientRect();
+                    setTooltipPos({
+                      x: e.clientX - containerRect.left,
+                      y: e.clientY - containerRect.top,
+                    });
+                  }}
+                  onMouseLeave={() => { setHoveredPoint(null); setTooltipPos(null); }}
+                >
                   <defs>
                     {/* Multi-stop gradient fill */}
                     <linearGradient id="chartGradMulti" x1="0" y1="0" x2="0" y2="1">
@@ -586,22 +614,21 @@ export default function DashboardClient() {
                   {/* Data Points — colored per index */}
                   {points.map((p, idx) => {
                     const color = getDotColor(idx);
+                    const isHovered = hoveredPoint === idx;
+                    // Segment width for hit area
+                    const segW = totalPoints > 1 ? (chartWidth - paddingX * 2) / (totalPoints - 1) : chartWidth;
                     return (
                       <g
                         key={idx}
                         className="chart-dot-group"
-                        onMouseEnter={() => setHoveredPoint(idx)}
-                        onMouseLeave={() => setHoveredPoint(null)}
-                        onFocus={() => setHoveredPoint(idx)}
-                        onBlur={() => setHoveredPoint(null)}
                         tabIndex={0}
                         role="img"
                         aria-label={`${p.date}: ${p.val} views`}
                       >
-                        {/* Outer glow ring */}
-                        <circle cx={p.x} cy={p.y} r={totalPoints > 15 ? 5 : 7} fill={color} opacity="0.18" />
-                        {/* Main dot */}
-                        <circle cx={p.x} cy={p.y} r={totalPoints > 15 ? 3 : 4.5} fill="#060d18" stroke={color} strokeWidth="2" filter="url(#dotGlow)" />
+                        {/* Outer glow ring — enlarged on hover */}
+                        <circle cx={p.x} cy={p.y} r={isHovered ? (totalPoints > 15 ? 9 : 11) : (totalPoints > 15 ? 5 : 7)} fill={color} opacity={isHovered ? 0.32 : 0.18} style={{ transition: "r 0.15s, opacity 0.15s" }} />
+                        {/* Main dot — enlarge on hover */}
+                        <circle cx={p.x} cy={p.y} r={isHovered ? (totalPoints > 15 ? 5.5 : 7) : (totalPoints > 15 ? 3 : 4.5)} fill={isHovered ? color : "#060d18"} stroke={color} strokeWidth="2" filter="url(#dotGlow)" style={{ transition: "r 0.15s" }} />
                         {/* Value label */}
                         {totalPoints <= 30 && p.val > 0 && (
                           <text x={p.x} y={p.y - 11} textAnchor="middle" fill={color} fontSize="9" fontWeight="800">
@@ -618,42 +645,48 @@ export default function DashboardClient() {
                     );
                   })}
                 </svg>
-                {hoveredPoint !== null && points[hoveredPoint] && (
-                  <div
-                    className="chart-hover-card"
-                    style={{
-                      left: `${(points[hoveredPoint].x / chartWidth) * 100}%`,
-                      top: `${(points[hoveredPoint].y / chartHeight) * 100}%`,
-                    }}
-                  >
-                    <div className="chart-hover-heading">
-                      <strong>{points[hoveredPoint].date}</strong>
-                      <span>{points[hoveredPoint].val.toLocaleString()} views</span>
+                {hoveredPoint !== null && points[hoveredPoint] && tooltipPos && (() => {
+                  const pt = points[hoveredPoint];
+                  // Keep tooltip inside container: flip horizontally if too close to right edge
+                  const flipX = tooltipPos.x > (260 * 1.5) ? "-100%" : "0%";
+                  return (
+                    <div
+                      className="chart-hover-card"
+                      style={{
+                        left: tooltipPos.x,
+                        top: Math.max(4, tooltipPos.y - 8),
+                        transform: `translate(${flipX}, calc(-100% - 12px))`,
+                      }}
+                    >
+                      <div className="chart-hover-heading">
+                        <strong>{pt.date}</strong>
+                        <span className="chc-views-badge">{pt.val.toLocaleString()} views</span>
+                      </div>
+                      <div className="chart-hover-section">
+                        <span className="chart-hover-label">🌍 Countries</span>
+                        {countryDetails.length > 0 ? (
+                          countryDetails.slice(0, 5).map(([country, visits]) => (
+                            <div className="chart-hover-row" key={`country-${country}`}>
+                              <span>{country || "Unknown"}</span>
+                              <strong>{visits}</strong>
+                            </div>
+                          ))
+                        ) : <span className="chart-hover-empty">No country data</span>}
+                      </div>
+                      <div className="chart-hover-section">
+                        <span className="chart-hover-label">📄 Visited Pages</span>
+                        {pageDetails.length > 0 ? (
+                          pageDetails.slice(0, 5).map(([page, visits]) => (
+                            <div className="chart-hover-row" key={`page-${page}`}>
+                              <span title={page} className="chc-page-path">{page}</span>
+                              <strong>{visits}</strong>
+                            </div>
+                          ))
+                        ) : <span className="chart-hover-empty">No page data</span>}
+                      </div>
                     </div>
-                    <div className="chart-hover-section">
-                      <span className="chart-hover-label">Countries</span>
-                      {countryDetails.length > 0 ? (
-                        countryDetails.slice(0, 4).map(([country, visits]) => (
-                          <div className="chart-hover-row" key={`country-${country}`}>
-                            <span>{country}</span>
-                            <strong>{visits}</strong>
-                          </div>
-                        ))
-                      ) : <span className="chart-hover-empty">No visitor breakdown</span>}
-                    </div>
-                    <div className="chart-hover-section">
-                      <span className="chart-hover-label">Visited pages</span>
-                      {pageDetails.length > 0 ? (
-                        pageDetails.slice(0, 4).map(([page, visits]) => (
-                          <div className="chart-hover-row" key={`page-${page}`}>
-                            <span title={page}>{page}</span>
-                            <strong>{visits}</strong>
-                          </div>
-                        ))
-                      ) : <span className="chart-hover-empty">No page breakdown</span>}
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               {/* Color legend for multi-point */}
@@ -1253,17 +1286,37 @@ export default function DashboardClient() {
 
         .chart-hover-card {
           position: absolute;
-          z-index: 2;
-          width: min(260px, calc(100% - 1rem));
-          transform: translate(-50%, calc(-100% - 0.85rem));
-          padding: 0.8rem;
-          border: 1px solid rgba(0, 200, 150, 0.35);
-          border-radius: 10px;
-          background: var(--admin-card-bg, #0b0f19);
+          z-index: 20;
+          width: min(280px, calc(100% - 1rem));
+          padding: 0.85rem 1rem;
+          border: 1px solid rgba(0, 200, 150, 0.4);
+          border-radius: 12px;
+          background: rgba(6, 13, 24, 0.97);
+          backdrop-filter: blur(12px);
           color: var(--admin-text-primary, #fff);
-          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0,200,150,0.12);
           pointer-events: none;
-          font-size: 0.72rem;
+          font-size: 0.73rem;
+          animation: tooltipFadeIn 0.12s ease;
+        }
+        @keyframes tooltipFadeIn {
+          from { opacity: 0; transform: translateY(4px) translateX(var(--tx, 0)); }
+          to   { opacity: 1; transform: translateY(0)   translateX(var(--tx, 0)); }
+        }
+        .chc-views-badge {
+          background: rgba(0,200,150,0.15);
+          color: #00c896;
+          border-radius: 4px;
+          padding: 1px 6px;
+          font-weight: 700;
+          font-size: 0.7rem;
+        }
+        .chc-page-path {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 160px;
+          display: inline-block;
         }
 
         .chart-hover-heading,
