@@ -99,13 +99,15 @@ export default function DashboardClient() {
   
   // Live Server Request Log filters & controls
   const [logLimit, setLogLimit] = useState<string>("50");
-  const [sortField, setSortField] = useState<"timestamp" | "ip" | "geo" | "path" | "referrer" | "userAgent">("timestamp");
+  const [sortField, setSortField] = useState<"timestamp" | "ip" | "country" | "state" | "geo" | "path" | "referrer" | "userAgent">("timestamp");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [quickSearchOpen, setQuickSearchOpen] = useState(false);
   const [quickSearchText, setQuickSearchText] = useState("");
   const [advSearchOpen, setAdvSearchOpen] = useState(false);
   const [advFilters, setAdvFilters] = useState({
     ip: "",
+    country: "",
+    state: "",
     geo: "",
     path: "",
     referrer: "",
@@ -932,6 +934,8 @@ export default function DashboardClient() {
         {activeTab === "logs" && (() => {
           const hasAdvFilters = Boolean(
             advFilters.ip.trim() ||
+            advFilters.country.trim() ||
+            advFilters.state.trim() ||
             advFilters.geo.trim() ||
             advFilters.path.trim() ||
             advFilters.referrer.trim() ||
@@ -943,6 +947,8 @@ export default function DashboardClient() {
           const resetAdvFilters = () => {
             setAdvFilters({
               ip: "",
+              country: "",
+              state: "",
               geo: "",
               path: "",
               referrer: "",
@@ -952,7 +958,7 @@ export default function DashboardClient() {
             });
           };
 
-          const handleSort = (field: "timestamp" | "ip" | "geo" | "path" | "referrer" | "userAgent") => {
+          const handleSort = (field: "timestamp" | "ip" | "country" | "state" | "geo" | "path" | "referrer" | "userAgent") => {
             if (sortField === field) {
               setSortOrder(sortOrder === "asc" ? "desc" : "asc");
             } else {
@@ -961,7 +967,7 @@ export default function DashboardClient() {
             }
           };
 
-          const renderSortIndicator = (field: "timestamp" | "ip" | "geo" | "path" | "referrer" | "userAgent") => {
+          const renderSortIndicator = (field: "timestamp" | "ip" | "country" | "state" | "geo" | "path" | "referrer" | "userAgent") => {
             if (sortField !== field) return <span className="sort-icon inactive">↕</span>;
             return <span className="sort-icon active">{sortOrder === "asc" ? "▲" : "▼"}</span>;
           };
@@ -976,6 +982,13 @@ export default function DashboardClient() {
 
             if (advFilters.ip.trim() && !log.ip.toLowerCase().includes(advFilters.ip.trim().toLowerCase())) {
               return false;
+            }
+            if (advFilters.country.trim() && !(log.country || "").toLowerCase().includes(advFilters.country.trim().toLowerCase())) {
+              return false;
+            }
+            if (advFilters.state.trim()) {
+              const stateStr = `${log.region || ""} ${log.city || ""}`.toLowerCase();
+              if (!stateStr.includes(advFilters.state.trim().toLowerCase())) return false;
             }
             if (advFilters.geo.trim()) {
               const geoStr = `${log.country} ${log.region} ${log.city}`.toLowerCase();
@@ -1011,6 +1024,10 @@ export default function DashboardClient() {
               comparison = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
             } else if (sortField === "ip") {
               comparison = a.ip.localeCompare(b.ip);
+            } else if (sortField === "country") {
+              comparison = (a.country || "").localeCompare(b.country || "");
+            } else if (sortField === "state") {
+              comparison = (a.region || "").localeCompare(b.region || "");
             } else if (sortField === "geo") {
               const geoA = `${a.country} ${a.region} ${a.city}`;
               const geoB = `${b.country} ${b.region} ${b.city}`;
@@ -1090,7 +1107,7 @@ export default function DashboardClient() {
                   <textarea
                     id="quick-search-textarea"
                     className="quick-search-textarea"
-                    placeholder="Type search terms here (e.g. India /disease 106.219)..."
+                    placeholder="Type search terms here (e.g. India California /disease 106.219)..."
                     value={quickSearchText}
                     onChange={(e) => setQuickSearchText(e.target.value)}
                     rows={2}
@@ -1123,12 +1140,21 @@ export default function DashboardClient() {
                       />
                     </div>
                     <div className="adv-field">
-                      <label>Country / State / City</label>
+                      <label>Country</label>
                       <input
                         type="text"
-                        placeholder="e.g. India / Bihar"
-                        value={advFilters.geo}
-                        onChange={(e) => setAdvFilters({ ...advFilters, geo: e.target.value })}
+                        placeholder="e.g. India / United States"
+                        value={advFilters.country}
+                        onChange={(e) => setAdvFilters({ ...advFilters, country: e.target.value })}
+                      />
+                    </div>
+                    <div className="adv-field">
+                      <label>State / Region</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. California / Bihar"
+                        value={advFilters.state}
+                        onChange={(e) => setAdvFilters({ ...advFilters, state: e.target.value })}
                       />
                     </div>
                     <div className="adv-field">
@@ -1202,8 +1228,11 @@ export default function DashboardClient() {
                       <th onClick={() => handleSort("ip")} className="sortable-th">
                         IP Address {renderSortIndicator("ip")}
                       </th>
-                      <th onClick={() => handleSort("geo")} className="sortable-th">
-                        Country / State {renderSortIndicator("geo")}
+                      <th onClick={() => handleSort("country")} className="sortable-th">
+                        Country {renderSortIndicator("country")}
+                      </th>
+                      <th onClick={() => handleSort("state")} className="sortable-th">
+                        State {renderSortIndicator("state")}
                       </th>
                       <th onClick={() => handleSort("path")} className="sortable-th">
                         Visited Path {renderSortIndicator("path")}
@@ -1225,9 +1254,17 @@ export default function DashboardClient() {
                             <span className="date-sub">{new Date(log.timestamp).toLocaleDateString()}</span>
                           </td>
                           <td className="ip-col font-mono">{log.ip}</td>
-                          <td className="geo-col">
-                            <strong>{log.country}</strong><br />
-                            <span className="state-sub">{log.region} · {log.city}</span>
+                          <td className="country-col">
+                            <strong>{log.country || "Unknown"}</strong>
+                          </td>
+                          <td className="state-col">
+                            <strong>{log.region || "—"}</strong>
+                            {log.city && (
+                              <>
+                                <br />
+                                <span className="state-sub">{log.city}</span>
+                              </>
+                            )}
                           </td>
                           <td className="path-col font-mono text-green">{log.path}</td>
                           <td className="ref-col">{log.referrer}</td>
@@ -1236,7 +1273,7 @@ export default function DashboardClient() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={6} align="center" className="no-logs-td">
+                        <td colSpan={7} align="center" className="no-logs-td">
                           {data.logs.length === 0
                             ? "No request logs in DB. Go browse the website to populate statistics."
                             : "No matching request logs found for the current search/filter criteria."}
