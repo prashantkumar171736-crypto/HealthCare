@@ -96,6 +96,24 @@ export default function DashboardClient() {
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation" | "comments" | "appearance">("overview");
   const [theme, setTheme] = useState<AdminTheme>(DEFAULT_THEME);
+  
+  // Live Server Request Log filters & controls
+  const [logLimit, setLogLimit] = useState<string>("50");
+  const [sortField, setSortField] = useState<"timestamp" | "ip" | "geo" | "path" | "referrer" | "userAgent">("timestamp");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [quickSearchOpen, setQuickSearchOpen] = useState(false);
+  const [quickSearchText, setQuickSearchText] = useState("");
+  const [advSearchOpen, setAdvSearchOpen] = useState(false);
+  const [advFilters, setAdvFilters] = useState({
+    ip: "",
+    geo: "",
+    path: "",
+    referrer: "",
+    userAgent: "",
+    dateFrom: "",
+    dateTo: "",
+  });
+
   const router = useRouter();
   const { lang, setLangByCode } = useLanguage();
 
@@ -113,10 +131,10 @@ export default function DashboardClient() {
     try { localStorage.setItem(LS_THEME_KEY, JSON.stringify(t)); } catch {}
   }, []);
 
-  const fetchStats = async (period: string = chartPeriod) => {
+  const fetchStats = async (period: string = chartPeriod, limit: string = logLimit) => {
     try {
       setError("");
-      const res = await fetch(`/api/admin/stats?period=${period}`);
+      const res = await fetch(`/api/admin/stats?period=${period}&logLimit=${limit}`);
       if (res.status === 401) {
         router.push("/admin/login");
         return;
@@ -135,11 +153,11 @@ export default function DashboardClient() {
 
   // Initial load + 30-second auto-refresh
   useEffect(() => {
-    fetchStats(chartPeriod);
-    const interval = setInterval(() => fetchStats(chartPeriod), 30000);
+    fetchStats(chartPeriod, logLimit);
+    const interval = setInterval(() => fetchStats(chartPeriod, logLimit), 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartPeriod]);
+  }, [chartPeriod, logLimit]);
 
   const handleLogout = async () => {
     try {
@@ -911,49 +929,326 @@ export default function DashboardClient() {
           </div>
         )}
 
-        {activeTab === "logs" && (
-          <div className="panel-card full-panel">
-            <h2 className="panel-title">Live Server Request Log (Latest 50 Visits)</h2>
-            <div className="table-wrapper main-table-wrapper">
-              <table className="main-table">
-                <thead>
-                  <tr>
-                    <th>Timestamp</th>
-                    <th>IP Address</th>
-                    <th>Country / State</th>
-                    <th>Visited Path</th>
-                    <th>Referrer Source</th>
-                    <th>User Agent Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.logs.length > 0 ? (
-                    data.logs.map((log) => (
-                      <tr key={log.id}>
-                        <td className="time-col">
-                          {new Date(log.timestamp).toLocaleTimeString()}<br />
-                          <span className="date-sub">{new Date(log.timestamp).toLocaleDateString()}</span>
-                        </td>
-                        <td className="ip-col font-mono">{log.ip}</td>
-                        <td className="geo-col">
-                          <strong>{log.country}</strong><br />
-                          <span className="state-sub">{log.region} · {log.city}</span>
-                        </td>
-                        <td className="path-col font-mono text-green">{log.path}</td>
-                        <td className="ref-col">{log.referrer}</td>
-                        <td className="ua-col" title={log.userAgent}>{log.userAgent.substring(0, 45)}...</td>
-                      </tr>
-                    ))
-                  ) : (
+        {activeTab === "logs" && (() => {
+          const hasAdvFilters = Boolean(
+            advFilters.ip.trim() ||
+            advFilters.geo.trim() ||
+            advFilters.path.trim() ||
+            advFilters.referrer.trim() ||
+            advFilters.userAgent.trim() ||
+            advFilters.dateFrom ||
+            advFilters.dateTo
+          );
+
+          const resetAdvFilters = () => {
+            setAdvFilters({
+              ip: "",
+              geo: "",
+              path: "",
+              referrer: "",
+              userAgent: "",
+              dateFrom: "",
+              dateTo: "",
+            });
+          };
+
+          const handleSort = (field: "timestamp" | "ip" | "geo" | "path" | "referrer" | "userAgent") => {
+            if (sortField === field) {
+              setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+            } else {
+              setSortField(field);
+              setSortOrder("desc");
+            }
+          };
+
+          const renderSortIndicator = (field: "timestamp" | "ip" | "geo" | "path" | "referrer" | "userAgent") => {
+            if (sortField !== field) return <span className="sort-icon inactive">↕</span>;
+            return <span className="sort-icon active">{sortOrder === "asc" ? "▲" : "▼"}</span>;
+          };
+
+          const filteredLogs = (data.logs || []).filter((log) => {
+            if (quickSearchText.trim()) {
+              const qTokens = quickSearchText.trim().toLowerCase().split(/\s+/);
+              const combinedText = `${log.timestamp} ${new Date(log.timestamp).toLocaleTimeString()} ${new Date(log.timestamp).toLocaleDateString()} ${log.ip} ${log.country} ${log.region} ${log.city} ${log.path} ${log.referrer} ${log.userAgent}`.toLowerCase();
+              const matchesQuick = qTokens.every((token) => combinedText.includes(token));
+              if (!matchesQuick) return false;
+            }
+
+            if (advFilters.ip.trim() && !log.ip.toLowerCase().includes(advFilters.ip.trim().toLowerCase())) {
+              return false;
+            }
+            if (advFilters.geo.trim()) {
+              const geoStr = `${log.country} ${log.region} ${log.city}`.toLowerCase();
+              if (!geoStr.includes(advFilters.geo.trim().toLowerCase())) return false;
+            }
+            if (advFilters.path.trim() && !log.path.toLowerCase().includes(advFilters.path.trim().toLowerCase())) {
+              return false;
+            }
+            if (advFilters.referrer.trim() && !log.referrer.toLowerCase().includes(advFilters.referrer.trim().toLowerCase())) {
+              return false;
+            }
+            if (advFilters.userAgent.trim() && !log.userAgent.toLowerCase().includes(advFilters.userAgent.trim().toLowerCase())) {
+              return false;
+            }
+            if (advFilters.dateFrom) {
+              const logDate = new Date(log.timestamp);
+              const fromDate = new Date(advFilters.dateFrom);
+              if (logDate < fromDate) return false;
+            }
+            if (advFilters.dateTo) {
+              const logDate = new Date(log.timestamp);
+              const toDate = new Date(advFilters.dateTo);
+              toDate.setHours(23, 59, 59, 999);
+              if (logDate > toDate) return false;
+            }
+
+            return true;
+          });
+
+          const sortedLogs = [...filteredLogs].sort((a, b) => {
+            let comparison = 0;
+            if (sortField === "timestamp") {
+              comparison = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+            } else if (sortField === "ip") {
+              comparison = a.ip.localeCompare(b.ip);
+            } else if (sortField === "geo") {
+              const geoA = `${a.country} ${a.region} ${a.city}`;
+              const geoB = `${b.country} ${b.region} ${b.city}`;
+              comparison = geoA.localeCompare(geoB);
+            } else if (sortField === "path") {
+              comparison = a.path.localeCompare(b.path);
+            } else if (sortField === "referrer") {
+              comparison = a.referrer.localeCompare(b.referrer);
+            } else if (sortField === "userAgent") {
+              comparison = a.userAgent.localeCompare(b.userAgent);
+            }
+            return sortOrder === "asc" ? comparison : -comparison;
+          });
+
+          return (
+            <div className="panel-card full-panel logs-panel">
+              <div className="logs-header-bar">
+                {/* Left Side: Title + Limit Dropdown */}
+                <div className="logs-header-left">
+                  <h2 className="panel-title-inline">Live Server Request Log</h2>
+                  <select
+                    value={logLimit}
+                    onChange={(e) => setLogLimit(e.target.value)}
+                    className="limit-dropdown"
+                  >
+                    <option value="50">(Latest 50 Visits)</option>
+                    <option value="100">(Latest 100 Visits)</option>
+                    <option value="250">(Latest 250 Visits)</option>
+                    <option value="500">(Latest 500 Visits)</option>
+                    <option value="1000">(Latest 1000 Visits)</option>
+                    <option value="all">(All Visits)</option>
+                  </select>
+                </div>
+
+                {/* Center: Quick Search Toggle Button */}
+                <div className="logs-header-center">
+                  <button
+                    type="button"
+                    className={`search-toggle-btn ${quickSearchOpen ? "active" : ""} ${quickSearchText ? "has-val" : ""}`}
+                    onClick={() => setQuickSearchOpen(!quickSearchOpen)}
+                    title="Toggle Quick Search Text Area"
+                  >
+                    <span className="btn-icon">⚡🔍</span>
+                    <span>Quick Search</span>
+                    {quickSearchText && <span className="active-dot">●</span>}
+                  </button>
+                </div>
+
+                {/* Right Side: Advance Search Toggle Button */}
+                <div className="logs-header-right">
+                  <button
+                    type="button"
+                    className={`search-toggle-btn adv-btn ${advSearchOpen ? "active" : ""} ${hasAdvFilters ? "has-val" : ""}`}
+                    onClick={() => setAdvSearchOpen(!advSearchOpen)}
+                    title="Toggle Advance Column Filters"
+                  >
+                    <span className="btn-icon">⚙️🔍</span>
+                    <span>Advance Search</span>
+                    <span className="expand-chevron">{advSearchOpen ? "▲" : "▼"}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Search Panel (Textarea) */}
+              {quickSearchOpen && (
+                <div className="quick-search-box">
+                  <div className="quick-search-header">
+                    <label htmlFor="quick-search-textarea">
+                      <span className="quick-icon">⚡</span> Quick Search Query (Searches across all columns & fields):
+                    </label>
+                    {quickSearchText && (
+                      <button className="clear-link-btn" onClick={() => setQuickSearchText("")}>
+                        Clear Text
+                      </button>
+                    )}
+                  </div>
+                  <textarea
+                    id="quick-search-textarea"
+                    className="quick-search-textarea"
+                    placeholder="Type search terms here (e.g. India /disease 106.219)..."
+                    value={quickSearchText}
+                    onChange={(e) => setQuickSearchText(e.target.value)}
+                    rows={2}
+                  />
+                  <div className="quick-search-hint">
+                    💡 Tip: Enter multi-word keywords separated by space or new line to search across IP, Country, State, Path, Referrer, and User Agent simultaneously.
+                  </div>
+                </div>
+              )}
+
+              {/* Advance Search Panel */}
+              {advSearchOpen && (
+                <div className="advanced-search-box">
+                  <div className="adv-box-header">
+                    <span className="adv-title">⚙️ Deep Column Search & Filters</span>
+                    {hasAdvFilters && (
+                      <button className="clear-link-btn" onClick={resetAdvFilters}>
+                        Reset All Filters
+                      </button>
+                    )}
+                  </div>
+                  <div className="adv-filter-grid">
+                    <div className="adv-field">
+                      <label>IP Address</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 106.219"
+                        value={advFilters.ip}
+                        onChange={(e) => setAdvFilters({ ...advFilters, ip: e.target.value })}
+                      />
+                    </div>
+                    <div className="adv-field">
+                      <label>Country / State / City</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. India / Bihar"
+                        value={advFilters.geo}
+                        onChange={(e) => setAdvFilters({ ...advFilters, geo: e.target.value })}
+                      />
+                    </div>
+                    <div className="adv-field">
+                      <label>Visited Path</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. /disease"
+                        value={advFilters.path}
+                        onChange={(e) => setAdvFilters({ ...advFilters, path: e.target.value })}
+                      />
+                    </div>
+                    <div className="adv-field">
+                      <label>Referrer Source</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Direct / Google"
+                        value={advFilters.referrer}
+                        onChange={(e) => setAdvFilters({ ...advFilters, referrer: e.target.value })}
+                      />
+                    </div>
+                    <div className="adv-field">
+                      <label>User Agent Details</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Mozilla / Mobile"
+                        value={advFilters.userAgent}
+                        onChange={(e) => setAdvFilters({ ...advFilters, userAgent: e.target.value })}
+                      />
+                    </div>
+                    <div className="adv-field">
+                      <label>Date Range (From)</label>
+                      <input
+                        type="date"
+                        value={advFilters.dateFrom}
+                        onChange={(e) => setAdvFilters({ ...advFilters, dateFrom: e.target.value })}
+                      />
+                    </div>
+                    <div className="adv-field">
+                      <label>Date Range (To)</label>
+                      <input
+                        type="date"
+                        value={advFilters.dateTo}
+                        onChange={(e) => setAdvFilters({ ...advFilters, dateTo: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Results Count & Active Filter Pills Bar */}
+              <div className="logs-meta-bar">
+                <div className="logs-count">
+                  Showing <strong>{sortedLogs.length}</strong> of <strong>{data.logs.length}</strong> fetched logs
+                  {logLimit !== "all" ? ` (Limited to ${logLimit} DB records)` : " (All database records)"}
+                </div>
+                {(quickSearchText || hasAdvFilters) && (
+                  <button className="reset-all-btn" onClick={() => { setQuickSearchText(""); resetAdvFilters(); }}>
+                    ✕ Clear All Filters
+                  </button>
+                )}
+              </div>
+
+              {/* Table with Clickable Sort Headers */}
+              <div className="table-wrapper main-table-wrapper">
+                <table className="main-table">
+                  <thead>
                     <tr>
-                      <td colSpan={6} align="center">No request logs in DB. Go browse the website to populate statistics.</td>
+                      <th onClick={() => handleSort("timestamp")} className="sortable-th">
+                        Timestamp {renderSortIndicator("timestamp")}
+                      </th>
+                      <th onClick={() => handleSort("ip")} className="sortable-th">
+                        IP Address {renderSortIndicator("ip")}
+                      </th>
+                      <th onClick={() => handleSort("geo")} className="sortable-th">
+                        Country / State {renderSortIndicator("geo")}
+                      </th>
+                      <th onClick={() => handleSort("path")} className="sortable-th">
+                        Visited Path {renderSortIndicator("path")}
+                      </th>
+                      <th onClick={() => handleSort("referrer")} className="sortable-th">
+                        Referrer Source {renderSortIndicator("referrer")}
+                      </th>
+                      <th onClick={() => handleSort("userAgent")} className="sortable-th">
+                        User Agent Details {renderSortIndicator("userAgent")}
+                      </th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {sortedLogs.length > 0 ? (
+                      sortedLogs.map((log) => (
+                        <tr key={log.id}>
+                          <td className="time-col">
+                            {new Date(log.timestamp).toLocaleTimeString()}<br />
+                            <span className="date-sub">{new Date(log.timestamp).toLocaleDateString()}</span>
+                          </td>
+                          <td className="ip-col font-mono">{log.ip}</td>
+                          <td className="geo-col">
+                            <strong>{log.country}</strong><br />
+                            <span className="state-sub">{log.region} · {log.city}</span>
+                          </td>
+                          <td className="path-col font-mono text-green">{log.path}</td>
+                          <td className="ref-col">{log.referrer}</td>
+                          <td className="ua-col" title={log.userAgent}>{log.userAgent.substring(0, 45)}...</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} align="center" className="no-logs-td">
+                          {data.logs.length === 0
+                            ? "No request logs in DB. Go browse the website to populate statistics."
+                            : "No matching request logs found for the current search/filter criteria."}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {activeTab === "system" && (
           <div className="panel-card full-panel system-settings-panel">
@@ -1854,13 +2149,281 @@ export default function DashboardClient() {
           gap: 0.5rem;
         }
 
-        /* Logs Tab Detailed Table */
+        /* Logs Tab Detailed Table & Control Bar */
         .full-panel {
           width: 100%;
         }
 
+        .logs-panel {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .logs-header-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          margin-bottom: 1rem;
+          flex-wrap: wrap;
+        }
+
+        .logs-header-left {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+        }
+
+        .panel-title-inline {
+          font-size: 1.25rem;
+          font-weight: 700;
+          margin: 0;
+          color: var(--admin-text-primary, #ffffff);
+        }
+
+        .limit-dropdown {
+          background-color: var(--admin-bg, #0b0f19);
+          color: var(--admin-accent, #00c896);
+          border: 1px solid var(--admin-border, rgba(0, 200, 150, 0.3));
+          border-radius: 8px;
+          padding: 0.4rem 0.75rem;
+          font-size: 0.88rem;
+          font-weight: 600;
+          cursor: pointer;
+          outline: none;
+          transition: all 0.2s;
+        }
+
+        .limit-dropdown:hover, .limit-dropdown:focus {
+          border-color: var(--admin-accent, #00c896);
+          box-shadow: 0 0 10px rgba(0, 200, 150, 0.2);
+        }
+
+        .logs-header-center, .logs-header-right {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .search-toggle-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.45rem;
+          background-color: var(--admin-bg, #0b0f19);
+          color: var(--admin-text-secondary, #9ca3af);
+          border: 1px solid var(--admin-border, rgba(255, 255, 255, 0.12));
+          border-radius: 8px;
+          padding: 0.45rem 0.9rem;
+          font-size: 0.85rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .search-toggle-btn:hover, .search-toggle-btn.active {
+          color: #ffffff;
+          border-color: var(--admin-accent, #00c896);
+          background-color: rgba(0, 200, 150, 0.08);
+        }
+
+        .search-toggle-btn.has-val {
+          border-color: #3b82f6;
+          color: #60a5fa;
+          background-color: rgba(59, 130, 246, 0.1);
+        }
+
+        .active-dot {
+          color: #00c896;
+          font-size: 0.7rem;
+          margin-left: 2px;
+        }
+
+        .expand-chevron {
+          font-size: 0.65rem;
+          margin-left: 2px;
+          opacity: 0.7;
+        }
+
+        .quick-search-box {
+          background: rgba(11, 15, 25, 0.75);
+          border: 1px solid rgba(0, 200, 150, 0.3);
+          border-radius: 10px;
+          padding: 1rem;
+          margin-bottom: 1rem;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .quick-search-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: var(--admin-text-secondary, #9ca3af);
+          margin-bottom: 0.5rem;
+        }
+
+        .quick-search-textarea {
+          width: 100%;
+          background: var(--admin-bg, #030712);
+          border: 1px solid var(--admin-border, rgba(255, 255, 255, 0.15));
+          border-radius: 8px;
+          color: #ffffff;
+          padding: 0.65rem 0.85rem;
+          font-size: 0.9rem;
+          font-family: inherit;
+          outline: none;
+          resize: vertical;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .quick-search-textarea:focus {
+          border-color: var(--admin-accent, #00c896);
+          box-shadow: 0 0 12px rgba(0, 200, 150, 0.2);
+        }
+
+        .quick-search-hint {
+          font-size: 0.75rem;
+          color: #6b7280;
+          margin-top: 0.4rem;
+        }
+
+        .advanced-search-box {
+          background: rgba(11, 15, 25, 0.85);
+          border: 1px solid rgba(59, 130, 246, 0.35);
+          border-radius: 10px;
+          padding: 1rem;
+          margin-bottom: 1rem;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .adv-box-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.85rem;
+          padding-bottom: 0.4rem;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .adv-title {
+          font-size: 0.9rem;
+          font-weight: 700;
+          color: #60a5fa;
+        }
+
+        .clear-link-btn {
+          background: none;
+          border: none;
+          color: #ef4444;
+          font-size: 0.8rem;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 0;
+        }
+
+        .clear-link-btn:hover {
+          text-decoration: underline;
+        }
+
+        .adv-filter-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 0.85rem;
+        }
+
+        .adv-field {
+          display: flex;
+          flex-direction: column;
+          gap: 0.3rem;
+        }
+
+        .adv-field label {
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: #9ca3af;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+
+        .adv-field input {
+          background: var(--admin-bg, #030712);
+          border: 1px solid var(--admin-border, rgba(255, 255, 255, 0.15));
+          border-radius: 6px;
+          color: #ffffff;
+          padding: 0.45rem 0.65rem;
+          font-size: 0.82rem;
+          outline: none;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .adv-field input:focus {
+          border-color: #3b82f6;
+          box-shadow: 0 0 8px rgba(59, 130, 246, 0.25);
+        }
+
+        .logs-meta-bar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.4rem 0.25rem;
+          margin-bottom: 0.75rem;
+          font-size: 0.82rem;
+          color: #9ca3af;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .reset-all-btn {
+          background: rgba(239, 68, 68, 0.12);
+          color: #ef4444;
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          border-radius: 6px;
+          padding: 0.25rem 0.6rem;
+          font-size: 0.78rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .reset-all-btn:hover {
+          background: #ef4444;
+          color: #ffffff;
+        }
+
+        .sortable-th {
+          cursor: pointer;
+          user-select: none;
+          transition: color 0.15s;
+        }
+
+        .sortable-th:hover {
+          color: var(--admin-accent, #00c896) !important;
+        }
+
+        .sort-icon {
+          margin-left: 4px;
+          font-size: 0.75rem;
+          display: inline-block;
+        }
+
+        .sort-icon.inactive {
+          opacity: 0.35;
+        }
+
+        .sort-icon.active {
+          color: var(--admin-accent, #00c896);
+          opacity: 1;
+        }
+
+        .no-logs-td {
+          padding: 2.5rem !important;
+          color: #6b7280;
+          font-style: italic;
+        }
+
         .main-table-wrapper {
-          margin-top: 1rem;
+          margin-top: 0.5rem;
           max-height: 600px;
           overflow-y: auto;
         }

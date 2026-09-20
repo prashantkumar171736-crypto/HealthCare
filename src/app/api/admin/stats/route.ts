@@ -29,9 +29,20 @@ export async function GET(request: Request) {
     const db = await getDb();
     const analytics = db.collection("analytics");
 
-    // Parse period query param (default: monthly)
+    // Parse period and logLimit query params (default: monthly / 50)
     const { searchParams } = new URL(request.url);
     const period = searchParams.get("period") || "monthly";
+    const logLimitParam = searchParams.get("logLimit") || "50";
+
+    let limitNum = 50;
+    if (logLimitParam === "all") {
+      limitNum = 0; // Mongo limit(0) returns all documents
+    } else {
+      const parsed = parseInt(logLimitParam, 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        limitNum = parsed;
+      }
+    }
 
     // 1. Core KPIs
     const totalViews = await analytics.countDocuments({});
@@ -247,11 +258,11 @@ export async function GET(request: Request) {
 
     dailyViews = dailyViews.map((view) => ({ ...view, details: detailMap.get(view.date) || [] }));
 
-    // 6. Recent Visitors Logs (Past 50)
+    // 6. Recent Visitors Logs (Filtered by limitNum)
     const recentLogs = await analytics
       .find({})
       .sort({ timestamp: -1 })
-      .limit(50)
+      .limit(limitNum)
       .toArray();
 
     // 7. System Reachability & Health
