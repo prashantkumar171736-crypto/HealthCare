@@ -739,94 +739,134 @@ export default function DashboardClient() {
               </div>
             </div>
 
-            {/* Top Visited Pages — Premium Multi-Color */}
+            {/* Top Visited Pages — Table Layout */}
             <div className="panel-card progress-panel">
               <h2 className="panel-title">🏆 Top Visited Pages</h2>
-              <div className="progress-list">
-                {data.charts.topPages.length > 0 ? (
-                  (() => {
-                    const maxCount = Math.max(...data.charts.topPages.map((p) => p.count), 1);
-                    return data.charts.topPages.map((page, idx) => {
+              {data.charts.topPages.length > 0 ? (() => {
+                const maxCount = Math.max(...data.charts.topPages.map((p) => p.count), 1);
+                return (
+                  <div className="pages-table">
+                    {/* Column Headers */}
+                    <div className="pages-table-head">
+                      <span className="pt-col-rank">#</span>
+                      <span className="pt-col-path">Page</span>
+                      <span className="pt-col-views">Views</span>
+                      <span className="pt-col-pct">%</span>
+                    </div>
+                    {/* Rows */}
+                    {data.charts.topPages.map((page, idx) => {
                       const pct = Math.round((page.count / maxCount) * 100);
                       const [c1, c2] = BAR_GRADIENTS[idx % BAR_GRADIENTS.length];
                       const rankLabels = ["🥇", "🥈", "🥉"];
                       return (
-                        <div key={idx} className="progress-row-v2">
-                          <div className="prv2-top">
-                            <div className="prv2-rank-badge" style={{ background: c1 + "22", color: c1, border: `1px solid ${c1}44` }}>
+                        <div key={idx} className="pages-table-row" style={{ "--row-color": c1 } as React.CSSProperties}>
+                          {/* Rank */}
+                          <div className="pt-col-rank">
+                            <span className="pt-rank-badge" style={{ background: c1 + "22", color: c1, border: `1px solid ${c1}44` }}>
                               {idx < 3 ? rankLabels[idx] : `#${idx + 1}`}
-                            </div>
-                            <span className="prv2-path">{page.path}</span>
-                            <span className="prv2-count" style={{ color: c1 }}>{page.count.toLocaleString()} views</span>
+                            </span>
                           </div>
-                          <div className="prv2-bar-track">
+                          {/* Page path */}
+                          <span className="pt-col-path pt-path-text" title={page.path}>
+                            {page.path}
+                          </span>
+                          {/* Views */}
+                          <span className="pt-col-views pt-views-val" style={{ color: c1 }}>
+                            {page.count.toLocaleString()}
+                          </span>
+                          {/* Percentage */}
+                          <span className="pt-col-pct pt-pct-val" style={{ color: c1 }}>
+                            {pct}%
+                          </span>
+                          {/* Progress bar — full-width spanning all columns */}
+                          <div className="pt-bar-row">
                             <div
-                              className="prv2-bar-fill"
+                              className="pt-bar-fill"
                               style={{
                                 width: `${pct}%`,
                                 background: `linear-gradient(90deg, ${c1}, ${c2})`,
-                                boxShadow: `0 0 8px ${c1}55`,
+                                boxShadow: `0 0 6px ${c1}55`,
                               }}
                             />
-                            <span className="prv2-pct" style={{ color: c1 }}>{pct}%</span>
                           </div>
                         </div>
                       );
-                    });
-                  })()
-                ) : (
-                  <div className="no-data-box">
-                    <span style={{ fontSize: "2rem" }}>📭</span>
-                    <p>No traffic logged yet.</p>
+                    })}
                   </div>
-                )}
-              </div>
+                );
+              })() : (
+                <div className="no-data-box">
+                  <span style={{ fontSize: "2rem" }}>📭</span>
+                  <p>No traffic logged yet.</p>
+                </div>
+              )}
             </div>
 
-            {/* Top Geolocations — Premium Card Style */}
+            {/* Top Geolocations — Table Style */}
             <div className="panel-card geo-panel">
               <h2 className="panel-title">🌍 Top Country &amp; State Geolocations</h2>
-              <div className="geo-cards-list">
-                {data.charts.topRegions.length > 0 ? (() => {
-                  const geoMax = Math.max(...data.charts.topRegions.map(r => r.count), 1);
-                  return data.charts.topRegions.map((reg, idx) => {
-                    const gc = GEO_COLORS[idx % GEO_COLORS.length];
-                    const geoPct = Math.round((reg.count / geoMax) * 100);
-                    return (
-                      <div
-                        key={idx}
-                        className="geo-card"
-                        style={{ background: gc.bg, borderColor: gc.border }}
-                      >
-                        <div className="geo-card-left">
-                          <span className="geo-rank-badge" style={{ background: gc.badge, color: gc.text }}>
-                            #{idx + 1}
-                          </span>
-                          <div className="geo-info">
-                            <div className="geo-region" style={{ color: "var(--admin-text-primary, #fff)" }}>
-                              {reg.region === "Unknown" ? "📍 Generic Area" : `📍 ${reg.region}`}
-                            </div>
-                            <div className="geo-country" style={{ color: gc.text }}>
-                              {reg.country === "Localhost" ? "🖥️ Localhost" : `🌐 ${reg.country}`}
+              {data.charts.topRegions.length > 0 ? (() => {
+                const geoMax = Math.max(...data.charts.topRegions.map(r => r.count), 1);
+                return (
+                  <div className="geo-table">
+                    {/* Column headers */}
+                    <div className="geo-table-head">
+                      <span className="gt-col-rank">#</span>
+                      <span className="gt-col-state">State / Region</span>
+                      <span className="gt-col-country">Country</span>
+                      <span className="gt-col-views">Views</span>
+                    </div>
+                    {data.charts.topRegions.map((reg, idx) => {
+                      const gc = GEO_COLORS[idx % GEO_COLORS.length];
+                      const geoPct = Math.round((reg.count / geoMax) * 100);
+                      return (
+                        <div
+                          key={idx}
+                          className="geo-table-row"
+                          style={{ "--gc-text": gc.text, "--gc-bg": gc.bg, "--gc-border": gc.border } as React.CSSProperties}
+                        >
+                          {/* Rank */}
+                          <div className="gt-col-rank">
+                            <span className="gt-rank-badge" style={{ background: gc.badge, color: gc.text }}>
+                              {idx + 1}
+                            </span>
+                          </div>
+                          {/* State */}
+                          <div className="gt-col-state gt-state-cell">
+                            <span className="gt-state-name" style={{ color: "var(--admin-text-primary, #f3f4f6)" }}>
+                              {reg.region === "Unknown" ? "Generic Area" : reg.region}
+                            </span>
+                          </div>
+                          {/* Country */}
+                          <div className="gt-col-country gt-country-cell">
+                            <span className="gt-country-dot" style={{ background: gc.text }} />
+                            <span className="gt-country-name" style={{ color: gc.text }}>
+                              {reg.country === "Localhost" ? "Localhost" : reg.country}
+                            </span>
+                          </div>
+                          {/* Views + bar */}
+                          <div className="gt-col-views gt-views-cell">
+                            <span className="gt-views-num" style={{ color: gc.text }}>
+                              {reg.count.toLocaleString()}
+                            </span>
+                            <div className="gt-bar-track">
+                              <div
+                                className="gt-bar-fill"
+                                style={{ width: `${geoPct}%`, background: gc.text, boxShadow: `0 0 6px ${gc.text}66` }}
+                              />
                             </div>
                           </div>
                         </div>
-                        <div className="geo-card-right">
-                          <div className="geo-visits" style={{ color: gc.text }}>{reg.count.toLocaleString()}</div>
-                          <div className="geo-mini-bar-track">
-                            <div className="geo-mini-bar-fill" style={{ width: `${geoPct}%`, background: gc.text }} />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  });
-                })() : (
-                  <div className="no-data-box">
-                    <span style={{ fontSize: "2rem" }}>🗺️</span>
-                    <p>No locations logged.</p>
+                      );
+                    })}
                   </div>
-                )}
-              </div>
+                );
+              })() : (
+                <div className="no-data-box">
+                  <span style={{ fontSize: "2rem" }}>🗺️</span>
+                  <p>No locations logged.</p>
+                </div>
+              )}
             </div>
 
             {/* Server Performance monitor */}
@@ -1475,165 +1515,202 @@ export default function DashboardClient() {
           text-align: center;
         }
 
-        /* Progress List V2 (Top Pages) */
-        .progress-list {
+        /* ── Top Visited Pages Table ── */
+        .pages-table {
           display: flex;
           flex-direction: column;
-          gap: 0.65rem;
-        }
-
-        .progress-row-v2 {
-          display: flex;
-          flex-direction: column;
-          gap: 0.35rem;
-          padding: 0.6rem 0.75rem;
+          gap: 0;
+          overflow: hidden;
           border-radius: 10px;
-          background: var(--admin-hover-bg, rgba(255,255,255,0.02));
-          border: 1px solid var(--admin-border, rgba(255,255,255,0.04));
-          transition: background 0.2s;
-        }
-        .progress-row-v2:hover {
-          background: var(--admin-border-strong, rgba(255,255,255,0.08));
+          border: 1px solid rgba(255,255,255,0.06);
         }
 
-        .prv2-top {
-          display: flex;
+        /* Shared grid: rank(40px) | path(1fr) | views(72px) | %(52px) */
+        .pages-table-head,
+        .pages-table-row {
+          display: grid;
+          grid-template-columns: 44px 1fr 72px 52px;
           align-items: center;
-          gap: 0.6rem;
+          gap: 0;
         }
 
-        .prv2-rank-badge {
+        .pages-table-head {
+          padding: 0.4rem 0.75rem;
+          background: rgba(255,255,255,0.04);
+          border-bottom: 1px solid rgba(255,255,255,0.07);
+          font-size: 0.6rem;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: #4b5563;
+        }
+        .pages-table-head .pt-col-views,
+        .pages-table-head .pt-col-pct { text-align: right; }
+
+        .pages-table-row {
+          position: relative;
+          padding: 0.55rem 0.75rem 0.3rem;
+          border-bottom: 1px solid rgba(255,255,255,0.04);
+          transition: background 0.18s;
+          cursor: default;
+        }
+        .pages-table-row:last-child { border-bottom: none; }
+        .pages-table-row:hover { background: rgba(255,255,255,0.035); }
+
+        /* Column slots shared between head and row */
+        .pt-col-rank  { grid-column: 1; }
+        .pt-col-path  { grid-column: 2; padding: 0 0.5rem; }
+        .pt-col-views { grid-column: 3; text-align: right; }
+        .pt-col-pct   { grid-column: 4; text-align: right; padding-right: 0.1rem; }
+
+        /* Bar row — spans full width below the columns */
+        .pt-bar-row {
+          grid-column: 1 / -1;
+          height: 5px;
+          background: rgba(255,255,255,0.05);
+          border-radius: 999px;
+          overflow: hidden;
+          margin-top: 0.35rem;
+        }
+        .pt-bar-fill {
+          height: 100%;
+          border-radius: 999px;
+          transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        .pt-rank-badge {
           display: inline-flex;
           align-items: center;
           justify-content: center;
           min-width: 32px;
           height: 22px;
           border-radius: 6px;
-          font-size: 0.78rem;
+          font-size: 0.75rem;
           font-weight: 800;
-          flex-shrink: 0;
-          padding: 0 0.4rem;
+          padding: 0 0.35rem;
         }
-
-        .prv2-path {
-          font-size: 0.82rem;
+        .pt-path-text {
+          font-size: 0.8rem;
           color: var(--admin-text-primary, #e5e7eb);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          flex: 1;
+          font-family: "Courier New", monospace;
         }
-
-        .prv2-count {
+        .pt-views-val {
           font-size: 0.78rem;
           font-weight: 700;
-          flex-shrink: 0;
+        }
+        .pt-pct-val {
+          font-size: 0.76rem;
+          font-weight: 800;
         }
 
-        .prv2-bar-track {
-          position: relative;
-          height: 6px;
-          background: rgba(255,255,255,0.06);
-          border-radius: 999px;
-          overflow: visible;
-          display: flex;
-          align-items: center;
-        }
-
-        .prv2-bar-fill {
-          height: 6px;
-          border-radius: 999px;
-          transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
-        }
-
-        .prv2-pct {
-          position: absolute;
-          right: -2.5rem;
-          font-size: 0.7rem;
-          font-weight: 700;
-        }
-
-        /* Geo Cards */
-        .geo-cards-list {
+        /* ── Top Geolocations Table ── */
+        .geo-table {
           display: flex;
           flex-direction: column;
-          gap: 0.55rem;
-        }
-
-        .geo-card {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 1rem;
-          padding: 0.65rem 0.85rem;
+          overflow: hidden;
           border-radius: 10px;
-          border: 1px solid;
-          transition: filter 0.2s;
-        }
-        .geo-card:hover {
-          filter: brightness(1.15);
+          border: 1px solid rgba(255,255,255,0.06);
         }
 
-        .geo-card-left {
-          display: flex;
+        /* Shared grid: rank(40px) | state(1fr) | country(1fr) | views(90px) */
+        .geo-table-head,
+        .geo-table-row {
+          display: grid;
+          grid-template-columns: 40px 1fr 1fr 90px;
           align-items: center;
-          gap: 0.6rem;
-          min-width: 0;
         }
 
-        .geo-rank-badge {
-          width: 28px;
-          height: 28px;
-          border-radius: 8px;
-          display: flex;
+        .geo-table-head {
+          padding: 0.4rem 0.75rem;
+          background: rgba(255,255,255,0.04);
+          border-bottom: 1px solid rgba(255,255,255,0.07);
+          font-size: 0.6rem;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: #4b5563;
+          gap: 0.5rem;
+        }
+        .geo-table-head .gt-col-views { text-align: right; }
+
+        .geo-table-row {
+          padding: 0.55rem 0.75rem;
+          border-bottom: 1px solid rgba(255,255,255,0.04);
+          gap: 0.5rem;
+          transition: background 0.18s;
+          cursor: default;
+        }
+        .geo-table-row:last-child { border-bottom: none; }
+        .geo-table-row:hover { background: rgba(255,255,255,0.035); }
+
+        .gt-col-rank    { grid-column: 1; }
+        .gt-col-state   { grid-column: 2; min-width: 0; }
+        .gt-col-country { grid-column: 3; min-width: 0; }
+        .gt-col-views   { grid-column: 4; text-align: right; }
+
+        .gt-rank-badge {
+          display: inline-flex;
           align-items: center;
           justify-content: center;
+          width: 26px;
+          height: 26px;
+          border-radius: 7px;
           font-size: 0.72rem;
           font-weight: 800;
-          flex-shrink: 0;
         }
 
-        .geo-info { min-width: 0; }
-
-        .geo-region {
-          font-size: 0.85rem;
+        .gt-state-cell, .gt-country-cell {
+          display: flex;
+          align-items: center;
+          gap: 0.35rem;
+          min-width: 0;
+        }
+        .gt-state-name {
+          font-size: 0.8rem;
+          font-weight: 600;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .gt-country-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+        .gt-country-name {
+          font-size: 0.77rem;
           font-weight: 600;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
 
-        .geo-country {
-          font-size: 0.75rem;
-          font-weight: 600;
-          margin-top: 0.1rem;
-        }
-
-        .geo-card-right {
+        .gt-views-cell {
           display: flex;
           flex-direction: column;
           align-items: flex-end;
-          gap: 0.3rem;
-          flex-shrink: 0;
+          gap: 0.25rem;
         }
-
-        .geo-visits {
-          font-size: 1rem;
+        .gt-views-num {
+          font-size: 0.88rem;
           font-weight: 800;
+          line-height: 1;
         }
-
-        .geo-mini-bar-track {
-          width: 60px;
+        .gt-bar-track {
+          width: 70px;
           height: 4px;
-          background: rgba(255,255,255,0.08);
+          background: rgba(255,255,255,0.07);
           border-radius: 999px;
           overflow: hidden;
         }
-
-        .geo-mini-bar-fill {
-          height: 4px;
+        .gt-bar-fill {
+          height: 100%;
           border-radius: 999px;
-          transition: width 0.6s ease;
+          transition: width 0.65s cubic-bezier(0.4,0,0.2,1);
         }
 
         .no-data-box {
