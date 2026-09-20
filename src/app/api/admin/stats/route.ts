@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
 import { validateSession } from "../login/route";
+import os from "os";
 
 export const runtime = "nodejs";
 
@@ -268,22 +269,47 @@ export async function GET(request: Request) {
     // 7. System Reachability & Health
     let dbStatus = "Offline";
     let dbPingTime = 0;
+    let dbDataSizeMB = 0;
+    let dbStorageSizeMB = 0;
+    let dbIndexSizeMB = 0;
+    let dbTotalCollections = 0;
+
     try {
       const startPing = Date.now();
       await db.command({ ping: 1 });
       dbStatus = "Connected";
       dbPingTime = Date.now() - startPing;
+
+      const stats = await db.command({ dbStats: 1 });
+      dbDataSizeMB = parseFloat(((stats.dataSize || 0) / (1024 * 1024)).toFixed(2));
+      dbStorageSizeMB = parseFloat(((stats.storageSize || 0) / (1024 * 1024)).toFixed(2));
+      dbIndexSizeMB = parseFloat(((stats.indexSize || 0) / (1024 * 1024)).toFixed(2));
+      dbTotalCollections = stats.collections || 0;
     } catch {
       // Offline
     }
+
+    const cpus = os.cpus() || [];
+    const loadAvg = os.loadavg() || [0, 0, 0];
+    const totalMem = os.totalmem() || 0;
+    const freeMem = os.freemem() || 0;
 
     const memory = process.memoryUsage();
     const systemHealth = {
       dbStatus,
       dbPingTime,
+      dbDataSizeMB,
+      dbStorageSizeMB,
+      dbIndexSizeMB,
+      dbTotalCollections,
       serverUptime: process.uptime(),
       memoryUsed: Math.round(memory.heapUsed / 1024 / 1024), // MB
       memoryTotal: Math.round(memory.heapTotal / 1024 / 1024), // MB
+      systemTotalRamGB: parseFloat((totalMem / (1024 * 1024 * 1024)).toFixed(2)),
+      systemFreeRamGB: parseFloat((freeMem / (1024 * 1024 * 1024)).toFixed(2)),
+      cpuCores: cpus.length,
+      cpuModel: cpus[0]?.model || "Standard Processor",
+      cpuLoadAvg: parseFloat((loadAvg[0] || 0).toFixed(2)),
       nodeVersion: process.version,
       platform: process.platform,
     };

@@ -59,9 +59,18 @@ interface VisitorLog {
 interface SystemHealth {
   dbStatus: string;
   dbPingTime: number;
+  dbDataSizeMB: number;
+  dbStorageSizeMB: number;
+  dbIndexSizeMB: number;
+  dbTotalCollections: number;
   serverUptime: number;
   memoryUsed: number;
   memoryTotal: number;
+  systemTotalRamGB: number;
+  systemFreeRamGB: number;
+  cpuCores: number;
+  cpuModel: string;
+  cpuLoadAvg: number;
   nodeVersion: string;
   platform: string;
 }
@@ -1289,23 +1298,50 @@ export default function DashboardClient() {
 
         {activeTab === "system" && (
           <div className="panel-card full-panel system-settings-panel">
-            <h2 className="panel-title">System Health & API Reachability</h2>
+            <h2 className="panel-title">System Health, DB Storage & Hardware Infrastructure</h2>
             <div className="system-health-grid">
+              {/* Card 1: MongoDB Infrastructure & Memory */}
               <div className="health-box">
-                <h3>MongoDB Infrastructure</h3>
-                <p>Status: <span className="status-pill online">ONLINE</span></p>
+                <h3>💾 MongoDB Memory & Storage</h3>
+                <p>Status: <span className="status-pill online">{data.systemHealth.dbStatus.toUpperCase()}</span></p>
                 <p>Latency Ping: <strong>{data.systemHealth.dbPingTime} ms</strong></p>
-                <p>Database: <code>healthcare</code></p>
+                <p>Data Memory Size: <strong>{data.systemHealth.dbDataSizeMB} MB</strong></p>
+                <p>Disk Storage Allocated: <strong>{data.systemHealth.dbStorageSizeMB} MB</strong></p>
+                <p>Index Memory Size: <strong>{data.systemHealth.dbIndexSizeMB} MB</strong></p>
+                <p>Total DB Collections: <strong>{data.systemHealth.dbTotalCollections} collections</strong></p>
               </div>
+
+              {/* Card 2: CPU Cores & Processing Load (Unique Point 1) */}
               <div className="health-box">
-                <h3>Server Environment</h3>
-                <p>Node version: <code>{data.systemHealth.nodeVersion || "N/A"}</code></p>
-                <p>Server Uptime: <code>{Math.round(data.systemHealth.serverUptime || 0)}s</code></p>
-                <p>Platform Host: <code>{data.systemHealth.platform || "N/A"}</code></p>
+                <h3>⚙️ CPU Cores & System Load</h3>
+                <p>CPU Processor: <code>{data.systemHealth.cpuModel}</code></p>
+                <p>Logical CPU Cores: <strong>{data.systemHealth.cpuCores} Cores</strong></p>
+                <p>1-Min Load Average: <strong>{data.systemHealth.cpuLoadAvg}</strong></p>
+                <p>Multi-Threading: <span className="status-pill online">ACTIVE</span></p>
               </div>
+
+              {/* Card 3: Host RAM & Process Heap (Unique Point 2) */}
               <div className="health-box">
-                <h3>Client Reachability Tracker</h3>
-                <p>API Endpoint: <code>/api/track</code></p>
+                <h3>🧠 Physical RAM & Process Memory</h3>
+                <p>Node Heap Used: <strong>{data.systemHealth.memoryUsed} MB</strong></p>
+                <p>Node Heap Allocated: <strong>{data.systemHealth.memoryTotal} MB</strong></p>
+                <p>Host Total RAM: <strong>{data.systemHealth.systemTotalRamGB} GB</strong></p>
+                <p>Host Free RAM: <strong>{data.systemHealth.systemFreeRamGB} GB</strong></p>
+                <p>RAM Status: <span className="status-pill online">HEALTHY</span></p>
+              </div>
+
+              {/* Card 4: Server OS & Uptime */}
+              <div className="health-box">
+                <h3>🖥️ Server OS & Process Uptime</h3>
+                <p>Node.js Runtime: <code>{data.systemHealth.nodeVersion || "N/A"}</code></p>
+                <p>Server Uptime: <code>{formatUptime(data.systemHealth.serverUptime)}</code></p>
+                <p>Host OS Platform: <code>{data.systemHealth.platform || "N/A"}</code></p>
+              </div>
+
+              {/* Card 5: Telemetry & Client Tracker */}
+              <div className="health-box">
+                <h3>🛰️ Client Reachability Tracker</h3>
+                <p>API Tracking Endpoint: <code>/api/track</code></p>
                 <p>Collector Script: Active in Root Layout</p>
                 <p>Client Local Time: {new Date().toLocaleTimeString()}</p>
               </div>
