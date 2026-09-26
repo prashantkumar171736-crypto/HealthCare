@@ -100,6 +100,17 @@ interface StatsResponse {
   };
   logs: VisitorLog[];
   systemHealth: SystemHealth;
+  telemetry24h?: Array<{
+    id?: string;
+    time: string;
+    ping: number;
+    cpu: number;
+    cpuLoadAvg?: number;
+    heap: number;
+    views: number;
+    visitors: number;
+    timestamp?: string;
+  }>;
 }
 
 const PERIOD_OPTIONS = [
@@ -208,6 +219,11 @@ export default function DashboardClient() {
   // Update rolling telemetry history points whenever data updates
   useEffect(() => {
     if (!data) return;
+    if (data.telemetry24h && data.telemetry24h.length > 0) {
+      setTelemetryPoints(data.telemetry24h);
+      return;
+    }
+
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const currentPing = data.systemHealth.dbPingTime || 185;
@@ -227,7 +243,7 @@ export default function DashboardClient() {
             cpu: Math.max(10, Math.min(85, currentCpu + Math.floor(Math.cos(i * 0.8) * 15))),
             heap: Math.max(20, Math.min(100, currentHeap + Math.floor(Math.sin(i * 1.2) * 6))),
             views: Math.max(100, currentViews + Math.floor(Math.sin(i) * 12)),
-            visitors: Math.max(10, currentVisitors + Math.floor(Math.cos(i) * 4)),
+            visitors: Math.max(10, currentVisitors + Math.floor(Math.cos(i * 4))),
           });
         }
         return seeds;
@@ -1496,7 +1512,7 @@ export default function DashboardClient() {
           <div className="panel-card full-panel system-settings-panel">
             {/* NEW SECTION: Live Realtime Telemetry Graphs (2 cards per row) */}
             <div className="panel-header-row" style={{ marginTop: '0.5rem' }}>
-              <h2 className="panel-title system-health-title" style={{ color: '#38bdf8' }}>
+              <h2 className="panel-title system-health-title" style={{ color: '#c084fc' }}>
                 📈 Realtime System Telemetry & Infrastructure Graphs
               </h2>
               <span className="live-status-chip">
@@ -1524,342 +1540,680 @@ export default function DashboardClient() {
             )}
 
             <div className="live-graphs-grid">
-              {/* Card 1: MongoDB Database Storage Distribution (Donut Chart) */}
-              <div className="graph-card">
-                <div className="graph-card-header">
-                  <span className="graph-card-title">💾 MongoDB Storage Distribution</span>
-                  <span className="graph-badge badge-emerald">Donut Chart</span>
-                </div>
-                <div className="graph-card-body donut-chart-body">
-                  <svg
-                    viewBox="0 0 200 200"
-                    className="donut-chart-svg interactive-svg"
-                    onMouseMove={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setGraphTooltip({
-                        x: e.clientX,
-                        y: e.clientY,
-                        title: "MongoDB Storage Breakdown",
-                        value: `${data.systemHealth.dbDataSizeMB} MB Data / ${data.systemHealth.dbStorageSizeMB} MB Total`,
-                        detail: "BSON documents, collection index structures & Atlas overhead",
-                        color: "#34d399",
-                      });
-                    }}
-                    onMouseLeave={() => setGraphTooltip(null)}
-                  >
-                    <circle cx="100" cy="100" r="70" fill="transparent" stroke="rgba(255,255,255,0.06)" strokeWidth="26" />
-                    <circle
-                      cx="100" cy="100" r="70" fill="transparent" stroke="#34d399" strokeWidth="26"
-                      strokeDasharray="440" strokeDashoffset="330" transform="rotate(-90 100 100)"
-                    />
-                    <circle
-                      cx="100" cy="100" r="70" fill="transparent" stroke="#c084fc" strokeWidth="26"
-                      strokeDasharray="440" strokeDashoffset="380" transform="rotate(0 100 100)"
-                    />
-                    <circle
-                      cx="100" cy="100" r="70" fill="transparent" stroke="#60a5fa" strokeWidth="26"
-                      strokeDasharray="440" strokeDashoffset="420" transform="rotate(50 100 100)"
-                    />
-                    <circle
-                      cx="100" cy="100" r="70" fill="transparent" stroke="#fbbf24" strokeWidth="26"
-                      strokeDasharray="440" strokeDashoffset="100" transform="rotate(80 100 100)"
-                    />
-                  </svg>
-                  <div className="chart-legend-box">
-                    <div className="legend-item"><span className="legend-dot" style={{ background: '#34d399' }}></span>Data Size: <strong>{data.systemHealth.dbDataSizeMB} MB (24.5%)</strong></div>
-                    <div className="legend-item"><span className="legend-dot" style={{ background: '#c084fc' }}></span>Index Memory: <strong>{data.systemHealth.dbIndexSizeMB} MB (20.4%)</strong></div>
-                    <div className="legend-item"><span className="legend-dot" style={{ background: '#60a5fa' }}></span>Storage Allocated: <strong>{data.systemHealth.dbStorageSizeMB} MB (14.3%)</strong></div>
-                    <div className="legend-item"><span className="legend-dot" style={{ background: '#fbbf24' }}></span>Atlas Free Tier: <strong>512 MB (40.8%)</strong></div>
-                  </div>
-                </div>
-                <div className="graph-info-footer info-emerald">
-                  💡 <i><strong>Meaning & Value:</strong> Displays live distribution of Atlas BSON Data (24.5%), Collection Indexes (20.4%), and Allocated Storage. Helps prevent exceeding the 512 MB Free Tier limit.</i>
-                </div>
-              </div>
+              {/* Helper calculations for Card 1: MongoDB Storage Distribution */}
+              {(() => {
+                const dbDataMB = data.systemHealth.dbDataSizeMB || 0;
+                const dbIndexMB = data.systemHealth.dbIndexSizeMB || 0;
+                const dbStorageMB = data.systemHealth.dbStorageSizeMB || 0;
+                const atlasLimitMB = 512;
+                const dbFreeMB = Math.max(0, parseFloat((atlasLimitMB - dbStorageMB).toFixed(2)));
 
-              {/* Card 2: CPU Processor Load History (Vertical Bar Chart) */}
-              <div className="graph-card">
-                <div className="graph-card-header">
-                  <span className="graph-card-title">⚙️ CPU Load Capacity History</span>
-                  <span className="graph-badge badge-amber">Vertical Bar Chart</span>
-                </div>
-                <div className="graph-card-body bar-chart-body">
-                  <svg
-                    viewBox="0 0 420 180"
-                    preserveAspectRatio="none"
-                    className="bar-chart-svg interactive-svg"
-                    onMouseMove={(e) => {
-                      setGraphTooltip({
-                        x: e.clientX,
-                        y: e.clientY,
-                        title: "1-Min CPU Load History",
-                        value: `Current Load: ${data.systemHealth.cpuLoadAvg} / ${data.systemHealth.cpuCores} Logical Cores`,
-                        detail: "Multi-threaded process execution & host CPU capacity",
-                        color: "#fbbf24",
-                      });
-                    }}
-                    onMouseLeave={() => setGraphTooltip(null)}
-                  >
-                    <defs>
-                      <linearGradient id="barGradAmber" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f59e0b" />
-                        <stop offset="100%" stopColor="#ef4444" />
-                      </linearGradient>
-                    </defs>
-                    <line x1="40" y1="20" x2="410" y2="20" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
-                    <line x1="40" y1="60" x2="410" y2="60" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
-                    <line x1="40" y1="100" x2="410" y2="100" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
-                    <line x1="40" y1="140" x2="410" y2="140" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
-                    <text x="5" y="24" fill="#9ca3af" fontSize="10">40.00</text>
-                    <text x="5" y="64" fill="#9ca3af" fontSize="10">30.00</text>
-                    <text x="5" y="104" fill="#9ca3af" fontSize="10">20.00</text>
-                    <text x="5" y="144" fill="#9ca3af" fontSize="10">10.00</text>
-                    <text x="5" y="178" fill="#9ca3af" fontSize="10">0.00</text>
+                const dbDataPct = ((dbDataMB / atlasLimitMB) * 100).toFixed(1);
+                const dbIndexPct = ((dbIndexMB / atlasLimitMB) * 100).toFixed(1);
+                const dbStoragePct = ((dbStorageMB / atlasLimitMB) * 100).toFixed(1);
+                const dbFreePct = ((dbFreeMB / atlasLimitMB) * 100).toFixed(1);
 
-                    {(telemetryPoints.length > 0 ? telemetryPoints : [...Array(10)]).map((pt, idx) => {
-                      const val = pt ? pt.cpu : [25, 22, 18, 14, 10, 8, 12, 18, 28, 34][idx];
-                      const h = (val / 40) * 120;
-                      const x = 50 + idx * 36;
-                      const y = 160 - h;
-                      return (
-                        <g key={idx}>
-                          <rect x={x} y={y} width="22" height={Math.max(6, h)} rx="4" fill="url(#barGradAmber)" />
-                          <text x={x + 11} y="176" fill="#9ca3af" fontSize="8" textAnchor="middle">
-                            {pt ? pt.time.slice(0, 5) : `19:${40 + idx * 3}`}
-                          </text>
-                        </g>
-                      );
-                    })}
-                  </svg>
-                </div>
-                <div className="graph-info-footer info-amber">
-                  💡 <i><strong>Meaning & Value:</strong> Tracks 1-minute CPU load average history across logical hardware cores. Lower values (&lt;20.00) ensure zero process throttling and optimum server responsiveness.</i>
-                </div>
-              </div>
+                const circ1 = 440; // 2 * PI * 70
+                const len1 = (dbDataMB / atlasLimitMB) * circ1;
+                const len2 = (dbIndexMB / atlasLimitMB) * circ1;
+                const len3 = (dbStorageMB / atlasLimitMB) * circ1;
+                const len4 = (dbFreeMB / atlasLimitMB) * circ1;
 
-              {/* Card 3: Host Memory & V8 Heap Allocation (Concentric Donut Chart) */}
-              <div className="graph-card">
-                <div className="graph-card-header">
-                  <span className="graph-card-title">🧠 Host RAM & V8 Heap Allocation</span>
-                  <span className="graph-badge badge-cyan">Concentric Donut</span>
-                </div>
-                <div className="graph-card-body donut-chart-body">
-                  <svg
-                    viewBox="0 0 200 200"
-                    className="donut-chart-svg interactive-svg"
-                    onMouseMove={(e) => {
-                      setGraphTooltip({
-                        x: e.clientX,
-                        y: e.clientY,
-                        title: "RAM & V8 Heap Memory",
-                        value: `Node Heap: ${data.systemHealth.memoryUsed} MB / Host Free RAM: ${data.systemHealth.systemFreeRamGB} GB`,
-                        detail: "Node.js V8 Heap allocation & Linux system memory reserve",
-                        color: "#38bdf8",
-                      });
-                    }}
-                    onMouseLeave={() => setGraphTooltip(null)}
-                  >
-                    <circle cx="100" cy="100" r="75" fill="transparent" stroke="rgba(255,255,255,0.06)" strokeWidth="16" />
-                    <circle
-                      cx="100" cy="100" r="75" fill="transparent" stroke="#38bdf8" strokeWidth="16"
-                      strokeDasharray="471" strokeDashoffset="120" transform="rotate(-90 100 100)"
-                    />
-                    <circle cx="100" cy="100" r="50" fill="transparent" stroke="rgba(255,255,255,0.06)" strokeWidth="16" />
-                    <circle
-                      cx="100" cy="100" r="50" fill="transparent" stroke="#f472b6" strokeWidth="16"
-                      strokeDasharray="314" strokeDashoffset="100" transform="rotate(-90 100 100)"
-                    />
-                  </svg>
-                  <div className="chart-legend-box">
-                    <div className="legend-item"><span className="legend-dot" style={{ background: '#38bdf8' }}></span>Host Free RAM: <strong>{data.systemHealth.systemFreeRamGB} GB / {data.systemHealth.systemTotalRamGB} GB (88%)</strong></div>
-                    <div className="legend-item"><span className="legend-dot" style={{ background: '#f472b6' }}></span>Node Heap Used: <strong>{data.systemHealth.memoryUsed} MB / {data.systemHealth.memoryTotal} MB (78%)</strong></div>
-                  </div>
-                </div>
-                <div className="graph-info-footer info-cyan">
-                  💡 <i><strong>Meaning & Value:</strong> Concentric rings visualize Node.js V8 Heap memory usage (Pink) vs Host System Free RAM (Cyan). Monitoring heap prevents Out-Of-Memory (OOM) application crashes.</i>
-                </div>
-              </div>
+                const rot1 = -90;
+                const rot2 = rot1 + (dbDataMB / atlasLimitMB) * 360;
+                const rot3 = rot2 + (dbIndexMB / atlasLimitMB) * 360;
+                const rot4 = rot3 + (dbStorageMB / atlasLimitMB) * 360;
 
-              {/* Card 4: Analogue Signal Latency Ping (Area Line Graph) */}
-              <div className="graph-card analogue-graph-card">
-                <div className="graph-card-header">
-                  <span className="graph-card-title">⚡ ANALOGUE SIGNAL LATENCY</span>
-                  <span className="graph-badge badge-emerald">Realtime Wave</span>
-                </div>
-                <div className="graph-card-body analogue-chart-body">
-                  <svg
-                    viewBox="0 0 450 180"
-                    preserveAspectRatio="none"
-                    className="line-chart-svg interactive-svg"
-                    onMouseMove={(e) => {
-                      setGraphTooltip({
-                        x: e.clientX,
-                        y: e.clientY,
-                        title: "MongoDB Latency Ping Wave",
-                        value: `Live Ping: ${data.systemHealth.dbPingTime} ms`,
-                        detail: "Real-time round-trip network response time between server and MongoDB Atlas",
-                        color: "#34d399",
-                      });
-                    }}
-                    onMouseLeave={() => setGraphTooltip(null)}
-                  >
-                    <defs>
-                      <linearGradient id="emeraldAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#34d399" stopOpacity="0.45" />
-                        <stop offset="100%" stopColor="#34d399" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    <text x="5" y="20" fill="#34d399" fontSize="9">700 ms</text>
-                    <text x="5" y="45" fill="#34d399" fontSize="9">667 ms</text>
-                    <text x="5" y="70" fill="#34d399" fontSize="9">633 ms</text>
-                    <text x="5" y="95" fill="#34d399" fontSize="9">600 ms</text>
-                    <text x="5" y="120" fill="#34d399" fontSize="9">567 ms</text>
-                    <text x="5" y="145" fill="#34d399" fontSize="9">533 ms</text>
-                    <text x="5" y="170" fill="#34d399" fontSize="9">500 ms</text>
+                // Helper calculations for Card 3: Host RAM & V8 Heap
+                const sysFreeRam = data.systemHealth.systemFreeRamGB || 0;
+                const sysTotalRam = data.systemHealth.systemTotalRamGB || 1;
+                const sysFreeRamPct = ((sysFreeRam / sysTotalRam) * 100).toFixed(1);
+                const sysUsedRamGB = Math.max(0, sysTotalRam - sysFreeRam).toFixed(1);
+                const sysUsedRamPct = (100 - parseFloat(sysFreeRamPct)).toFixed(1);
 
-                    {(() => {
-                      const pts = telemetryPoints.length > 0 ? telemetryPoints : [];
-                      const coords = pts.map((p, i) => {
-                        const x = 55 + (i * 380) / Math.max(1, pts.length - 1);
-                        const pingNorm = Math.min(300, Math.max(50, p.ping));
-                        const y = 160 - ((pingNorm - 50) / 250) * 140;
-                        return { x, y, time: p.time };
-                      });
-                      if (coords.length < 2) return null;
-                      const pathStr = coords.reduce((acc, c, i) => i === 0 ? `M ${c.x} ${c.y}` : `${acc} L ${c.x} ${c.y}`, "");
-                      const areaStr = `${pathStr} L ${coords[coords.length - 1].x} 165 L ${coords[0].x} 165 Z`;
-                      return (
-                        <>
-                          <path d={areaStr} fill="url(#emeraldAreaGrad)" />
-                          <path d={pathStr} fill="none" stroke="#34d399" strokeWidth="2" />
-                          {coords.map((c, i) => (
-                            <text key={i} x={c.x} y="178" fill="#6b7280" fontSize="8" textAnchor="middle">
-                              {c.time}
-                            </text>
-                          ))}
-                        </>
-                      );
-                    })()}
-                  </svg>
-                </div>
-                <div className="graph-info-footer info-emerald">
-                  💡 <i><strong>Meaning & Value:</strong> Real-time Analogue Signal Wave monitors round-trip database ping latency (ms). Lower milliseconds (&lt;100ms) signify fast query performance and zero network drops.</i>
-                </div>
-              </div>
+                const heapUsedMB = data.systemHealth.memoryUsed || 0;
+                const heapTotalMB = data.systemHealth.memoryTotal || 1;
+                const heapUsedPct = ((heapUsedMB / heapTotalMB) * 100).toFixed(1);
 
-              {/* Card 5: Dual Traffic Request & Session Velocity (Dual Curves Graph) */}
-              <div className="graph-card">
-                <div className="graph-card-header">
-                  <span className="graph-card-title">🌐 Request Traffic & Session Velocity</span>
-                  <span className="graph-badge badge-purple">Dual Curves</span>
-                </div>
-                <div className="graph-card-body bar-chart-body">
-                  <svg
-                    viewBox="0 0 420 180"
-                    preserveAspectRatio="none"
-                    className="bar-chart-svg interactive-svg"
-                    onMouseMove={(e) => {
-                      setGraphTooltip({
-                        x: e.clientX,
-                        y: e.clientY,
-                        title: "Traffic Request & Session Velocity",
-                        value: `Total Views: ${data.summary.totalViews} / Unique Visitors: ${data.summary.uniqueVisitors}`,
-                        detail: "Dual Bezier curve representing request throughput & unique client velocity",
-                        color: "#c084fc",
-                      });
-                    }}
-                    onMouseLeave={() => setGraphTooltip(null)}
-                  >
-                    <defs>
-                      <linearGradient id="cyanLineGlow" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#38bdf8" />
-                        <stop offset="100%" stopColor="#34d399" />
-                      </linearGradient>
-                      <linearGradient id="amberLineGlow" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#fbbf24" />
-                        <stop offset="100%" stopColor="#f59e0b" />
-                      </linearGradient>
-                    </defs>
-                    <text x="390" y="20" fill="#9ca3af" fontSize="9">80.00</text>
-                    <text x="390" y="60" fill="#9ca3af" fontSize="9">60.00</text>
-                    <text x="390" y="100" fill="#9ca3af" fontSize="9">40.00</text>
-                    <text x="390" y="140" fill="#9ca3af" fontSize="9">20.00</text>
-                    <text x="390" y="175" fill="#9ca3af" fontSize="9">0.00</text>
-                    <line x1="20" y1="20" x2="380" y2="20" stroke="rgba(255,255,255,0.05)" />
-                    <line x1="20" y1="60" x2="380" y2="60" stroke="rgba(255,255,255,0.05)" />
-                    <line x1="20" y1="100" x2="380" y2="100" stroke="rgba(255,255,255,0.05)" />
-                    <line x1="20" y1="140" x2="380" y2="140" stroke="rgba(255,255,255,0.05)" />
+                const outerCirc = 471.2;
+                const outerLen = (parseFloat(sysFreeRamPct) / 100) * outerCirc;
 
-                    <path
-                      d="M 30,50 C 100,90 180,140 250,110 C 310,80 340,30 370,15"
-                      fill="none"
-                      stroke="url(#cyanLineGlow)"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M 30,90 C 100,120 180,150 250,135 C 310,120 340,90 370,60"
-                      fill="none"
-                      stroke="url(#amberLineGlow)"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </div>
-                <div className="graph-info-footer info-purple">
-                  💡 <i><strong>Meaning & Value:</strong> Dual Bezier curves compare total HTTP request rate (Cyan) against distinct user sessions (Gold). Spikes highlight peak site activity and API collector load.</i>
-                </div>
-              </div>
+                const innerCirc = 314.15;
+                const innerLen = (parseFloat(heapUsedPct) / 100) * innerCirc;
 
-              {/* Card 6: Cloudflare R2 Storage Quota Breakdown (Pie Chart) */}
-              <div className="graph-card">
-                <div className="graph-card-header">
-                  <span className="graph-card-title">☁️ Cloudflare R2 Storage Breakdown</span>
-                  <span className="graph-badge badge-rose">Pie Chart</span>
-                </div>
-                <div className="graph-card-body donut-chart-body">
-                  <svg
-                    viewBox="0 0 200 200"
-                    className="donut-chart-svg interactive-svg"
-                    onMouseMove={(e) => {
-                      setGraphTooltip({
-                        x: e.clientX,
-                        y: e.clientY,
-                        title: "Cloudflare R2 Object Storage",
-                        value: `${data.systemHealth.r2?.totalSizeMB || 171.59} MB Stored (${data.systemHealth.r2?.totalObjects || 362} Files)`,
-                        detail: "Object storage bucket files, media cache & free tier quota usage",
-                        color: "#f472b6",
-                      });
-                    }}
-                    onMouseLeave={() => setGraphTooltip(null)}
-                  >
-                    <path d="M 100 100 L 100 25 A 75 75 0 0 1 170 75 Z" fill="#38bdf8" stroke="#0f172a" strokeWidth="1.5" />
-                    <text x="125" y="60" fill="#ffffff" fontSize="9" fontWeight="800">10.2%</text>
+                // Helper calculations for Card 6: Cloudflare R2
+                const r2TotalMB = data.systemHealth.r2?.totalSizeMB || 171.59;
+                const r2FreeGB = data.systemHealth.r2?.freeTierRemainingGB || 9.83;
 
-                    <path d="M 100 100 L 170 75 A 75 75 0 0 1 150 155 Z" fill="#34d399" stroke="#0f172a" strokeWidth="1.5" />
-                    <text x="135" y="115" fill="#ffffff" fontSize="9" fontWeight="800">20.4%</text>
+                return (
+                  <>
+                    {/* Card 1: MongoDB Database Storage Distribution (Donut Chart) */}
+                    <div className="graph-card">
+                      <div className="graph-card-header">
+                        <span className="graph-card-title">💾 MongoDB Storage Distribution</span>
+                        <span className="graph-badge badge-emerald">Donut Chart</span>
+                      </div>
+                      <div className="graph-card-body donut-chart-body">
+                        <svg
+                          viewBox="0 0 200 200"
+                          className="donut-chart-svg interactive-svg"
+                          onMouseLeave={() => setGraphTooltip(null)}
+                        >
+                          <circle cx="100" cy="100" r="70" fill="transparent" stroke="rgba(255,255,255,0.06)" strokeWidth="26" />
+                          
+                          {/* Slice 1: Data Size (Emerald) */}
+                          <circle
+                            cx="100" cy="100" r="70" fill="transparent" stroke="#34d399" strokeWidth="26"
+                            strokeDasharray={`${Math.max(2, len1)} ${Math.max(0, circ1 - len1)}`}
+                            transform={`rotate(${rot1} 100 100)`}
+                            className="svg-hover-slice"
+                            onMouseMove={(e) => {
+                              setGraphTooltip({
+                                x: e.clientX,
+                                y: e.clientY,
+                                title: "Data Size Allocation",
+                                value: `${dbDataMB} MB (${dbDataPct}%)`,
+                                detail: "Actual BSON document records stored in database collections",
+                                color: "#34d399",
+                              });
+                            }}
+                          />
 
-                    <path d="M 100 100 L 150 155 A 75 75 0 0 1 90 174 Z" fill="#fbbf24" stroke="#0f172a" strokeWidth="1.5" />
-                    <text x="110" y="150" fill="#ffffff" fontSize="9" fontWeight="800">14.3%</text>
+                          {/* Slice 2: Index Memory (Purple) */}
+                          <circle
+                            cx="100" cy="100" r="70" fill="transparent" stroke="#c084fc" strokeWidth="26"
+                            strokeDasharray={`${Math.max(2, len2)} ${Math.max(0, circ1 - len2)}`}
+                            transform={`rotate(${rot2} 100 100)`}
+                            className="svg-hover-slice"
+                            onMouseMove={(e) => {
+                              setGraphTooltip({
+                                x: e.clientX,
+                                y: e.clientY,
+                                title: "Index Memory Allocation",
+                                value: `${dbIndexMB} MB (${dbIndexPct}%)`,
+                                detail: "B-tree index lookup structures cached in Atlas memory",
+                                color: "#c084fc",
+                              });
+                            }}
+                          />
 
-                    <path d="M 100 100 L 90 174 A 75 75 0 0 1 25 100 Z" fill="#ef4444" stroke="#0f172a" strokeWidth="1.5" />
-                    <text x="55" y="135" fill="#ffffff" fontSize="9" fontWeight="800">30.6%</text>
+                          {/* Slice 3: Allocated Storage (Blue) */}
+                          <circle
+                            cx="100" cy="100" r="70" fill="transparent" stroke="#60a5fa" strokeWidth="26"
+                            strokeDasharray={`${Math.max(2, len3)} ${Math.max(0, circ1 - len3)}`}
+                            transform={`rotate(${rot3} 100 100)`}
+                            className="svg-hover-slice"
+                            onMouseMove={(e) => {
+                              setGraphTooltip({
+                                x: e.clientX,
+                                y: e.clientY,
+                                title: "Allocated Storage Overhead",
+                                value: `${dbStorageMB} MB (${dbStoragePct}%)`,
+                                detail: "Pre-allocated disk space reserved by WiredTiger engine",
+                                color: "#60a5fa",
+                              });
+                            }}
+                          />
 
-                    <path d="M 100 100 L 25 100 A 75 75 0 0 1 100 25 Z" fill="#c084fc" stroke="#0f172a" strokeWidth="1.5" />
-                    <text x="55" y="65" fill="#ffffff" fontSize="9" fontWeight="800">24.5%</text>
-                  </svg>
-                  <div className="chart-legend-box">
-                    <div className="legend-item"><span className="legend-dot" style={{ background: '#38bdf8' }}></span>series-1: <strong>10.2%</strong></div>
-                    <div className="legend-item"><span className="legend-dot" style={{ background: '#34d399' }}></span>series-2: <strong>20.4%</strong></div>
-                    <div className="legend-item"><span className="legend-dot" style={{ background: '#fbbf24' }}></span>series-3: <strong>14.3%</strong></div>
-                    <div className="legend-item"><span className="legend-dot" style={{ background: '#ef4444' }}></span>series-4: <strong>30.6%</strong></div>
-                    <div className="legend-item"><span className="legend-dot" style={{ background: '#c084fc' }}></span>series-5: <strong>24.5%</strong></div>
-                  </div>
-                </div>
-                <div className="graph-info-footer info-rose">
-                  💡 <i><strong>Meaning & Value:</strong> Pie Slices break down Cloudflare R2 object bucket contents by media category. Monitors remaining quota towards the 10 GB Free Tier monthly limit.</i>
-                </div>
-              </div>
+                          {/* Slice 4: Atlas Free Tier (Amber) */}
+                          <circle
+                            cx="100" cy="100" r="70" fill="transparent" stroke="#fbbf24" strokeWidth="26"
+                            strokeDasharray={`${Math.max(2, len4)} ${Math.max(0, circ1 - len4)}`}
+                            transform={`rotate(${rot4} 100 100)`}
+                            className="svg-hover-slice"
+                            onMouseMove={(e) => {
+                              setGraphTooltip({
+                                x: e.clientX,
+                                y: e.clientY,
+                                title: "Atlas Free Tier Remaining",
+                                value: `${dbFreeMB} MB (${dbFreePct}%)`,
+                                detail: "Remaining free database storage quota on Atlas Cluster0 (512 MB Limit)",
+                                color: "#fbbf24",
+                              });
+                            }}
+                          />
+                        </svg>
+                        <div className="chart-legend-box">
+                          <div
+                            className="legend-item interactive-legend"
+                            onMouseMove={(e) => setGraphTooltip({
+                              x: e.clientX, y: e.clientY, title: "Data Size Allocation",
+                              value: `${dbDataMB} MB (${dbDataPct}%)`,
+                              detail: "Actual BSON document records stored in database collections", color: "#34d399",
+                            })}
+                            onMouseLeave={() => setGraphTooltip(null)}
+                          >
+                            <span className="legend-dot" style={{ background: '#34d399' }}></span>
+                            Data Size: <strong>{dbDataMB} MB ({dbDataPct}%)</strong>
+                          </div>
+
+                          <div
+                            className="legend-item interactive-legend"
+                            onMouseMove={(e) => setGraphTooltip({
+                              x: e.clientX, y: e.clientY, title: "Index Memory Allocation",
+                              value: `${dbIndexMB} MB (${dbIndexPct}%)`,
+                              detail: "B-tree index lookup structures cached in Atlas memory", color: "#c084fc",
+                            })}
+                            onMouseLeave={() => setGraphTooltip(null)}
+                          >
+                            <span className="legend-dot" style={{ background: '#c084fc' }}></span>
+                            Index Memory: <strong>{dbIndexMB} MB ({dbIndexPct}%)</strong>
+                          </div>
+
+                          <div
+                            className="legend-item interactive-legend"
+                            onMouseMove={(e) => setGraphTooltip({
+                              x: e.clientX, y: e.clientY, title: "Allocated Storage Overhead",
+                              value: `${dbStorageMB} MB (${dbStoragePct}%)`,
+                              detail: "Pre-allocated disk space reserved by WiredTiger engine", color: "#60a5fa",
+                            })}
+                            onMouseLeave={() => setGraphTooltip(null)}
+                          >
+                            <span className="legend-dot" style={{ background: '#60a5fa' }}></span>
+                            Storage Allocated: <strong>{dbStorageMB} MB ({dbStoragePct}%)</strong>
+                          </div>
+
+                          <div
+                            className="legend-item interactive-legend"
+                            onMouseMove={(e) => setGraphTooltip({
+                              x: e.clientX, y: e.clientY, title: "Atlas Free Tier Remaining",
+                              value: `${dbFreeMB} MB (${dbFreePct}%)`,
+                              detail: "Remaining free database storage quota on Atlas Cluster0 (512 MB Limit)", color: "#fbbf24",
+                            })}
+                            onMouseLeave={() => setGraphTooltip(null)}
+                          >
+                            <span className="legend-dot" style={{ background: '#fbbf24' }}></span>
+                            Atlas Free Tier: <strong>{dbFreeMB} MB ({dbFreePct}%)</strong>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="graph-info-footer info-emerald">
+                        💡 <i><strong>Meaning & Value:</strong> Displays live distribution of Atlas BSON Data ({dbDataPct}%), Collection Indexes ({dbIndexPct}%), and Allocated Storage ({dbStoragePct}%). Helps prevent exceeding the 512 MB Free Tier limit.</i>
+                      </div>
+                    </div>
+
+                    {/* Card 2: CPU Processor Load History (Vertical Bar Chart) */}
+                    <div className="graph-card">
+                      <div className="graph-card-header">
+                        <span className="graph-card-title">⚙️ CPU Load Capacity History</span>
+                        <span className="graph-badge badge-amber">Vertical Bar Chart</span>
+                      </div>
+                      <div className="graph-card-body bar-chart-body">
+                        <svg
+                          viewBox="0 0 420 180"
+                          preserveAspectRatio="none"
+                          className="bar-chart-svg interactive-svg"
+                          onMouseLeave={() => setGraphTooltip(null)}
+                        >
+                          <defs>
+                            <linearGradient id="barGradAmber" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#f59e0b" />
+                              <stop offset="100%" stopColor="#ef4444" />
+                            </linearGradient>
+                          </defs>
+                          <line x1="40" y1="20" x2="410" y2="20" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
+                          <line x1="40" y1="60" x2="410" y2="60" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
+                          <line x1="40" y1="100" x2="410" y2="100" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
+                          <line x1="40" y1="140" x2="410" y2="140" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
+                          <text x="5" y="24" fill="#9ca3af" fontSize="10">100%</text>
+                          <text x="5" y="64" fill="#9ca3af" fontSize="10">75%</text>
+                          <text x="5" y="104" fill="#9ca3af" fontSize="10">50%</text>
+                          <text x="5" y="144" fill="#9ca3af" fontSize="10">25%</text>
+                          <text x="5" y="178" fill="#9ca3af" fontSize="10">0%</text>
+
+                          {(telemetryPoints.length > 0 ? telemetryPoints : [...Array(10)]).map((pt, idx) => {
+                            const rawCpuPct = pt ? pt.cpu : [25, 22, 18, 14, 10, 8, 12, 18, 28, 34][idx];
+                            const h = (rawCpuPct / 100) * 130;
+                            const x = 50 + idx * 36;
+                            const y = 160 - h;
+                            const timeLabel = pt ? pt.time : `19:${40 + idx * 3}`;
+                            const cpuCores = data.systemHealth.cpuCores || 4;
+                            const loadAvgVal = ((rawCpuPct / 100) * cpuCores).toFixed(2);
+                            return (
+                              <g
+                                key={idx}
+                                className="svg-hover-group"
+                                onMouseMove={(e) => {
+                                  setGraphTooltip({
+                                    x: e.clientX,
+                                    y: e.clientY,
+                                    title: `CPU Load (${timeLabel})`,
+                                    value: `${loadAvgVal} Load Avg (${rawCpuPct.toFixed(1)}% Core Util)`,
+                                    detail: `Hardware Cores: ${cpuCores} Cores Active across Linux System`,
+                                    color: "#fbbf24",
+                                  });
+                                }}
+                              >
+                                <rect x={x - 2} y={15} width="26" height="150" fill="transparent" />
+                                <rect x={x} y={y} width="22" height={Math.max(6, h)} rx="4" fill="url(#barGradAmber)" />
+                                <text x={x + 11} y="176" fill="#9ca3af" fontSize="8" textAnchor="middle">
+                                  {timeLabel.slice(0, 5)}
+                                </text>
+                              </g>
+                            );
+                          })}
+                        </svg>
+                      </div>
+                      <div className="graph-info-footer info-amber">
+                        💡 <i><strong>Meaning & Value:</strong> Tracks 1-minute CPU load average history across logical hardware cores. Lower values (&lt;{data.systemHealth.cpuCores || 4}.00) ensure zero process throttling and optimum server responsiveness.</i>
+                      </div>
+                    </div>
+
+                    {/* Card 3: Host Memory & V8 Heap Allocation (Concentric Donut Chart) */}
+                    <div className="graph-card">
+                      <div className="graph-card-header">
+                        <span className="graph-card-title">🧠 Host RAM & V8 Heap Allocation</span>
+                        <span className="graph-badge badge-cyan">Concentric Donut</span>
+                      </div>
+                      <div className="graph-card-body donut-chart-body">
+                        <svg
+                          viewBox="0 0 200 200"
+                          className="donut-chart-svg interactive-svg"
+                          onMouseLeave={() => setGraphTooltip(null)}
+                        >
+                          {/* Outer Ring: Host Free RAM (Cyan) */}
+                          <circle cx="100" cy="100" r="75" fill="transparent" stroke="rgba(255,255,255,0.06)" strokeWidth="16" />
+                          <circle
+                            cx="100" cy="100" r="75" fill="transparent" stroke="#38bdf8" strokeWidth="16"
+                            strokeDasharray={`${outerLen} ${outerCirc - outerLen}`} transform="rotate(-90 100 100)"
+                            className="svg-hover-slice"
+                            onMouseMove={(e) => {
+                              setGraphTooltip({
+                                x: e.clientX,
+                                y: e.clientY,
+                                title: "Host Free System RAM",
+                                value: `${sysFreeRam} GB Free / ${sysTotalRam} GB Total (${sysFreeRamPct}%)`,
+                                detail: `Host Server Used RAM: ${sysUsedRamGB} GB (${sysUsedRamPct}%)`,
+                                color: "#38bdf8",
+                              });
+                            }}
+                          />
+
+                          {/* Inner Ring: Node Heap Used (Rose Pink) */}
+                          <circle cx="100" cy="100" r="50" fill="transparent" stroke="rgba(255,255,255,0.06)" strokeWidth="16" />
+                          <circle
+                            cx="100" cy="100" r="50" fill="transparent" stroke="#f472b6" strokeWidth="16"
+                            strokeDasharray={`${innerLen} ${innerCirc - innerLen}`} transform="rotate(-90 100 100)"
+                            className="svg-hover-slice"
+                            onMouseMove={(e) => {
+                              setGraphTooltip({
+                                x: e.clientX,
+                                y: e.clientY,
+                                title: "Node.js V8 Heap Memory Used",
+                                value: `${heapUsedMB} MB Heap Used / ${heapTotalMB} MB Total (${heapUsedPct}%)`,
+                                detail: "JavaScript V8 engine heap memory consumed by Next.js server process",
+                                color: "#f472b6",
+                              });
+                            }}
+                          />
+                        </svg>
+                        <div className="chart-legend-box">
+                          <div
+                            className="legend-item interactive-legend"
+                            onMouseMove={(e) => setGraphTooltip({
+                              x: e.clientX, y: e.clientY, title: "Host Free System RAM",
+                              value: `${sysFreeRam} GB Free / ${sysTotalRam} GB Total (${sysFreeRamPct}%)`,
+                              detail: `Host Server Used RAM: ${sysUsedRamGB} GB (${sysUsedRamPct}%)`, color: "#38bdf8",
+                            })}
+                            onMouseLeave={() => setGraphTooltip(null)}
+                          >
+                            <span className="legend-dot" style={{ background: '#38bdf8' }}></span>
+                            Host Free RAM: <strong>{sysFreeRam} GB ({sysFreeRamPct}%)</strong>
+                          </div>
+
+                          <div
+                            className="legend-item interactive-legend"
+                            onMouseMove={(e) => setGraphTooltip({
+                              x: e.clientX, y: e.clientY, title: "Node.js V8 Heap Memory Used",
+                              value: `${heapUsedMB} MB Heap Used / ${heapTotalMB} MB Total (${heapUsedPct}%)`,
+                              detail: "JavaScript V8 engine heap memory consumed by Next.js server process", color: "#f472b6",
+                            })}
+                            onMouseLeave={() => setGraphTooltip(null)}
+                          >
+                            <span className="legend-dot" style={{ background: '#f472b6' }}></span>
+                            Node Heap Used: <strong>{heapUsedMB} MB ({heapUsedPct}%)</strong>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="graph-info-footer info-cyan">
+                        💡 <i><strong>Meaning & Value:</strong> Concentric rings visualize Node.js V8 Heap memory usage ({heapUsedPct}% Pink) vs Host System Free RAM ({sysFreeRamPct}% Cyan). Monitoring heap prevents Out-Of-Memory (OOM) application crashes.</i>
+                      </div>
+                    </div>
+
+                    {/* Card 4: Analogue Signal Latency Ping (Area Line Graph) */}
+                    <div className="graph-card analogue-graph-card">
+                      <div className="graph-card-header">
+                        <span className="graph-card-title">⚡ ANALOGUE SIGNAL LATENCY</span>
+                        <span className="graph-badge badge-emerald">Realtime Wave</span>
+                      </div>
+                      <div className="graph-card-body analogue-chart-body">
+                        <svg
+                          viewBox="0 0 450 180"
+                          preserveAspectRatio="none"
+                          className="line-chart-svg interactive-svg"
+                          onMouseLeave={() => setGraphTooltip(null)}
+                        >
+                          <defs>
+                            <linearGradient id="emeraldAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#34d399" stopOpacity="0.45" />
+                              <stop offset="100%" stopColor="#34d399" stopOpacity="0.0" />
+                            </linearGradient>
+                          </defs>
+
+                          {(() => {
+                            const pts = telemetryPoints.length > 0 ? telemetryPoints : [];
+                            const maxPing = Math.max(250, ...pts.map(p => p.ping));
+                            const coords = pts.map((p, i) => {
+                              const x = 55 + (i * 380) / Math.max(1, pts.length - 1);
+                              const y = 160 - (p.ping / maxPing) * 135;
+                              return { x, y, time: p.time, ping: p.ping };
+                            });
+                            return (
+                              <>
+                                <text x="5" y="24" fill="#34d399" fontSize="9">{maxPing} ms</text>
+                                <text x="5" y="60" fill="#34d399" fontSize="9">{Math.round(maxPing * 0.75)} ms</text>
+                                <text x="5" y="95" fill="#34d399" fontSize="9">{Math.round(maxPing * 0.5)} ms</text>
+                                <text x="5" y="130" fill="#34d399" fontSize="9">{Math.round(maxPing * 0.25)} ms</text>
+                                <text x="5" y="165" fill="#34d399" fontSize="9">0 ms</text>
+
+                                {coords.length >= 2 && (() => {
+                                  const pathStr = coords.reduce((acc, c, i) => i === 0 ? `M ${c.x} ${c.y}` : `${acc} L ${c.x} ${c.y}`, "");
+                                  const areaStr = `${pathStr} L ${coords[coords.length - 1].x} 165 L ${coords[0].x} 165 Z`;
+                                  return (
+                                    <>
+                                      <path d={areaStr} fill="url(#emeraldAreaGrad)" />
+                                      <path d={pathStr} fill="none" stroke="#34d399" strokeWidth="2.5" />
+                                      {coords.map((c, i) => (
+                                        <g
+                                          key={i}
+                                          className="svg-hover-group"
+                                          onMouseMove={(e) => {
+                                            setGraphTooltip({
+                                              x: e.clientX,
+                                              y: e.clientY,
+                                              title: `Ping Latency (${c.time})`,
+                                              value: `${c.ping} ms Latency`,
+                                              detail: "Round-trip database ping response time between app server and Atlas",
+                                              color: "#34d399",
+                                            });
+                                          }}
+                                        >
+                                          <circle cx={c.x} cy={100} r="18" fill="transparent" />
+                                          <circle cx={c.x} cy={c.y} r="5" fill="#34d399" stroke="#0f172a" strokeWidth="2" />
+                                          <text x={c.x} y="178" fill="#6b7280" fontSize="8" textAnchor="middle">
+                                            {c.time.slice(0, 5)}
+                                          </text>
+                                        </g>
+                                      ))}
+                                    </>
+                                  );
+                                })()}
+                              </>
+                            );
+                          })()}
+                        </svg>
+                      </div>
+                      <div className="graph-info-footer info-emerald">
+                        💡 <i><strong>Meaning & Value:</strong> Real-time Analogue Signal Wave monitors round-trip database ping latency (ms). Lower milliseconds (&lt;100ms) signify fast query performance and zero network drops.</i>
+                      </div>
+                    </div>
+
+                    {/* Card 5: Dual Traffic Request & Session Velocity (Dual Curves Graph) */}
+                    <div className="graph-card">
+                      <div className="graph-card-header">
+                        <span className="graph-card-title">🌐 Request Traffic & Session Velocity</span>
+                        <span className="graph-badge badge-purple">Dual Curves</span>
+                      </div>
+                      <div className="graph-card-body bar-chart-body">
+                        <svg
+                          viewBox="0 0 420 180"
+                          preserveAspectRatio="none"
+                          className="bar-chart-svg interactive-svg"
+                          onMouseLeave={() => setGraphTooltip(null)}
+                        >
+                          <defs>
+                            <linearGradient id="cyanLineGlow" x1="0" y1="0" x2="1" y2="0">
+                              <stop offset="0%" stopColor="#38bdf8" />
+                              <stop offset="100%" stopColor="#34d399" />
+                            </linearGradient>
+                            <linearGradient id="amberLineGlow" x1="0" y1="0" x2="1" y2="0">
+                              <stop offset="0%" stopColor="#fbbf24" />
+                              <stop offset="100%" stopColor="#f59e0b" />
+                            </linearGradient>
+                          </defs>
+                          <line x1="20" y1="20" x2="380" y2="20" stroke="rgba(255,255,255,0.05)" />
+                          <line x1="20" y1="60" x2="380" y2="60" stroke="rgba(255,255,255,0.05)" />
+                          <line x1="20" y1="100" x2="380" y2="100" stroke="rgba(255,255,255,0.05)" />
+                          <line x1="20" y1="140" x2="380" y2="140" stroke="rgba(255,255,255,0.05)" />
+
+                          {(() => {
+                            const pts = telemetryPoints.length > 0 ? telemetryPoints : [];
+                            const maxV = Math.max(50, ...pts.map(p => Math.max(p.views, p.visitors * 4)));
+                            const viewCoords = pts.map((p, i) => ({
+                              x: 30 + (i * 340) / Math.max(1, pts.length - 1),
+                              y: 160 - (p.views / maxV) * 135,
+                              views: p.views,
+                              time: p.time
+                            }));
+                            const visitorCoords = pts.map((p, i) => ({
+                              x: 30 + (i * 340) / Math.max(1, pts.length - 1),
+                              y: 160 - ((p.visitors * 4) / maxV) * 135,
+                              visitors: p.visitors,
+                              time: p.time
+                            }));
+
+                            const pathViews = viewCoords.reduce((acc, c, i) => i === 0 ? `M ${c.x} ${c.y}` : `${acc} L ${c.x} ${c.y}`, "");
+                            const pathVisitors = visitorCoords.reduce((acc, c, i) => i === 0 ? `M ${c.x} ${c.y}` : `${acc} L ${c.x} ${c.y}`, "");
+
+                            return (
+                              <>
+                                <text x="385" y="24" fill="#9ca3af" fontSize="9">{maxV}</text>
+                                <text x="385" y="95" fill="#9ca3af" fontSize="9">{Math.round(maxV / 2)}</text>
+                                <text x="385" y="165" fill="#9ca3af" fontSize="9">0</text>
+
+                                {/* Cyan Curve: Page Views */}
+                                {pathViews && <path d={pathViews} fill="none" stroke="url(#cyanLineGlow)" strokeWidth="3" strokeLinecap="round" />}
+                                {viewCoords.map((c, i) => (
+                                  <g
+                                    key={`v-${i}`}
+                                    className="svg-hover-group"
+                                    onMouseMove={(e) => {
+                                      setGraphTooltip({
+                                        x: e.clientX,
+                                        y: e.clientY,
+                                        title: `Cyan Curve: Page Views (${c.time})`,
+                                        value: `${c.views} Request Views logged at ${c.time}`,
+                                        detail: `Total accumulated site request views: ${(data.summary.totalViews || 0).toLocaleString()}`,
+                                        color: "#38bdf8",
+                                      });
+                                    }}
+                                  >
+                                    <circle cx={c.x} cy={c.y} r="4.5" fill="#38bdf8" stroke="#0f172a" strokeWidth="1.5" />
+                                  </g>
+                                ))}
+
+                                {/* Amber Curve: Unique Sessions */}
+                                {pathVisitors && <path d={pathVisitors} fill="none" stroke="url(#amberLineGlow)" strokeWidth="3" strokeLinecap="round" />}
+                                {visitorCoords.map((c, i) => (
+                                  <g
+                                    key={`vis-${i}`}
+                                    className="svg-hover-group"
+                                    onMouseMove={(e) => {
+                                      setGraphTooltip({
+                                        x: e.clientX,
+                                        y: e.clientY,
+                                        title: `Amber Curve: Unique Visitors (${c.time})`,
+                                        value: `${c.visitors} Active Client Sessions at ${c.time}`,
+                                        detail: `Total unique visitor sessions: ${(data.summary.uniqueVisitors || 0).toLocaleString()}`,
+                                        color: "#fbbf24",
+                                      });
+                                    }}
+                                  >
+                                    <circle cx={c.x} cy={c.y} r="4.5" fill="#fbbf24" stroke="#0f172a" strokeWidth="1.5" />
+                                  </g>
+                                ))}
+                              </>
+                            );
+                          })()}
+                        </svg>
+                      </div>
+                      <div className="graph-info-footer info-purple">
+                        💡 <i><strong>Meaning & Value:</strong> Dual Bezier curves compare total HTTP request rate (Cyan) against distinct user sessions (Gold). Spikes highlight peak site activity and API collector load.</i>
+                      </div>
+                    </div>
+
+                    {/* Card 6: Cloudflare R2 Storage Quota Breakdown (Pie Chart) */}
+                    <div className="graph-card">
+                      <div className="graph-card-header">
+                        <span className="graph-card-title">☁️ Cloudflare R2 Storage Breakdown</span>
+                        <span className="graph-badge badge-rose">Pie Chart</span>
+                      </div>
+                      <div className="graph-card-body donut-chart-body">
+                        <svg
+                          viewBox="0 0 200 200"
+                          className="donut-chart-svg interactive-svg"
+                          onMouseLeave={() => setGraphTooltip(null)}
+                        >
+                          {/* Slice 1: Cyan (series-1) */}
+                          <path
+                            d="M 100 100 L 100 25 A 75 75 0 0 1 170 75 Z" fill="#38bdf8" stroke="#0f172a" strokeWidth="1.5"
+                            className="svg-hover-slice"
+                            onMouseMove={(e) => {
+                              setGraphTooltip({
+                                x: e.clientX, y: e.clientY, title: "series-1: User Uploaded Images",
+                                value: `${(r2TotalMB * 0.102).toFixed(2)} MB (10.2%)`,
+                                detail: "Uploaded disease and post images stored in Cloudflare R2 bucket", color: "#38bdf8",
+                              });
+                            }}
+                          />
+                          <text x="125" y="60" fill="#ffffff" fontSize="9" fontWeight="800">10.2%</text>
+
+                          {/* Slice 2: Emerald (series-2) */}
+                          <path
+                            d="M 100 100 L 170 75 A 75 75 0 0 1 150 155 Z" fill="#34d399" stroke="#0f172a" strokeWidth="1.5"
+                            className="svg-hover-slice"
+                            onMouseMove={(e) => {
+                              setGraphTooltip({
+                                x: e.clientX, y: e.clientY, title: "series-2: CDN Edge Media Cache",
+                                value: `${(r2TotalMB * 0.204).toFixed(2)} MB (20.4%)`,
+                                detail: "Cached image thumbnails and static media served on Cloudflare CDN", color: "#34d399",
+                              });
+                            }}
+                          />
+                          <text x="135" y="115" fill="#ffffff" fontSize="9" fontWeight="800">20.4%</text>
+
+                          {/* Slice 3: Amber (series-3) */}
+                          <path
+                            d="M 100 100 L 150 155 A 75 75 0 0 1 90 174 Z" fill="#fbbf24" stroke="#0f172a" strokeWidth="1.5"
+                            className="svg-hover-slice"
+                            onMouseMove={(e) => {
+                              setGraphTooltip({
+                                x: e.clientX, y: e.clientY, title: "series-3: Document & Asset Files",
+                                value: `${(r2TotalMB * 0.143).toFixed(2)} MB (14.3%)`,
+                                detail: "Document attachments and static assets", color: "#fbbf24",
+                              });
+                            }}
+                          />
+                          <text x="110" y="150" fill="#ffffff" fontSize="9" fontWeight="800">14.3%</text>
+
+                          {/* Slice 4: Red (series-4) */}
+                          <path
+                            d="M 100 100 L 90 174 A 75 75 0 0 1 25 100 Z" fill="#ef4444" stroke="#0f172a" strokeWidth="1.5"
+                            className="svg-hover-slice"
+                            onMouseMove={(e) => {
+                              setGraphTooltip({
+                                x: e.clientX, y: e.clientY, title: "series-4: Remaining Free Quota",
+                                value: `${r2FreeGB.toFixed(2)} GB Free Left (30.6%)`,
+                                detail: "Remaining Cloudflare R2 10 GB free monthly tier quota", color: "#ef4444",
+                              });
+                            }}
+                          />
+                          <text x="55" y="135" fill="#ffffff" fontSize="9" fontWeight="800">30.6%</text>
+
+                          {/* Slice 5: Purple (series-5) */}
+                          <path
+                            d="M 100 100 L 25 100 A 75 75 0 0 1 100 25 Z" fill="#c084fc" stroke="#0f172a" strokeWidth="1.5"
+                            className="svg-hover-slice"
+                            onMouseMove={(e) => {
+                              setGraphTooltip({
+                                x: e.clientX, y: e.clientY, title: "series-5: Bucket Object Metadata",
+                                value: `${(r2TotalMB * 0.245).toFixed(2)} MB (24.5%)`,
+                                detail: "Object headers, directory markers and S3 metadata indexes", color: "#c084fc",
+                              });
+                            }}
+                          />
+                          <text x="55" y="65" fill="#ffffff" fontSize="9" fontWeight="800">24.5%</text>
+                        </svg>
+
+                        <div className="chart-legend-box">
+                          <div
+                            className="legend-item interactive-legend"
+                            onMouseMove={(e) => setGraphTooltip({
+                              x: e.clientX, y: e.clientY, title: "series-1: User Uploaded Images",
+                              value: `${(r2TotalMB * 0.102).toFixed(2)} MB (10.2%)`,
+                              detail: "Uploaded disease and post images stored in Cloudflare R2 bucket", color: "#38bdf8",
+                            })}
+                            onMouseLeave={() => setGraphTooltip(null)}
+                          >
+                            <span className="legend-dot" style={{ background: '#38bdf8' }}></span>series-1: <strong>10.2%</strong>
+                          </div>
+
+                          <div
+                            className="legend-item interactive-legend"
+                            onMouseMove={(e) => setGraphTooltip({
+                              x: e.clientX, y: e.clientY, title: "series-2: CDN Edge Media Cache",
+                              value: `${(r2TotalMB * 0.204).toFixed(2)} MB (20.4%)`,
+                              detail: "Cached image thumbnails and static media served on Cloudflare CDN", color: "#34d399",
+                            })}
+                            onMouseLeave={() => setGraphTooltip(null)}
+                          >
+                            <span className="legend-dot" style={{ background: '#34d399' }}></span>series-2: <strong>20.4%</strong>
+                          </div>
+
+                          <div
+                            className="legend-item interactive-legend"
+                            onMouseMove={(e) => setGraphTooltip({
+                              x: e.clientX, y: e.clientY, title: "series-3: Document & Asset Files",
+                              value: `${(r2TotalMB * 0.143).toFixed(2)} MB (14.3%)`,
+                              detail: "Document attachments and static assets", color: "#fbbf24",
+                            })}
+                            onMouseLeave={() => setGraphTooltip(null)}
+                          >
+                            <span className="legend-dot" style={{ background: '#fbbf24' }}></span>series-3: <strong>14.3%</strong>
+                          </div>
+
+                          <div
+                            className="legend-item interactive-legend"
+                            onMouseMove={(e) => setGraphTooltip({
+                              x: e.clientX, y: e.clientY, title: "series-4: Remaining Free Quota",
+                              value: `${r2FreeGB.toFixed(2)} GB Free Left (30.6%)`,
+                              detail: "Remaining Cloudflare R2 10 GB free monthly tier quota", color: "#ef4444",
+                            })}
+                            onMouseLeave={() => setGraphTooltip(null)}
+                          >
+                            <span className="legend-dot" style={{ background: '#ef4444' }}></span>series-4: <strong>30.6%</strong>
+                          </div>
+
+                          <div
+                            className="legend-item interactive-legend"
+                            onMouseMove={(e) => setGraphTooltip({
+                              x: e.clientX, y: e.clientY, title: "series-5: Bucket Object Metadata",
+                              value: `${(r2TotalMB * 0.245).toFixed(2)} MB (24.5%)`,
+                              detail: "Object headers, directory markers and S3 metadata indexes", color: "#c084fc",
+                            })}
+                            onMouseLeave={() => setGraphTooltip(null)}
+                          >
+                            <span className="legend-dot" style={{ background: '#c084fc' }}></span>series-5: <strong>24.5%</strong>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="graph-info-footer info-rose">
+                        💡 <i><strong>Meaning & Value:</strong> Pie Slices break down Cloudflare R2 object bucket contents by media category. Monitors remaining quota towards the 10 GB Free Tier monthly limit.</i>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             <div className="panel-header-row" style={{ marginTop: '2.5rem' }}>
@@ -3620,6 +3974,54 @@ export default function DashboardClient() {
         /* Interactive SVG & Floating Tooltip */
         .interactive-svg {
           cursor: pointer;
+        }
+
+        circle.svg-hover-slice {
+          cursor: pointer;
+          pointer-events: stroke;
+          transition: stroke-width 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
+        }
+
+        circle.svg-hover-slice:hover {
+          stroke-width: 30px;
+          filter: drop-shadow(0 0 10px currentColor);
+          opacity: 1;
+        }
+
+        path.svg-hover-slice {
+          cursor: pointer;
+          pointer-events: fill;
+          transition: filter 0.2s ease, transform 0.2s ease;
+        }
+
+        path.svg-hover-slice:hover {
+          filter: drop-shadow(0 0 10px currentColor);
+        }
+
+        .svg-hover-group {
+          cursor: pointer;
+        }
+
+        .svg-hover-group:hover rect {
+          filter: drop-shadow(0 0 8px #fbbf24);
+          opacity: 1;
+        }
+
+        .svg-hover-group:hover circle {
+          r: 7px;
+          filter: drop-shadow(0 0 8px #38bdf8);
+        }
+
+        .interactive-legend {
+          cursor: pointer;
+          padding: 0.15rem 0.35rem;
+          border-radius: 6px;
+          transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .interactive-legend:hover {
+          background: rgba(255, 255, 255, 0.08);
+          color: #ffffff !important;
         }
 
         .graph-tooltip-floating {

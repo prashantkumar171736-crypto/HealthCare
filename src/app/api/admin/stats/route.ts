@@ -318,6 +318,74 @@ export async function GET(request: Request) {
       platform: process.platform,
     };
 
+    // 8. 24-Hour Telemetry Snapshots Table in MongoDB
+    let telemetry24h: Array<{
+      id: string;
+      time: string;
+      ping: number;
+      cpu: number;
+      cpuLoadAvg: number;
+      heap: number;
+      views: number;
+      visitors: number;
+      timestamp: string;
+    }> = [];
+
+    try {
+      const telemetryColl = db.collection("system_telemetry");
+
+      // Ensure TTL index (expires after 24 hours = 86400 seconds)
+      await telemetryColl.createIndex({ createdAt: 1 }, { expireAfterSeconds: 86400, background: true }).catch(() => {});
+
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+      // Clean up records older than 24 hours
+      await telemetryColl.deleteMany({ createdAt: { $lt: twentyFourHoursAgo } });
+
+      const currentCpuPct = Math.max(5, Math.min(95, Math.round((systemHealth.cpuLoadAvg || 0.15) * 20 + 15)));
+      const timeLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      // Record snapshot in MongoDB
+      await telemetryColl.insertOne({
+        timestamp: new Date(),
+        timeLabel,
+        ping: systemHealth.dbPingTime || 15,
+        cpu: currentCpuPct,
+        cpuLoadAvg: systemHealth.cpuLoadAvg || 0.15,
+        heap: systemHealth.memoryUsed,
+        heapTotal: systemHealth.memoryTotal,
+        freeRamGB: systemHealth.systemFreeRamGB,
+        totalRamGB: systemHealth.systemTotalRamGB,
+        dbDataMB: systemHealth.dbDataSizeMB,
+        dbIndexMB: systemHealth.dbIndexSizeMB,
+        dbStorageMB: systemHealth.dbStorageSizeMB,
+        views: totalViews,
+        visitors: uniqueVisitors,
+        createdAt: new Date(),
+      });
+
+      // Fetch 24-hour telemetry history from MongoDB
+      const rawTelemetry = await telemetryColl
+        .find({ createdAt: { $gte: twentyFourHoursAgo } })
+        .sort({ createdAt: 1 })
+        .limit(200)
+        .toArray();
+
+      telemetry24h = rawTelemetry.map((t) => ({
+        id: t._id.toString(),
+        time: t.timeLabel || new Date(t.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        ping: t.ping,
+        cpu: t.cpu,
+        cpuLoadAvg: t.cpuLoadAvg || 0.15,
+        heap: t.heap,
+        views: t.views,
+        visitors: t.visitors,
+        timestamp: new Date(t.timestamp).toISOString(),
+      }));
+    } catch (e) {
+      console.error("Telemetry collection logging error:", e);
+    }
+
     return NextResponse.json({
       summary: {
         totalViews,
@@ -345,6 +413,7 @@ export async function GET(request: Request) {
         timestamp: log.timestamp,
       })),
       systemHealth,
+      telemetry24h,
     });
   } catch (err: any) {
     console.error("Failed to compile admin stats:", err);
