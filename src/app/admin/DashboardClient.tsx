@@ -56,6 +56,20 @@ interface VisitorLog {
   timestamp: string;
 }
 
+export interface R2Stats {
+  status: string;
+  pingTimeMs: number;
+  bucketName: string;
+  publicUrl: string;
+  totalObjects: number;
+  totalSizeBytes: number;
+  totalSizeMB: number;
+  totalSizeGB: number;
+  freeTierLimitGB: number;
+  freeTierUsedPct: number;
+  freeTierRemainingGB: number;
+}
+
 interface SystemHealth {
   dbStatus: string;
   dbPingTime: number;
@@ -63,6 +77,7 @@ interface SystemHealth {
   dbStorageSizeMB: number;
   dbIndexSizeMB: number;
   dbTotalCollections: number;
+  r2?: R2Stats;
   serverUptime: number;
   memoryUsed: number;
   memoryTotal: number;
@@ -530,6 +545,17 @@ export default function DashboardClient() {
             <div className="kpi-value">{formatUptime(data.systemHealth.serverUptime)}</div>
             <div className="kpi-footer">Running without failures</div>
           </div>
+          {data.systemHealth.r2 && (
+            <div className="kpi-card">
+              <div className="kpi-title">CLOUDFLARE R2 CDN</div>
+              <div className="kpi-value">
+                {data.systemHealth.r2.totalSizeMB} <span className="unit">MB</span>
+              </div>
+              <div className={`kpi-status-badge ${data.systemHealth.r2.status === "Connected" ? "online" : "offline"}`}>
+                <span className="pulse-dot"></span> R2 {data.systemHealth.r2.status} ({data.systemHealth.r2.totalObjects} files)
+              </div>
+            </div>
+          )}
         </section>
 
         {activeTab === "overview" && (
@@ -1345,6 +1371,20 @@ export default function DashboardClient() {
                 <p>Collector Script: Active in Root Layout</p>
                 <p>Client Local Time: {new Date().toLocaleTimeString()}</p>
               </div>
+
+              {/* Card 6: Cloudflare R2 Cloud Object Storage */}
+              {data.systemHealth.r2 && (
+                <div className="health-box">
+                  <h3>☁️ Cloudflare R2 Storage</h3>
+                  <p>Status: <span className={`status-pill ${data.systemHealth.r2.status === "Connected" ? "online" : "offline"}`}>{data.systemHealth.r2.status.toUpperCase()}</span></p>
+                  <p>Latency Ping: <strong>{data.systemHealth.r2.pingTimeMs} ms</strong></p>
+                  <p>R2 Bucket Name: <code>{data.systemHealth.r2.bucketName}</code></p>
+                  <p>Total Uploaded Files: <strong>{data.systemHealth.r2.totalObjects} files</strong></p>
+                  <p>R2 Data Storage Used: <strong>{data.systemHealth.r2.totalSizeMB} MB ({data.systemHealth.r2.totalSizeGB} GB)</strong></p>
+                  <p>R2 Free Tier Quota: <strong>{data.systemHealth.r2.freeTierLimitGB} GB Free ({data.systemHealth.r2.freeTierUsedPct}% used)</strong></p>
+                  <p>Remaining Free Space: <strong style={{ color: "#10b981" }}>{data.systemHealth.r2.freeTierRemainingGB} GB</strong></p>
+                </div>
+              )}
             </div>
           </div>
         )}

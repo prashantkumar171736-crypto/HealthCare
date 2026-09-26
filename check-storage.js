@@ -160,6 +160,76 @@ async function checkStorage() {
       console.log("  (Cluster-level stats require Atlas admin role)");
     }
 
+    // ── 4. Cloudflare R2 Object Storage ───────────────────────
+    console.log("\n" + "═".repeat(60));
+    console.log("\x1b[1m\x1b[36m☁️   CLOUDFLARE R2 OBJECT STORAGE REPORT\x1b[0m");
+    console.log("═".repeat(60));
+
+    try {
+      const fs = require("fs");
+      const path = require("path");
+      const envPath = path.join(__dirname, ".env.local");
+      if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, "utf-8");
+        for (const line of envContent.split("\n")) {
+          const trimmed = line.trim();
+          if (trimmed && !trimmed.startsWith("#") && trimmed.includes("=")) {
+            const [key, ...vals] = trimmed.split("=");
+            process.env[key.trim()] = vals.join("=").trim();
+          }
+        }
+      }
+
+      const { S3Client, ListObjectsV2Command } = require("@aws-sdk/client-s3");
+      const r2 = new S3Client({
+        region: "auto",
+        endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+        credentials: {
+          accessKeyId: process.env.R2_ACCESS_KEY_ID,
+          secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+        },
+      });
+
+      const r2Start = Date.now();
+      let totalObjects = 0;
+      let totalBytes = 0;
+      let continuationToken;
+
+      do {
+        const res = await r2.send(
+          new ListObjectsV2Command({
+            Bucket: process.env.R2_BUCKET_NAME,
+            ContinuationToken: continuationToken,
+          })
+        );
+        if (res.Contents) {
+          totalObjects += res.Contents.length;
+          for (const obj of res.Contents) {
+            totalBytes += obj.Size || 0;
+          }
+        }
+        continuationToken = res.NextContinuationToken;
+      } while (continuationToken);
+
+      const r2Ping = Date.now() - r2Start;
+      const totalMB = totalBytes / (1024 * 1024);
+      const totalGB = totalBytes / (1024 * 1024 * 1024);
+      const r2LimitGB = 10;
+      const remainingGB = r2LimitGB - totalGB;
+      const pctUsed = ((totalGB / r2LimitGB) * 100).toFixed(2);
+
+      console.log(`\n  Connection Status     : \x1b[32mConnected\x1b[0m (${r2Ping} ms)`);
+      console.log(`  Bucket Name           : \x1b[36m${process.env.R2_BUCKET_NAME}\x1b[0m`);
+      console.log(`  Public CDN Endpoint   : \x1b[33m${process.env.R2_PUBLIC_URL}\x1b[0m`);
+      console.log(`  Total Objects Uploaded: \x1b[36m${totalObjects} files\x1b[0m`);
+      console.log(`  Data Storage Used     : \x1b[33m${totalMB.toFixed(2)} MB (${totalGB.toFixed(4)} GB)\x1b[0m`);
+      console.log(`  Cloudflare Free Quota : 10 GB Free / month`);
+      console.log(`  Remaining Free Quota  : \x1b[32m${remainingGB.toFixed(3)} GB\x1b[0m`);
+      console.log(`\n  R2 Quota Usage Meter  : ${bar(totalMB, 10 * 1024, 30)}`);
+    } catch (e) {
+      console.log(`  \x1b[31m❌ Could not connect to Cloudflare R2: ${e.message}\x1b[0m`);
+    }
+
     console.log("\n" + "═".repeat(60));
     console.log("\x1b[32m✅  Scan Complete!\x1b[0m\n");
 
@@ -171,3 +241,4 @@ async function checkStorage() {
 }
 
 checkStorage();
+

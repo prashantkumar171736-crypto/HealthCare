@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
 import { validateSession } from "../login/route";
+import { getR2Stats } from "@/lib/r2";
 import os from "os";
 
 export const runtime = "nodejs";
@@ -294,6 +295,8 @@ export async function GET(request: Request) {
     const totalMem = os.totalmem() || 0;
     const freeMem = os.freemem() || 0;
 
+    const r2Stats = await getR2Stats();
+
     const memory = process.memoryUsage();
     const systemHealth = {
       dbStatus,
@@ -302,6 +305,7 @@ export async function GET(request: Request) {
       dbStorageSizeMB,
       dbIndexSizeMB,
       dbTotalCollections,
+      r2: r2Stats,
       serverUptime: process.uptime(),
       memoryUsed: Math.round(memory.heapUsed / 1024 / 1024), // MB
       memoryTotal: Math.round(memory.heapTotal / 1024 / 1024), // MB
