@@ -1434,7 +1434,7 @@ export default function DashboardClient() {
         {activeTab === "system" && (
           <div className="panel-card full-panel system-settings-panel">
             <div className="panel-header-row">
-              <h2 className="panel-title" style={{ marginBottom: 0, borderBottom: "none", paddingBottom: 0, textAlign: 'center', color: '#a855f7' }}>
+              <h2 className="panel-title system-health-title">
                 🖥️ System Infrastructure & Storage Health
               </h2>
               <span className="live-status-chip">
@@ -1476,31 +1476,6 @@ export default function DashboardClient() {
                     <span className="row-label">Active Collections</span>
                     <span className="row-val">{data.systemHealth.dbTotalCollections}</span>
                   </div>
-
-                  {/* Custom Graphic Widget 1: Segmented Storage Matrix */}
-                  <div className="custom-widget-box widget-mongo">
-                    <div className="widget-header">
-                      <span className="widget-title">💾 Storage Allocation</span>
-                      <span className="widget-badge badge-emerald-glow">
-                        {((data.systemHealth.dbStorageSizeMB / 512) * 100).toFixed(1)}% Used
-                      </span>
-                    </div>
-                    <div className="segmented-bar">
-                      {[...Array(10)].map((_, idx) => {
-                        const active = (idx + 1) * 10 <= Math.max(10, ((data.systemHealth.dbStorageSizeMB / 512) * 100));
-                        return (
-                          <span
-                            key={idx}
-                            className={`segment-cell ${active ? "cell-emerald-active" : "cell-inactive"}`}
-                          ></span>
-                        );
-                      })}
-                    </div>
-                    <div className="widget-footer">
-                      <span>512 MB Max Quota</span>
-                      <span>{data.systemHealth.dbStorageSizeMB} MB Allocated</span>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -1537,28 +1512,6 @@ export default function DashboardClient() {
                     <span className="row-label">Multi-Threading</span>
                     <span className="row-val text-green">Enabled</span>
                   </div>
-
-                  {/* Custom Graphic Widget 2: Animated Core Equalizer Spectrum */}
-                  <div className="custom-widget-box widget-cpu">
-                    <div className="widget-header">
-                      <span className="widget-title">⚙️ Core Spectrum</span>
-                      <span className="widget-badge badge-blue-glow">
-                        {data.systemHealth.cpuCores} Cores Firing
-                      </span>
-                    </div>
-                    <div className="eq-spectrum-bar">
-                      <div className="eq-bar eq-bar-1"></div>
-                      <div className="eq-bar eq-bar-2"></div>
-                      <div className="eq-bar eq-bar-3"></div>
-                      <div className="eq-bar eq-bar-4"></div>
-                      <div className="eq-bar eq-bar-5"></div>
-                      <div className="eq-bar eq-bar-6"></div>
-                    </div>
-                    <div className="widget-footer">
-                      <span>Load Avg: {data.systemHealth.cpuLoadAvg}</span>
-                      <span>Hardware Multi-Threaded</span>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -1590,33 +1543,6 @@ export default function DashboardClient() {
                   <div className="health-row">
                     <span className="row-label">Host Free RAM</span>
                     <span className="row-val text-green">{data.systemHealth.systemFreeRamGB} GB</span>
-                  </div>
-
-                  {/* Custom Graphic Widget 3: Dual Memory Capsule */}
-                  <div className="custom-widget-box widget-ram">
-                    <div className="widget-header">
-                      <span className="widget-title">🧠 Heap vs Host RAM</span>
-                      <span className="widget-badge badge-rose-glow">
-                        {Math.round((data.systemHealth.memoryUsed / (data.systemHealth.memoryTotal || 1)) * 100)}% Heap
-                      </span>
-                    </div>
-                    <div className="dual-memory-pill">
-                      <div
-                        className="pill-fill-heap"
-                        style={{
-                          width: `${Math.min(100, Math.max(12, (data.systemHealth.memoryUsed / (data.systemHealth.memoryTotal || 1)) * 100))}%`
-                        }}
-                      >
-                        <span className="pill-text">{data.systemHealth.memoryUsed}MB Heap</span>
-                      </div>
-                      <div className="pill-fill-ram">
-                        <span className="pill-text">{data.systemHealth.systemFreeRamGB}GB Free</span>
-                      </div>
-                    </div>
-                    <div className="widget-footer">
-                      <span>Heap: {data.systemHealth.memoryTotal} MB</span>
-                      <span>Total RAM: {data.systemHealth.systemTotalRamGB} GB</span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1650,29 +1576,6 @@ export default function DashboardClient() {
                     <span className="row-label">System Architecture</span>
                     <span className="row-val font-mono">x64</span>
                   </div>
-
-                  {/* Custom Graphic Widget 4: Real-time ECG Pulse Monitor */}
-                  <div className="custom-widget-box widget-os">
-                    <div className="widget-header">
-                      <span className="widget-title">🖥️ ECG Live Pulse</span>
-                      <span className="widget-badge badge-cyan-glow">100% Stable</span>
-                    </div>
-                    <div className="ecg-pulse-wrapper">
-                      <svg className="ecg-svg" viewBox="0 0 300 36">
-                        <path
-                          d="M 0,18 L 40,18 L 50,4 L 60,32 L 70,8 L 80,24 L 90,18 L 150,18 L 160,4 L 170,32 L 180,8 L 190,24 L 200,18 L 300,18"
-                          fill="none"
-                          stroke="#38bdf8"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </div>
-                    <div className="widget-footer">
-                      <span>Linux Host x64</span>
-                      <span>Zero Interruption</span>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -1704,25 +1607,6 @@ export default function DashboardClient() {
                   <div className="health-row">
                     <span className="row-label">Log Limit Filter</span>
                     <span className="row-val font-mono">{logLimit === "all" ? "All Records" : `${logLimit} Records`}</span>
-                  </div>
-
-                  {/* Custom Graphic Widget 5: 5-Bar Signal Radar Indicator */}
-                  <div className="custom-widget-box widget-tracker">
-                    <div className="widget-header">
-                      <span className="widget-title">🛰️ Telemetry Signal</span>
-                      <span className="widget-badge badge-purple-glow">5/5 Full Sync</span>
-                    </div>
-                    <div className="signal-bars-container">
-                      <div className="signal-bar bar-1 active"></div>
-                      <div className="signal-bar bar-2 active"></div>
-                      <div className="signal-bar bar-3 active"></div>
-                      <div className="signal-bar bar-4 active"></div>
-                      <div className="signal-bar bar-5 active"></div>
-                    </div>
-                    <div className="widget-footer">
-                      <span>API Tracking Active</span>
-                      <span>Live Session Logs</span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1769,30 +1653,6 @@ export default function DashboardClient() {
                       <div className="health-row">
                         <span className="row-label">Free Monthly Storage</span>
                         <span className="row-val text-green">{data.systemHealth.r2.freeTierRemainingGB} GB Free Left</span>
-                      </div>
-
-                      {/* Custom Graphic Widget 6: Quota Glass Capsule */}
-                      <div className="custom-widget-box widget-r2">
-                        <div className="widget-header">
-                          <span className="widget-title">☁️ R2 Free Quota</span>
-                          <span className="widget-badge badge-amber-glow">
-                            {data.systemHealth.r2.freeTierUsedPct}% Used
-                          </span>
-                        </div>
-                        <div className="r2-tier-capsule">
-                          <div
-                            className="r2-fill-amber"
-                            style={{
-                              width: `${Math.min(100, Math.max(8, data.systemHealth.r2.freeTierUsedPct))}%`
-                            }}
-                          >
-                            <span className="r2-pill-label">{data.systemHealth.r2.totalSizeMB} MB</span>
-                          </div>
-                        </div>
-                        <div className="widget-footer">
-                          <span>10 GB Free Tier</span>
-                          <span>{data.systemHealth.r2.freeTierRemainingGB} GB Remaining</span>
-                        </div>
                       </div>
                     </>
                   ) : (
@@ -1940,29 +1800,44 @@ export default function DashboardClient() {
         }
 
         .content-header {
+          position: relative;
           display: flex;
-          justify-content: space-between;
+          flex-direction: column;
           align-items: center;
-          margin-bottom: 2.5rem;
-          border-bottom: 1px solid var(--admin-border, rgba(255, 255, 255, 0.05));
+          justify-content: center;
+          text-align: center;
+          margin-bottom: 2rem;
+          border-bottom: 1px solid var(--admin-border, rgba(255, 255, 255, 0.08));
           padding-bottom: 1.5rem;
         }
 
+        .header-meta {
+          width: 100%;
+          text-align: center;
+          margin-bottom: 0.75rem;
+        }
+
         .header-meta h1 {
-          font-size: 1.75rem;
-          font-weight: 700;
-          color: var(--admin-text-primary, #ffffff);
-          margin-bottom: 0.25rem;
+          font-size: 2.35rem;
+          font-weight: 800;
+          color: #34d399;
+          letter-spacing: 0.02em;
+          text-shadow: 0 0 16px rgba(52, 211, 153, 0.35);
+          text-align: center;
+          margin-bottom: 0.4rem;
         }
 
         .header-meta p {
-          color: var(--admin-text-secondary, #9ca3af);
-          font-size: 0.9rem;
+          color: #9ca3af;
+          font-size: 1.05rem;
+          font-weight: 600;
+          text-align: center;
         }
 
         .header-actions {
           display: flex;
           gap: 0.75rem;
+          justify-content: center;
         }
 
         .btn-refresh, .btn-danger {
@@ -3158,12 +3033,32 @@ export default function DashboardClient() {
 
         /* Panel Header Row */
         .panel-header-row {
+          position: relative;
           display: flex;
+          justify-content: center;
           align-items: center;
-          justify-content: space-between;
           margin-bottom: 1.5rem;
-          padding-bottom: 0.75rem;
+          padding-bottom: 0.85rem;
           border-bottom: 1px solid var(--admin-border, rgba(255, 255, 255, 0.08));
+          text-align: center;
+        }
+
+        .system-health-title {
+          font-size: 1.75rem !important;
+          font-weight: 800 !important;
+          color: #c084fc !important;
+          text-shadow: 0 0 16px rgba(192, 132, 252, 0.35) !important;
+          text-align: center !important;
+          margin: 0 !important;
+          border-bottom: none !important;
+          padding-bottom: 0 !important;
+        }
+
+        .panel-header-row .live-status-chip {
+          position: absolute;
+          right: 0;
+          top: 50%;
+          transform: translateY(-50%);
         }
 
         .live-status-chip {
