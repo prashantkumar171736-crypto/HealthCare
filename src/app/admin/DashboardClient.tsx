@@ -2047,6 +2047,13 @@ export default function DashboardClient() {
           line-height: 1.2;
         }
 
+        .title-emerald { color: #34d399 !important; text-shadow: 0 0 10px rgba(52, 211, 153, 0.25); }
+        .title-blue { color: #60a5fa !important; text-shadow: 0 0 10px rgba(96, 165, 250, 0.25); }
+        .title-purple { color: #c084fc !important; text-shadow: 0 0 10px rgba(192, 132, 252, 0.25); }
+        .title-cyan { color: #38bdf8 !important; text-shadow: 0 0 10px rgba(56, 189, 248, 0.25); }
+        .title-amber { color: #fbbf24 !important; text-shadow: 0 0 10px rgba(251, 191, 36, 0.25); }
+        .title-rose { color: #f472b6 !important; text-shadow: 0 0 10px rgba(244, 114, 182, 0.25); }
+
         .kpi-subtitle {
           font-size: 0.7rem;
           color: #9ca3af;
