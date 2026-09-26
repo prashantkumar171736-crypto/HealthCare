@@ -70,6 +70,17 @@ export interface R2Stats {
   freeTierRemainingGB: number;
 }
 
+export interface TrafficDay {
+  date: string;
+  isoDate: string;
+  totalVisits: number;
+  uniqueSessions: number;
+  countries: Array<{ name: string; count: number }>;
+  topPages: Array<{ name: string; count: number }>;
+}
+
+export type TrafficRange = "Daily" | "Weekly" | "Biweekly" | "Monthly";
+
 interface SystemHealth {
   dbStatus: string;
   dbPingTime: number;
@@ -174,6 +185,13 @@ export default function DashboardClient() {
     color: string;
   } | null>(null);
 
+  // Traffic analytics state for Card 5
+  const [trafficRange, setTrafficRange] = useState<TrafficRange>("Daily");
+  const [trafficData, setTrafficData] = useState<TrafficDay[]>([]);
+  const [trafficLoading, setTrafficLoading] = useState(false);
+  const [trafficHovered, setTrafficHovered] = useState<TrafficDay | null>(null);
+  const [trafficTooltipPos, setTrafficTooltipPos] = useState<{ x: number; y: number } | null>(null);
+
   // Individual Per-Graph Time Window State ("30m" | "1h" | "3h" | "12h" | "24h")
   const [cardRanges, setCardRanges] = useState<Record<string, "30m" | "1h" | "3h" | "12h" | "24h">>({
     card1: "1h",
@@ -247,6 +265,22 @@ export default function DashboardClient() {
     }
   };
 
+  // Fetch traffic analytics data for Card 5
+  const fetchTrafficData = useCallback(async (range: TrafficRange) => {
+    setTrafficLoading(true);
+    try {
+      const rangeParam = range.toLowerCase();
+      const res = await fetch(`/api/admin/traffic?range=${rangeParam}`);
+      if (!res.ok) return;
+      const json = await res.json();
+      setTrafficData(json.buckets || []);
+    } catch {
+      // Silently fail — fallback to empty
+    } finally {
+      setTrafficLoading(false);
+    }
+  }, []);
+
   // Initial load + 30-second auto-refresh
   useEffect(() => {
     fetchStats(chartPeriod, logLimit);
@@ -254,6 +288,14 @@ export default function DashboardClient() {
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartPeriod, logLimit]);
+
+  // Fetch traffic data on mount and whenever trafficRange changes
+  useEffect(() => {
+    fetchTrafficData(trafficRange);
+    // Traffic updates every 5 minutes
+    const interval = setInterval(() => fetchTrafficData(trafficRange), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [trafficRange, fetchTrafficData]);
 
   // Update rolling telemetry history points whenever data updates
   useEffect(() => {
@@ -1653,7 +1695,7 @@ export default function DashboardClient() {
                 const r2TotalMB = data.systemHealth.r2?.totalSizeMB || 171.59;
                 const r2FreeGB = data.systemHealth.r2?.freeTierRemainingGB || 9.83;
 
-                // Per-card time window pill renderer helper
+                // Per-card time window pill renderer helper (card5 has its own trafficRange selector)
                 const renderCardTimePills = (cardId: string) => {
                   const current = cardRanges[cardId] || "1h";
                   const ranges: Array<"30m" | "1h" | "3h" | "12h" | "24h"> = ["30m", "1h", "3h", "12h", "24h"];
@@ -2191,134 +2233,226 @@ export default function DashboardClient() {
                       </div>
                     </div>
 
-                    {/* Card 5: Dual Traffic Request & Session Velocity (Dual Translucent Ribbon Area Streams) */}
-                    <div className="graph-card">
+                    {/* Card 5: Daily User Reachability & Traffic Analytics (Vertical Bar Chart) */}
+                    <div className="graph-card traffic-bar-card">
                       <div className="graph-card-header">
                         <div className="header-title-chip">
-                          <span className="graph-card-title">🌐 Request Traffic & Session Velocity</span>
-                          <span className="graph-badge badge-purple">📅 Refresh: 12H / Daily</span>
+                          <span className="graph-card-title">📊 Daily User Reachability & Traffic Analytics</span>
+                          <span className="graph-badge badge-indigo">📋 Source: Access Logs</span>
                         </div>
-                        {renderCardTimePills("card5")}
+                        {/* Inline traffic range selector */}
+                        <div className="card-window-pills">
+                          {(["Daily", "Weekly", "Biweekly", "Monthly"] as TrafficRange[]).map((r) => (
+                            <button
+                              key={r}
+                              type="button"
+                              className={`card-time-btn ${trafficRange === r ? "active" : ""}`}
+                              onClick={() => { setTrafficRange(r); setTrafficHovered(null); }}
+                            >
+                              {r}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      <div className="graph-card-body bar-chart-body">
-                        <svg
-                          viewBox="0 0 420 180"
-                          preserveAspectRatio="none"
-                          className="bar-chart-svg interactive-svg"
-                          onMouseLeave={() => setGraphTooltip(null)}
+
+                      {/* Hover tooltip card */}
+                      {trafficHovered && trafficTooltipPos && (
+                        <div
+                          className="traffic-hover-tooltip"
+                          style={{ left: Math.min(trafficTooltipPos.x, window.innerWidth - 260), top: trafficTooltipPos.y - 10 }}
                         >
-                          <defs>
-                            <linearGradient id="cyanRibbonGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#00d2ff" stopOpacity="0.25" />
-                              <stop offset="100%" stopColor="#00d2ff" stopOpacity="0.0" />
-                            </linearGradient>
-                            <linearGradient id="purpleRibbonGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#a855f7" stopOpacity="0.25" />
-                              <stop offset="100%" stopColor="#a855f7" stopOpacity="0.0" />
-                            </linearGradient>
-                          </defs>
-                          <line x1="20" y1="20" x2="380" y2="20" stroke="rgba(255,255,255,0.05)" />
-                          <line x1="20" y1="60" x2="380" y2="60" stroke="rgba(255,255,255,0.05)" />
-                          <line x1="20" y1="100" x2="380" y2="100" stroke="rgba(255,255,255,0.05)" />
-                          <line x1="20" y1="140" x2="380" y2="140" stroke="rgba(255,255,255,0.05)" />
+                          <div className="ttt-header">
+                            <span className="ttt-date">{trafficHovered.date}</span>
+                            <span className="ttt-visits">{trafficHovered.totalVisits.toLocaleString()} Visits</span>
+                          </div>
+                          <div className="ttt-row">
+                            <span className="ttt-label">🧑‍💻 Unique Sessions</span>
+                            <span className="ttt-val">{trafficHovered.uniqueSessions.toLocaleString()}</span>
+                          </div>
+                          {trafficHovered.countries.length > 0 && (
+                            <div className="ttt-section">
+                              <div className="ttt-section-title">🌍 Top Countries</div>
+                              {trafficHovered.countries.slice(0, 4).map((c, ci) => (
+                                <div key={ci} className="ttt-country-row">
+                                  <span className="ttt-country-name">{c.name || "Unknown"}</span>
+                                  <div className="ttt-country-bar-wrap">
+                                    <div
+                                      className="ttt-country-bar"
+                                      style={{ width: `${Math.min(100, (c.count / (trafficHovered.totalVisits || 1)) * 100)}%` }}
+                                    />
+                                  </div>
+                                  <span className="ttt-country-count">{c.count}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {trafficHovered.topPages.length > 0 && (
+                            <div className="ttt-section">
+                              <div className="ttt-section-title">📄 Top Pages</div>
+                              {trafficHovered.topPages.slice(0, 3).map((p, pi) => (
+                                <div key={pi} className="ttt-page-row">
+                                  <span className="ttt-page-path">{(p.name || "/").length > 28 ? (p.name || "/").slice(0, 26) + "…" : (p.name || "/")}</span>
+                                  <span className="ttt-page-count">{p.count}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-                          {(() => {
-                            const pts = getFilteredTelemetry(telemetryPoints, cardRanges.card5 || "12h");
-                            const maxV = Math.max(30, Math.ceil((Math.max(50, ...pts.map((p, i) => Math.max(p.views + Math.round(Math.sin(i * 1.5) * 2), p.visitors * 4))) * 1.15) / 10) * 10);
+                      <div
+                        className="graph-card-body traffic-bar-body"
+                        onMouseLeave={() => { setTrafficHovered(null); setTrafficTooltipPos(null); }}
+                      >
+                        {trafficLoading ? (
+                          <div className="traffic-loading">
+                            <div className="traffic-spinner" />
+                            <span>Loading access log data…</span>
+                          </div>
+                        ) : trafficData.length === 0 ? (
+                          <div className="traffic-empty">
+                            <span>📭 No traffic data available for selected range.</span>
+                          </div>
+                        ) : (() => {
+                          const maxVisits = Math.max(1, ...trafficData.map(d => d.totalVisits));
+                          const svgW = 420;
+                          const svgH = 170;
+                          const padL = 36;
+                          const padR = 12;
+                          const padT = 14;
+                          const padB = 28;
+                          const chartW = svgW - padL - padR;
+                          const chartH = svgH - padT - padB;
+                          const n = trafficData.length;
+                          const gap = 2;
+                          const barW = Math.max(2, Math.floor((chartW - (n - 1) * gap) / Math.max(1, n)));
+                          const gridLines = 4;
+                          const labelStep = Math.max(1, Math.ceil(n / 8));
 
-                            const viewCoords = pts.map((p, i) => {
-                              const jitterViews = Math.max(0, p.views + Math.round(Math.sin(i * 1.2) * 1.5));
-                              return {
-                                x: 30 + (i * 340) / Math.max(1, pts.length - 1),
-                                y: 160 - (jitterViews / maxV) * 135,
-                                views: p.views,
-                                time: p.time
-                              };
-                            });
+                          return (
+                            <svg
+                              viewBox={`0 0 ${svgW} ${svgH}`}
+                              preserveAspectRatio="none"
+                              className="traffic-bar-svg interactive-svg"
+                            >
+                              <defs>
+                                <linearGradient id="trafficBarGradHigh" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#818cf8" stopOpacity="1" />
+                                  <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.75" />
+                                </linearGradient>
+                                <linearGradient id="trafficBarGradMid" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#6366f1" stopOpacity="0.85" />
+                                  <stop offset="100%" stopColor="#4338ca" stopOpacity="0.55" />
+                                </linearGradient>
+                                <linearGradient id="trafficBarGradLow" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.55" />
+                                  <stop offset="100%" stopColor="#3730a3" stopOpacity="0.3" />
+                                </linearGradient>
+                                <filter id="trafficBarGlow">
+                                  <feGaussianBlur stdDeviation="1.5" result="blur" />
+                                  <feMerge>
+                                    <feMergeNode in="blur" />
+                                    <feMergeNode in="SourceGraphic" />
+                                  </feMerge>
+                                </filter>
+                              </defs>
 
-                            const visitorCoords = pts.map((p, i) => {
-                              const jitterVisitors = Math.max(0, p.visitors + Math.round(Math.cos(i * 1.5) * 0.5));
-                              return {
-                                x: 30 + (i * 340) / Math.max(1, pts.length - 1),
-                                y: 160 - ((jitterVisitors * 4) / maxV) * 135,
-                                visitors: p.visitors,
-                                time: p.time
-                              };
-                            });
-
-                            const labelStep = Math.max(1, Math.ceil(pts.length / 6));
-                            const pathViewsStr = getSmoothCurvePath(viewCoords);
-                            const areaViewsStr = viewCoords.length >= 2 ? `${pathViewsStr} L ${viewCoords[viewCoords.length - 1].x.toFixed(1)} 160 L ${viewCoords[0].x.toFixed(1)} 160 Z` : "";
-
-                            const pathVisitorsStr = getSmoothCurvePath(visitorCoords);
-                            const areaVisitorsStr = visitorCoords.length >= 2 ? `${pathVisitorsStr} L ${visitorCoords[visitorCoords.length - 1].x.toFixed(1)} 160 L ${visitorCoords[0].x.toFixed(1)} 160 Z` : "";
-
-                            return (
-                              <>
-                                <text x="385" y="24" fill="#00d2ff" fontSize="8.5" fontWeight="600">{maxV}</text>
-                                <text x="385" y="95" fill="#9ca3af" fontSize="8">{Math.round(maxV / 2)}</text>
-                                <text x="385" y="165" fill="#9ca3af" fontSize="8">0</text>
-
-                                {/* Translucent Ribbon Fills */}
-                                {areaViewsStr && <path d={areaViewsStr} fill="url(#cyanRibbonGrad)" />}
-                                {areaVisitorsStr && <path d={areaVisitorsStr} fill="url(#purpleRibbonGrad)" />}
-
-                                {/* Cyan Ribbon Curve: Page Views (1.6px, NO DOTS) */}
-                                {pathViewsStr && <path d={pathViewsStr} fill="none" stroke="#00d2ff" strokeWidth="1.6" strokeLinecap="round" />}
-                                {viewCoords.map((c, i) => {
-                                  const showLabel = i % labelStep === 0 || i === viewCoords.length - 1;
-                                  return (
-                                    <g
-                                      key={`v-${i}`}
-                                      className="svg-hover-group"
-                                      onMouseMove={(e) => {
-                                        setGraphTooltip({
-                                          x: e.clientX,
-                                          y: e.clientY,
-                                          title: `🌐 Cyan Stream: Page Request Views (${c.time})`,
-                                          value: `${c.views} Request Views logged at ${c.time}`,
-                                          detail: `Total accumulated site request views: ${(data.summary.totalViews || 0).toLocaleString()}`,
-                                          color: "#00d2ff",
-                                        });
-                                      }}
-                                    >
-                                      <circle cx={c.x} cy={c.y} r="14" fill="transparent" />
-                                      {showLabel && (
-                                        <text x={c.x} y="176" fill="#6b7280" fontSize="8.5" textAnchor="middle">
-                                          {c.time.slice(0, 5)}
-                                        </text>
-                                      )}
-                                    </g>
-                                  );
-                                })}
-
-                                {/* Purple Ribbon Curve: Unique Sessions (1.6px, NO DOTS) */}
-                                {pathVisitorsStr && <path d={pathVisitorsStr} fill="none" stroke="#a855f7" strokeWidth="1.6" strokeLinecap="round" />}
-                                {visitorCoords.map((c, i) => (
-                                  <g
-                                    key={`vis-${i}`}
-                                    className="svg-hover-group"
-                                    onMouseMove={(e) => {
-                                      setGraphTooltip({
-                                        x: e.clientX,
-                                        y: e.clientY,
-                                        title: `💜 Purple Stream: Unique Visitor Sessions (${c.time})`,
-                                        value: `${c.visitors} Active Client Sessions at ${c.time}`,
-                                        detail: `Total unique visitor sessions: ${(data.summary.uniqueVisitors || 0).toLocaleString()}`,
-                                        color: "#a855f7",
-                                      });
-                                    }}
-                                  >
-                                    <circle cx={c.x} cy={c.y} r="14" fill="transparent" />
+                              {/* Y-axis grid lines & labels */}
+                              {Array.from({ length: gridLines + 1 }, (_, gi) => {
+                                const frac = gi / gridLines;
+                                const y = padT + chartH * frac;
+                                const val = Math.round(maxVisits * (1 - frac));
+                                return (
+                                  <g key={`grid-${gi}`}>
+                                    <line x1={padL} y1={y} x2={svgW - padR} y2={y} stroke="rgba(255,255,255,0.06)" strokeDasharray={gi === gridLines ? "0" : "3,3"} />
+                                    <text x={padL - 3} y={y + 3.5} fill="#6b7280" fontSize="7.5" textAnchor="end">{val > 999 ? `${(val / 1000).toFixed(1)}k` : val}</text>
                                   </g>
-                                ))}
-                              </>
-                            );
-                          })()}
-                        </svg>
+                                );
+                              })}
+
+                              {/* Bars */}
+                              {trafficData.map((d, i) => {
+                                const barH = Math.max(2, (d.totalVisits / maxVisits) * chartH);
+                                const x = padL + i * (barW + gap);
+                                const y = padT + chartH - barH;
+                                const pct = d.totalVisits / maxVisits;
+                                const grad = pct > 0.65 ? "url(#trafficBarGradHigh)" : pct > 0.3 ? "url(#trafficBarGradMid)" : "url(#trafficBarGradLow)";
+                                const isActive = trafficHovered?.isoDate === d.isoDate;
+                                const showLabel = i % labelStep === 0 || i === n - 1;
+
+                                return (
+                                  <g
+                                    key={d.isoDate}
+                                    className="traffic-bar-group"
+                                    onMouseMove={(e) => {
+                                      setTrafficHovered(d);
+                                      setTrafficTooltipPos({ x: e.clientX + 12, y: e.clientY - 60 });
+                                    }}
+                                    style={{ cursor: "pointer" }}
+                                  >
+                                    {/* Hover vertical scan-line */}
+                                    {isActive && (
+                                      <rect
+                                        x={x - 1}
+                                        y={padT}
+                                        width={barW + 2}
+                                        height={chartH}
+                                        fill="rgba(129,140,248,0.1)"
+                                        rx="2"
+                                      />
+                                    )}
+
+                                    {/* Bar */}
+                                    <rect
+                                      x={x}
+                                      y={y}
+                                      width={barW}
+                                      height={barH}
+                                      fill={grad}
+                                      rx="2"
+                                      filter={isActive ? "url(#trafficBarGlow)" : undefined}
+                                      opacity={d.totalVisits === 0 ? 0.2 : 1}
+                                    />
+
+                                    {/* Invisible wide hover target */}
+                                    <rect x={x - 1} y={padT} width={barW + 2} height={chartH} fill="transparent" />
+
+                                    {/* X-axis label */}
+                                    {showLabel && (
+                                      <text
+                                        x={x + barW / 2}
+                                        y={svgH - 4}
+                                        fill={isActive ? "#a5b4fc" : "#6b7280"}
+                                        fontSize="7"
+                                        textAnchor="middle"
+                                        fontWeight={isActive ? "700" : "400"}
+                                      >
+                                        {d.date.length > 7 ? d.date.slice(0, 6) : d.date}
+                                      </text>
+                                    )}
+                                  </g>
+                                );
+                              })}
+                            </svg>
+                          );
+                        })()}
+
+                        {/* Legend */}
+                        {!trafficLoading && trafficData.length > 0 && (
+                          <div className="traffic-bar-legend">
+                            <span className="tbl-dot" style={{ background: "#818cf8" }} />
+                            <span className="tbl-label">Total Visits</span>
+                            <span className="tbl-dot" style={{ background: "rgba(129,140,248,0.35)" }} />
+                            <span className="tbl-label">Low Activity</span>
+                            <span className="tbl-summary">
+                              Total: <strong>{trafficData.reduce((s, d) => s + d.totalVisits, 0).toLocaleString()}</strong>
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <div className="graph-info-footer info-purple">
-                        💡 <i><strong>Meaning & Value:</strong> Updated every 12 hours / daily. Dual Bezier curves compare total HTTP request rate (Cyan) against distinct user sessions (Gold) with micro-jitter smoothing.</i>
+
+                      <div className="graph-info-footer info-indigo">
+                        💡 <i><strong>Meaning & Value:</strong> Real access log analytics from MongoDB — shows daily user reachability, session count, country reach, and top pages. Hover any bar for detailed breakdown.</i>
                       </div>
                     </div>
 
@@ -4387,6 +4521,213 @@ export default function DashboardClient() {
         .graph-info-footer.info-cyan { color: #38bdf8; border-color: rgba(56, 189, 248, 0.25); background: rgba(56, 189, 248, 0.06); }
         .graph-info-footer.info-purple { color: #c084fc; border-color: rgba(192, 132, 252, 0.25); background: rgba(192, 132, 252, 0.06); }
         .graph-info-footer.info-rose { color: #f472b6; border-color: rgba(244, 114, 182, 0.25); background: rgba(244, 114, 182, 0.06); }
+        .graph-info-footer.info-indigo { color: #a5b4fc; border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.07); }
+
+        /* Badge Indigo variant */
+        .badge-indigo { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.35); }
+
+        /* Traffic Bar Card */
+        .traffic-bar-card { position: relative; }
+
+        .traffic-bar-body {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          min-height: 180px;
+          position: relative;
+        }
+
+        .traffic-bar-svg {
+          width: 100%;
+          height: 170px;
+          overflow: visible;
+        }
+
+        .traffic-bar-group rect { transition: opacity 0.15s ease; }
+        .traffic-bar-group:hover rect:not([fill="transparent"]) { opacity: 0.9; }
+
+        /* Legend */
+        .traffic-bar-legend {
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+          padding: 0.35rem 0.5rem;
+          background: rgba(0,0,0,0.2);
+          border-radius: 6px;
+          font-size: 0.7rem;
+          color: #9ca3af;
+          flex-wrap: wrap;
+        }
+
+        .tbl-dot {
+          display: inline-block;
+          width: 8px;
+          height: 8px;
+          border-radius: 2px;
+          flex-shrink: 0;
+        }
+
+        .tbl-label { color: #9ca3af; }
+
+        .tbl-summary {
+          margin-left: auto;
+          color: #a5b4fc;
+          font-size: 0.72rem;
+        }
+        .tbl-summary strong { color: #818cf8; }
+
+        /* Loading / Empty states */
+        .traffic-loading,
+        .traffic-empty {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.6rem;
+          min-height: 150px;
+          color: #6b7280;
+          font-size: 0.82rem;
+        }
+
+        .traffic-spinner {
+          width: 20px;
+          height: 20px;
+          border: 2px solid rgba(99,102,241,0.2);
+          border-top-color: #6366f1;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+
+        /* Hover Tooltip Card */
+        .traffic-hover-tooltip {
+          position: fixed;
+          z-index: 9999;
+          background: rgba(13, 14, 30, 0.97);
+          border: 1px solid rgba(99, 102, 241, 0.4);
+          border-radius: 12px;
+          padding: 0.75rem 1rem;
+          min-width: 220px;
+          max-width: 260px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(99,102,241,0.15);
+          pointer-events: none;
+          backdrop-filter: blur(12px);
+          font-family: inherit;
+        }
+
+        .ttt-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 0.5rem;
+          padding-bottom: 0.45rem;
+          border-bottom: 1px solid rgba(99,102,241,0.2);
+        }
+
+        .ttt-date {
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: #a5b4fc;
+        }
+
+        .ttt-visits {
+          font-size: 0.82rem;
+          font-weight: 800;
+          color: #818cf8;
+          background: rgba(99,102,241,0.15);
+          padding: 0.15rem 0.5rem;
+          border-radius: 20px;
+        }
+
+        .ttt-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.75rem;
+          color: #9ca3af;
+          margin-bottom: 0.45rem;
+        }
+
+        .ttt-label { color: #9ca3af; }
+        .ttt-val { color: #e2e8f0; font-weight: 600; }
+
+        .ttt-section {
+          margin-top: 0.4rem;
+          padding-top: 0.4rem;
+          border-top: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .ttt-section-title {
+          font-size: 0.68rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          color: #6366f1;
+          margin-bottom: 0.35rem;
+        }
+
+        .ttt-country-row {
+          display: grid;
+          grid-template-columns: 80px 1fr 32px;
+          align-items: center;
+          gap: 0.35rem;
+          margin-bottom: 0.22rem;
+        }
+
+        .ttt-country-name {
+          font-size: 0.72rem;
+          color: #cbd5e1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .ttt-country-bar-wrap {
+          height: 5px;
+          background: rgba(255,255,255,0.06);
+          border-radius: 3px;
+          overflow: hidden;
+        }
+
+        .ttt-country-bar {
+          height: 100%;
+          background: linear-gradient(90deg, #6366f1, #818cf8);
+          border-radius: 3px;
+          min-width: 2px;
+          transition: width 0.3s ease;
+        }
+
+        .ttt-country-count {
+          font-size: 0.68rem;
+          color: #a5b4fc;
+          text-align: right;
+          font-weight: 600;
+        }
+
+        .ttt-page-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 0.3rem;
+          margin-bottom: 0.22rem;
+        }
+
+        .ttt-page-path {
+          font-size: 0.7rem;
+          color: #94a3b8;
+          font-family: ui-monospace, monospace;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          flex: 1;
+        }
+
+        .ttt-page-count {
+          font-size: 0.68rem;
+          color: #7c3aed;
+          font-weight: 700;
+          flex-shrink: 0;
+        }
+
+
 
         /* System Settings Panel Grid — EXACTLY 3 Cards Per Row on Desktop */
         .system-health-grid {
