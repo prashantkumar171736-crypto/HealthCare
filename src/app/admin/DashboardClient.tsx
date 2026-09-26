@@ -502,8 +502,8 @@ export default function DashboardClient() {
       <main className="admin-content-pane">
         <header className="content-header">
           <div className="header-meta">
-            <h1>Analytics Security Console</h1>
-            <p style={{ fontWeight: 'bold' }}>Real-time site reachability, geolocation metrics, and traffic aggregation.</p>          </div>
+            <h1 style={{ textAlign: 'center', color: '#34d399' }}>Analytics Security Console</h1>
+            <p style={{ textAlign: 'center', color: '#34d399', fontWeight: 'bold' }}>Real-time site reachability, geolocation metrics, and traffic aggregation.</p>          </div>
           <div className="header-actions">
             <button onClick={() => fetchStats()} className="btn-refresh">
               🔄 Refresh Logs
@@ -1433,7 +1433,7 @@ export default function DashboardClient() {
         {activeTab === "system" && (
           <div className="panel-card full-panel system-settings-panel">
             <div className="panel-header-row">
-              <h2 className="panel-title" style={{ marginBottom: 0, borderBottom: "none", paddingBottom: 0 }}>
+              <h2 className="panel-title" style={{ marginBottom: 0, borderBottom: "none", paddingBottom: 0, textAlign: 'center', color: '#a855f7' }}>
                 🖥️ System Infrastructure & Storage Health
               </h2>
               <span className="live-status-chip">
@@ -1476,19 +1476,28 @@ export default function DashboardClient() {
                     <span className="row-val">{data.systemHealth.dbTotalCollections}</span>
                   </div>
 
-                  {/* Meter */}
-                  <div className="meter-box">
-                    <div className="meter-header">
-                      <span>Database Storage Usage</span>
-                      <span className="meter-pct text-green">
-                        {((data.systemHealth.dbStorageSizeMB / 512) * 100).toFixed(1)}% of 512 MB
+                  {/* Custom Graphic Widget 1: Segmented Storage Matrix */}
+                  <div className="custom-widget-box widget-mongo">
+                    <div className="widget-header">
+                      <span className="widget-title">💾 Storage Allocation</span>
+                      <span className="widget-badge badge-emerald-glow">
+                        {((data.systemHealth.dbStorageSizeMB / 512) * 100).toFixed(1)}% Used
                       </span>
                     </div>
-                    <div className="meter-track">
-                      <div
-                        className="meter-fill green-gradient"
-                        style={{ width: `${Math.min(100, Math.max(3, (data.systemHealth.dbStorageSizeMB / 512) * 100))}%` }}
-                      ></div>
+                    <div className="segmented-bar">
+                      {[...Array(10)].map((_, idx) => {
+                        const active = (idx + 1) * 10 <= Math.max(10, ((data.systemHealth.dbStorageSizeMB / 512) * 100));
+                        return (
+                          <span
+                            key={idx}
+                            className={`segment-cell ${active ? "cell-emerald-active" : "cell-inactive"}`}
+                          ></span>
+                        );
+                      })}
+                    </div>
+                    <div className="widget-footer">
+                      <span>512 MB Max Quota</span>
+                      <span>{data.systemHealth.dbStorageSizeMB} MB Allocated</span>
                     </div>
                   </div>
                 </div>
@@ -1528,14 +1537,25 @@ export default function DashboardClient() {
                     <span className="row-val text-green">Enabled</span>
                   </div>
 
-                  {/* Meter */}
-                  <div className="meter-box">
-                    <div className="meter-header">
-                      <span>CPU Core Capacity</span>
-                      <span className="meter-pct text-blue">{data.systemHealth.cpuCores} Cores Available</span>
+                  {/* Custom Graphic Widget 2: Animated Core Equalizer Spectrum */}
+                  <div className="custom-widget-box widget-cpu">
+                    <div className="widget-header">
+                      <span className="widget-title">⚙️ Core Spectrum</span>
+                      <span className="widget-badge badge-blue-glow">
+                        {data.systemHealth.cpuCores} Cores Firing
+                      </span>
                     </div>
-                    <div className="meter-track">
-                      <div className="meter-fill blue-gradient" style={{ width: "100%" }}></div>
+                    <div className="eq-spectrum-bar">
+                      <div className="eq-bar eq-bar-1"></div>
+                      <div className="eq-bar eq-bar-2"></div>
+                      <div className="eq-bar eq-bar-3"></div>
+                      <div className="eq-bar eq-bar-4"></div>
+                      <div className="eq-bar eq-bar-5"></div>
+                      <div className="eq-bar eq-bar-6"></div>
+                    </div>
+                    <div className="widget-footer">
+                      <span>Load Avg: {data.systemHealth.cpuLoadAvg}</span>
+                      <span>Hardware Multi-Threaded</span>
                     </div>
                   </div>
                 </div>
@@ -1571,21 +1591,30 @@ export default function DashboardClient() {
                     <span className="row-val text-green">{data.systemHealth.systemFreeRamGB} GB</span>
                   </div>
 
-                  {/* Meter */}
-                  <div className="meter-box">
-                    <div className="meter-header">
-                      <span>Node Heap Allocation</span>
-                      <span className="meter-pct text-cyan">
-                        {Math.round((data.systemHealth.memoryUsed / (data.systemHealth.memoryTotal || 1)) * 100)}% Used
+                  {/* Custom Graphic Widget 3: Dual Memory Capsule */}
+                  <div className="custom-widget-box widget-ram">
+                    <div className="widget-header">
+                      <span className="widget-title">🧠 Heap vs Host RAM</span>
+                      <span className="widget-badge badge-rose-glow">
+                        {Math.round((data.systemHealth.memoryUsed / (data.systemHealth.memoryTotal || 1)) * 100)}% Heap
                       </span>
                     </div>
-                    <div className="meter-track">
+                    <div className="dual-memory-pill">
                       <div
-                        className="meter-fill cyan-gradient"
+                        className="pill-fill-heap"
                         style={{
-                          width: `${Math.min(100, Math.max(5, (data.systemHealth.memoryUsed / (data.systemHealth.memoryTotal || 1)) * 100))}%`,
+                          width: `${Math.min(100, Math.max(12, (data.systemHealth.memoryUsed / (data.systemHealth.memoryTotal || 1)) * 100))}%`
                         }}
-                      ></div>
+                      >
+                        <span className="pill-text">{data.systemHealth.memoryUsed}MB Heap</span>
+                      </div>
+                      <div className="pill-fill-ram">
+                        <span className="pill-text">{data.systemHealth.systemFreeRamGB}GB Free</span>
+                      </div>
+                    </div>
+                    <div className="widget-footer">
+                      <span>Heap: {data.systemHealth.memoryTotal} MB</span>
+                      <span>Total RAM: {data.systemHealth.systemTotalRamGB} GB</span>
                     </div>
                   </div>
                 </div>
@@ -1621,13 +1650,26 @@ export default function DashboardClient() {
                     <span className="row-val font-mono">x64</span>
                   </div>
 
-                  <div className="meter-box">
-                    <div className="meter-header">
-                      <span>Server Stability</span>
-                      <span className="meter-pct text-green">100% Operational</span>
+                  {/* Custom Graphic Widget 4: Real-time ECG Pulse Monitor */}
+                  <div className="custom-widget-box widget-os">
+                    <div className="widget-header">
+                      <span className="widget-title">🖥️ ECG Live Pulse</span>
+                      <span className="widget-badge badge-cyan-glow">100% Stable</span>
                     </div>
-                    <div className="meter-track">
-                      <div className="meter-fill green-gradient" style={{ width: "100%" }}></div>
+                    <div className="ecg-pulse-wrapper">
+                      <svg className="ecg-svg" viewBox="0 0 300 36">
+                        <path
+                          d="M 0,18 L 40,18 L 50,4 L 60,32 L 70,8 L 80,24 L 90,18 L 150,18 L 160,4 L 170,32 L 180,8 L 190,24 L 200,18 L 300,18"
+                          fill="none"
+                          stroke="#38bdf8"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </div>
+                    <div className="widget-footer">
+                      <span>Linux Host x64</span>
+                      <span>Zero Interruption</span>
                     </div>
                   </div>
                 </div>
@@ -1663,13 +1705,22 @@ export default function DashboardClient() {
                     <span className="row-val font-mono">{logLimit === "all" ? "All Records" : `${logLimit} Records`}</span>
                   </div>
 
-                  <div className="meter-box">
-                    <div className="meter-header">
-                      <span>Telemetry Collector</span>
-                      <span className="meter-pct text-green">Active & Logging</span>
+                  {/* Custom Graphic Widget 5: 5-Bar Signal Radar Indicator */}
+                  <div className="custom-widget-box widget-tracker">
+                    <div className="widget-header">
+                      <span className="widget-title">🛰️ Telemetry Signal</span>
+                      <span className="widget-badge badge-purple-glow">5/5 Full Sync</span>
                     </div>
-                    <div className="meter-track">
-                      <div className="meter-fill green-gradient" style={{ width: "100%" }}></div>
+                    <div className="signal-bars-container">
+                      <div className="signal-bar bar-1 active"></div>
+                      <div className="signal-bar bar-2 active"></div>
+                      <div className="signal-bar bar-3 active"></div>
+                      <div className="signal-bar bar-4 active"></div>
+                      <div className="signal-bar bar-5 active"></div>
+                    </div>
+                    <div className="widget-footer">
+                      <span>API Tracking Active</span>
+                      <span>Live Session Logs</span>
                     </div>
                   </div>
                 </div>
@@ -1719,21 +1770,27 @@ export default function DashboardClient() {
                         <span className="row-val text-green">{data.systemHealth.r2.freeTierRemainingGB} GB Free Left</span>
                       </div>
 
-                      {/* Meter */}
-                      <div className="meter-box">
-                        <div className="meter-header">
-                          <span>R2 10 GB Free Tier Usage</span>
-                          <span className="meter-pct text-amber">
-                            {data.systemHealth.r2.freeTierUsedPct}% of 10 GB
+                      {/* Custom Graphic Widget 6: Quota Glass Capsule */}
+                      <div className="custom-widget-box widget-r2">
+                        <div className="widget-header">
+                          <span className="widget-title">☁️ R2 Free Quota</span>
+                          <span className="widget-badge badge-amber-glow">
+                            {data.systemHealth.r2.freeTierUsedPct}% Used
                           </span>
                         </div>
-                        <div className="meter-track">
+                        <div className="r2-tier-capsule">
                           <div
-                            className="meter-fill amber-gradient"
+                            className="r2-fill-amber"
                             style={{
-                              width: `${Math.min(100, Math.max(3, data.systemHealth.r2.freeTierUsedPct))}%`,
+                              width: `${Math.min(100, Math.max(8, data.systemHealth.r2.freeTierUsedPct))}%`
                             }}
-                          ></div>
+                          >
+                            <span className="r2-pill-label">{data.systemHealth.r2.totalSizeMB} MB</span>
+                          </div>
+                        </div>
+                        <div className="widget-footer">
+                          <span>10 GB Free Tier</span>
+                          <span>{data.systemHealth.r2.freeTierRemainingGB} GB Remaining</span>
                         </div>
                       </div>
                     </>
@@ -3204,6 +3261,20 @@ export default function DashboardClient() {
           text-align: center;
         }
 
+        .card-mongo .card-head-info h3 { color: #34d399 !important; text-shadow: 0 0 10px rgba(52, 211, 153, 0.25); }
+        .card-cpu .card-head-info h3 { color: #60a5fa !important; text-shadow: 0 0 10px rgba(96, 165, 250, 0.25); }
+        .card-ram .card-head-info h3 { color: #f472b6 !important; text-shadow: 0 0 10px rgba(244, 114, 182, 0.25); }
+        .card-os .card-head-info h3 { color: #38bdf8 !important; text-shadow: 0 0 10px rgba(56, 189, 248, 0.25); }
+        .card-tracker .card-head-info h3 { color: #c084fc !important; text-shadow: 0 0 10px rgba(192, 132, 252, 0.25); }
+        .card-r2 .card-head-info h3 { color: #fbbf24 !important; text-shadow: 0 0 10px rgba(251, 191, 36, 0.25); }
+
+        .card-mongo:hover { border-color: rgba(52, 211, 153, 0.4); box-shadow: 0 10px 30px rgba(52, 211, 153, 0.15); }
+        .card-cpu:hover { border-color: rgba(96, 165, 250, 0.4); box-shadow: 0 10px 30px rgba(96, 165, 250, 0.15); }
+        .card-ram:hover { border-color: rgba(244, 114, 182, 0.4); box-shadow: 0 10px 30px rgba(244, 114, 182, 0.15); }
+        .card-os:hover { border-color: rgba(56, 189, 248, 0.4); box-shadow: 0 10px 30px rgba(56, 189, 248, 0.15); }
+        .card-tracker:hover { border-color: rgba(192, 132, 252, 0.4); box-shadow: 0 10px 30px rgba(192, 132, 252, 0.15); }
+        .card-r2:hover { border-color: rgba(251, 191, 36, 0.4); box-shadow: 0 10px 30px rgba(251, 191, 36, 0.15); }
+
         .card-subtitle {
           font-size: 0.75rem;
           color: #9ca3af;
@@ -3271,39 +3342,216 @@ export default function DashboardClient() {
           box-shadow: 0 0 12px rgba(255, 107, 107, 0.4);
         }
 
-        /* Meter Progress Bars */
-        .meter-box {
-          margin-top: 1rem;
-          padding-top: 0.75rem;
-          border-top: 1px solid rgba(255, 255, 255, 0.06);
+        /* Custom Graphic UI Widgets (Replacing Old Line Meters) */
+        .custom-widget-box {
+          margin-top: 0.85rem;
+          padding: 0.75rem 0.85rem;
+          background: rgba(0, 0, 0, 0.25);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 0.45rem;
         }
 
-        .meter-header {
+        .widget-header {
           display: flex;
+          align-items: center;
           justify-content: space-between;
           font-size: 0.75rem;
           font-weight: 600;
-          color: #9ca3af;
-          margin-bottom: 0.4rem;
         }
 
-        .meter-track {
-          height: 8px;
-          background: rgba(255, 255, 255, 0.08);
+        .widget-title {
+          color: #d1d5db;
+          font-weight: 600;
+        }
+
+        .widget-badge {
+          font-size: 0.65rem;
+          font-weight: 800;
+          padding: 0.15rem 0.45rem;
           border-radius: 999px;
+          letter-spacing: 0.03em;
+        }
+
+        .badge-emerald-glow { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.4); box-shadow: 0 0 8px rgba(52, 211, 153, 0.2); }
+        .badge-blue-glow { background: rgba(96, 165, 250, 0.15); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.4); box-shadow: 0 0 8px rgba(96, 165, 250, 0.2); }
+        .badge-rose-glow { background: rgba(244, 114, 182, 0.15); color: #f472b6; border: 1px solid rgba(244, 114, 182, 0.4); box-shadow: 0 0 8px rgba(244, 114, 182, 0.2); }
+        .badge-cyan-glow { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); box-shadow: 0 0 8px rgba(56, 189, 248, 0.2); }
+        .badge-purple-glow { background: rgba(192, 132, 252, 0.15); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.4); box-shadow: 0 0 8px rgba(192, 132, 252, 0.2); }
+        .badge-amber-glow { background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.4); box-shadow: 0 0 8px rgba(251, 191, 36, 0.2); }
+
+        .widget-footer {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.68rem;
+          color: #9ca3af;
+        }
+
+        /* Widget 1: Segmented Storage Matrix */
+        .segmented-bar {
+          display: flex;
+          gap: 4px;
+          height: 10px;
+          align-items: center;
+          margin: 0.2rem 0;
+        }
+
+        .segment-cell {
+          flex: 1;
+          height: 100%;
+          border-radius: 3px;
+          transition: all 0.3s ease;
+        }
+
+        .cell-inactive {
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .cell-emerald-active {
+          background: #34d399;
+          box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
+        }
+
+        /* Widget 2: Dynamic Core Equalizer */
+        .eq-spectrum-bar {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          height: 26px;
+          gap: 6px;
+          padding: 0 0.5rem;
+        }
+
+        .eq-bar {
+          flex: 1;
+          border-radius: 4px;
+          animation: eqPulse 1.8s infinite ease-in-out alternate;
+        }
+
+        .eq-bar-1 { background: linear-gradient(180deg, #34d399, #059669); height: 60%; animation-delay: 0.1s; }
+        .eq-bar-2 { background: linear-gradient(180deg, #60a5fa, #2563eb); height: 90%; animation-delay: 0.3s; }
+        .eq-bar-3 { background: linear-gradient(180deg, #c084fc, #7c3aed); height: 45%; animation-delay: 0.5s; }
+        .eq-bar-4 { background: linear-gradient(180deg, #38bdf8, #0284c7); height: 80%; animation-delay: 0.2s; }
+        .eq-bar-5 { background: linear-gradient(180deg, #fbbf24, #d97706); height: 70%; animation-delay: 0.4s; }
+        .eq-bar-6 { background: linear-gradient(180deg, #f472b6, #db2777); height: 50%; animation-delay: 0.6s; }
+
+        @keyframes eqPulse {
+          0% { transform: scaleY(0.4); opacity: 0.7; }
+          100% { transform: scaleY(1); opacity: 1; }
+        }
+
+        /* Widget 3: Dual Memory Capsule */
+        .dual-memory-pill {
+          display: flex;
+          height: 20px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.06);
+          overflow: hidden;
+          margin: 0.2rem 0;
+          font-size: 0.65rem;
+          font-weight: 700;
+        }
+
+        .pill-fill-heap {
+          background: linear-gradient(90deg, #f472b6, #e11d48);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #ffffff;
+          box-shadow: 0 0 10px rgba(244, 114, 182, 0.4);
+          white-space: nowrap;
+          padding: 0 0.4rem;
+        }
+
+        .pill-fill-ram {
+          flex: 1;
+          background: rgba(56, 189, 248, 0.12);
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          color: #38bdf8;
+          padding-right: 0.6rem;
+          white-space: nowrap;
+        }
+
+        /* Widget 4: Real-time ECG Pulse Monitor */
+        .ecg-pulse-wrapper {
+          height: 26px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(6, 182, 212, 0.06);
+          border-radius: 8px;
+          border: 1px solid rgba(56, 189, 248, 0.15);
           overflow: hidden;
         }
 
-        .meter-fill {
+        .ecg-svg {
+          width: 100%;
           height: 100%;
-          border-radius: 999px;
-          transition: width 0.5s ease;
+          filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.6));
         }
 
-        .green-gradient { background: linear-gradient(90deg, #10b981, #059669); }
-        .blue-gradient { background: linear-gradient(90deg, #3b82f6, #2563eb); }
-        .cyan-gradient { background: linear-gradient(90deg, #06b6d4, #0891b2); }
-        .amber-gradient { background: linear-gradient(90deg, #f59e0b, #d97706); }
+        /* Widget 5: 5-Bar Signal Radar */
+        .signal-bars-container {
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+          gap: 6px;
+          height: 22px;
+          margin: 0.2rem 0;
+        }
+
+        .signal-bar {
+          width: 12px;
+          border-radius: 3px;
+          background: rgba(255, 255, 255, 0.1);
+          transition: all 0.3s ease;
+        }
+
+        .signal-bar.bar-1 { height: 25%; }
+        .signal-bar.bar-2 { height: 45%; }
+        .signal-bar.bar-3 { height: 65%; }
+        .signal-bar.bar-4 { height: 85%; }
+        .signal-bar.bar-5 { height: 100%; }
+
+        .signal-bar.active {
+          background: linear-gradient(180deg, #c084fc, #9333ea);
+          box-shadow: 0 0 8px rgba(192, 132, 252, 0.6);
+        }
+
+        /* Widget 6: Quota Glass Capsule */
+        .r2-tier-capsule {
+          height: 20px;
+          background: rgba(255, 255, 255, 0.06);
+          border-radius: 999px;
+          overflow: hidden;
+          margin: 0.2rem 0;
+          display: flex;
+          align-items: center;
+          border: 1px solid rgba(251, 191, 36, 0.2);
+        }
+
+        .r2-fill-amber {
+          height: 100%;
+          background: linear-gradient(90deg, #fbbf24, #d97706);
+          border-radius: 999px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 0 10px rgba(251, 191, 36, 0.4);
+          transition: width 0.4s ease;
+        }
+
+        .r2-pill-label {
+          font-size: 0.65rem;
+          font-weight: 800;
+          color: #0f172a;
+          white-space: nowrap;
+          padding: 0 0.4rem;
+        }
 
         .r2-offline-notice {
           padding: 1rem;
