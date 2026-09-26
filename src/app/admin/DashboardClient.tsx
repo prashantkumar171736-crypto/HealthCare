@@ -1590,7 +1590,8 @@ export default function DashboardClient() {
                 const dbIndexMB = data.systemHealth.dbIndexSizeMB || 0;
                 const dbStorageMB = data.systemHealth.dbStorageSizeMB || 0;
                 const atlasLimitMB = 512;
-                const dbFreeMB = Math.max(0, parseFloat((atlasLimitMB - dbStorageMB).toFixed(2)));
+                const dbUsedTotalMB = parseFloat((dbDataMB + dbIndexMB + dbStorageMB).toFixed(2));
+                const dbFreeMB = Math.max(0, parseFloat((atlasLimitMB - dbUsedTotalMB).toFixed(2)));
 
                 const dbDataPct = ((dbDataMB / atlasLimitMB) * 100).toFixed(1);
                 const dbIndexPct = ((dbIndexMB / atlasLimitMB) * 100).toFixed(1);
@@ -1598,9 +1599,9 @@ export default function DashboardClient() {
                 const dbFreePct = ((dbFreeMB / atlasLimitMB) * 100).toFixed(1);
 
                 const circ1 = 440; // 2 * PI * 70
-                const len1 = (dbDataMB / atlasLimitMB) * circ1;
-                const len2 = (dbIndexMB / atlasLimitMB) * circ1;
-                const len3 = (dbStorageMB / atlasLimitMB) * circ1;
+                const len1 = Math.max(4, (dbDataMB / atlasLimitMB) * circ1);
+                const len2 = Math.max(4, (dbIndexMB / atlasLimitMB) * circ1);
+                const len3 = Math.max(4, (dbStorageMB / atlasLimitMB) * circ1);
                 const len4 = (dbFreeMB / atlasLimitMB) * circ1;
 
                 const rot1 = -90;
