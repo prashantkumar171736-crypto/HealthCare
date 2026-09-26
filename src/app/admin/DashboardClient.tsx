@@ -558,12 +558,39 @@ export default function DashboardClient() {
               <span className="pulse-dot"></span> {data.systemHealth.r2 ? `R2 ${data.systemHealth.r2.status} (${data.systemHealth.r2.totalObjects} files)` : "R2 Offline (0 files)"}
             </div>
           </div>
-          <div className="kpi-card">
+          <div className="kpi-card memory-kpi-card">
             <div className="kpi-title">GUI SERVER MEMORY</div>
-            <div className="kpi-value">
-              {data.systemHealth.memoryUsed} <span className="unit">MB</span>
+            <div className="circular-progress-container" style={{ padding: "0.25rem 0", margin: "0 auto" }}>
+              <div className="circular-progress" style={{ width: "110px", height: "110px" }}>
+                <div className="progress-value">
+                  <span className="number" style={{ fontSize: "1.5rem" }}>{data.systemHealth.memoryUsed}</span>
+                  <span className="sub">MB Used</span>
+                </div>
+                <svg className="circular-svg" style={{ width: "110px", height: "110px" }}>
+                  <circle cx="55" cy="55" r="46" className="bg-circle" style={{ strokeWidth: 7 }} />
+                  <circle
+                    cx="55"
+                    cy="55"
+                    r="46"
+                    className="fill-circle"
+                    style={{
+                      strokeWidth: 7,
+                      stroke: "#4ade80",
+                      strokeDasharray: 289,
+                      strokeDashoffset:
+                        289 -
+                        (289 *
+                          Math.min(
+                            data.systemHealth.memoryUsed /
+                              (data.systemHealth.memoryTotal || 512),
+                            1
+                          ))
+                    }}
+                  />
+                </svg>
+              </div>
             </div>
-            <div className="kpi-status-badge online">
+            <div className="kpi-status-badge online" style={{ marginTop: "0.25rem" }}>
               <span className="pulse-dot"></span> Heap Healthy ({data.systemHealth.memoryTotal} MB Allocated)
             </div>
           </div>
