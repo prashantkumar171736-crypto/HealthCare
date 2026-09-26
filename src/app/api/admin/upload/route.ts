@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { validateSession } from "../login/route";
-import { getDb } from "@/lib/db";
+import { uploadToR2 } from "@/lib/r2";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,9 +15,10 @@ async function authenticate(): Promise<boolean> {
 /**
  * POST /api/admin/upload
  * Accepts a multipart/form-data request with a "file" field.
- * Stores the image as a base64 string in MongoDB and returns a URL
- * that can be used to retrieve the image.
- * This approach works on Vercel (no local filesystem writes required).
+ * Uploads the file to Cloudflare R2 and returns a permanent CDN URL.
+ *
+ * Previously: stored base64 in MongoDB "uploads" collection (~647 KB/doc)
+ * Now:        uploads to R2, stores only a ~60-byte URL in content HTML
  */
 export async function POST(request: NextRequest) {
   if (!(await authenticate())) {
@@ -32,32 +33,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // 5 MB limit
-    const MAX_SIZE = 5 * 1024 * 1024;
+    // 10 MB limit (increased from 5 MB since R2 handles large files easily)
+    const MAX_SIZE = 10 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 413 });
+      return NextResponse.json({ error: "File too large (max 10 MB)" }, { status: 413 });
     }
 
-    // Convert to base64
-    const arrayBuffer = await file.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
     const mimeType = file.type || "image/jpeg";
-    const originalName = file.name || "image";
+    const originalName = file.name || `upload-${Date.now()}`;
 
-    // Persist in MongoDB "uploads" collection
-    const db = await getDb();
-    const result = await db.collection("uploads").insertOne({
-      filename: originalName,
-      mimeType,
-      data: base64,
-      createdAt: new Date(),
-    });
+    // Convert File → Buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    const id = result.insertedId.toString();
-    const url = `/api/admin/upload/${id}`;
+    // Upload to Cloudflare R2 — returns permanent public CDN URL
+    const url = await uploadToR2(buffer, originalName, mimeType);
+
     return NextResponse.json({ url }, { status: 200 });
-  } catch (err) {
-    console.error("Upload error:", err);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+  } catch (err: any) {
+    console.error("R2 upload error:", err);
+    return NextResponse.json({ error: "Upload failed: " + (err.message || err) }, { status: 500 });
   }
 }
