@@ -525,22 +525,18 @@ export default function DashboardClient() {
           <div className="kpi-card kpi-card-emerald">
             <div className="kpi-card-top">
               <div className="kpi-icon-wrapper icon-emerald">📊</div>
-              <div className="kpi-title-block">
-                <span className="kpi-title">TOTAL PAGE VIEWS</span>
+              <div className="kpi-title-block text-center">
+                <span className="kpi-title title-emerald">TOTAL PAGE VIEWS</span>
                 <span className="kpi-subtitle">Global Traffic</span>
               </div>
               <span className="kpi-badge badge-emerald">RECORD</span>
             </div>
-            <div className="kpi-card-middle">
+            <div className="kpi-card-middle text-center">
               <div className="kpi-value text-emerald">{data.summary.totalViews.toLocaleString()}</div>
             </div>
             <div className="kpi-card-bottom">
-              <div className="kpi-footer-row">
-                <span>📈 All-time record views</span>
-                <span className="text-emerald font-bold">100%</span>
-              </div>
-              <div className="kpi-mini-bar">
-                <div className="kpi-mini-fill fill-emerald" style={{ width: "100%" }}></div>
+              <div className="kpi-footer-row text-center-row">
+                <span>📈 All-time record views (100%)</span>
               </div>
             </div>
           </div>
@@ -549,50 +545,66 @@ export default function DashboardClient() {
           <div className="kpi-card kpi-card-blue">
             <div className="kpi-card-top">
               <div className="kpi-icon-wrapper icon-blue">👥</div>
-              <div className="kpi-title-block">
-                <span className="kpi-title">UNIQUE VISITORS</span>
+              <div className="kpi-title-block text-center">
+                <span className="kpi-title title-blue">UNIQUE VISITORS</span>
                 <span className="kpi-subtitle">Distinct Sessions</span>
               </div>
               <span className="kpi-badge badge-blue">DAILY</span>
             </div>
-            <div className="kpi-card-middle">
+            <div className="kpi-card-middle text-center">
               <div className="kpi-value text-blue">{data.summary.uniqueVisitors.toLocaleString()}</div>
             </div>
             <div className="kpi-card-bottom">
-              <div className="kpi-footer-row">
-                <span>⚡ Unique daily sessions</span>
-                <span className="text-blue font-bold">Live</span>
-              </div>
-              <div className="kpi-mini-bar">
-                <div className="kpi-mini-fill fill-blue" style={{ width: "85%" }}></div>
+              <div className="kpi-footer-row text-center-row">
+                <span>⚡ Unique daily sessions logged</span>
               </div>
             </div>
           </div>
 
-          {/* Card 3: GUI Server Ping (Purple Theme) */}
-          <div className="kpi-card kpi-card-purple">
+          {/* Card 3: GUI Server Ping (Purple Ring Gauge Theme) */}
+          <div className="kpi-card kpi-card-purple memory-kpi-card">
             <div className="kpi-card-top">
               <div className="kpi-icon-wrapper icon-purple">⚡</div>
-              <div className="kpi-title-block">
-                <span className="kpi-title">GUI SERVER PING</span>
+              <div className="kpi-title-block text-center">
+                <span className="kpi-title title-purple">GUI SERVER PING</span>
                 <span className="kpi-subtitle">MongoDB Latency</span>
               </div>
               <span className={`kpi-status-badge ${data.systemHealth.dbStatus === "Connected" ? "online" : "offline"}`}>
                 <span className="pulse-dot"></span> {data.systemHealth.dbStatus === "Connected" ? "CONNECTED" : "OFFLINE"}
               </span>
             </div>
-            <div className="kpi-card-middle">
-              <div className="kpi-value text-purple">
-                {data.systemHealth.dbPingTime} <span className="unit">ms</span>
+            <div className="kpi-card-middle circular-gauge-middle">
+              <div className="circular-progress" style={{ width: "95px", height: "95px" }}>
+                <div className="progress-value">
+                  <span className="number" style={{ fontSize: "1.35rem", color: "#c084fc" }}>{data.systemHealth.dbPingTime}</span>
+                  <span className="sub" style={{ fontSize: "0.6rem" }}>MS Ping</span>
+                </div>
+                <svg className="circular-svg" style={{ width: "95px", height: "95px" }}>
+                  <circle cx="47.5" cy="47.5" r="40" className="bg-circle" style={{ strokeWidth: 6 }} />
+                  <circle
+                    cx="47.5"
+                    cy="47.5"
+                    r="40"
+                    className="fill-circle"
+                    style={{
+                      strokeWidth: 6,
+                      stroke: "#c084fc",
+                      strokeDasharray: 251,
+                      strokeDashoffset:
+                        251 -
+                        (251 *
+                          Math.min(
+                            (500 - Math.min(data.systemHealth.dbPingTime, 500)) / 500,
+                            1
+                          ))
+                    }}
+                  />
+                </svg>
               </div>
             </div>
             <div className="kpi-card-bottom">
-              <div className="kpi-footer-row">
+              <div className="kpi-footer-row text-center-row">
                 <span>💾 Atlas Cluster Connection</span>
-                <span className="text-purple font-bold">{data.systemHealth.dbPingTime}ms</span>
-              </div>
-              <div className="kpi-mini-bar">
-                <div className="kpi-mini-fill fill-purple" style={{ width: `${Math.min(100, Math.max(10, 100 - data.systemHealth.dbPingTime / 5))}%` }}></div>
               </div>
             </div>
           </div>
@@ -601,22 +613,18 @@ export default function DashboardClient() {
           <div className="kpi-card kpi-card-cyan">
             <div className="kpi-card-top">
               <div className="kpi-icon-wrapper icon-cyan">⏱️</div>
-              <div className="kpi-title-block">
-                <span className="kpi-title">SERVER UPTIME</span>
+              <div className="kpi-title-block text-center">
+                <span className="kpi-title title-cyan">SERVER UPTIME</span>
                 <span className="kpi-subtitle">Process Runtime</span>
               </div>
               <span className="kpi-badge badge-cyan">UPTIME</span>
             </div>
-            <div className="kpi-card-middle">
+            <div className="kpi-card-middle text-center">
               <div className="kpi-value text-cyan">{formatUptime(data.systemHealth.serverUptime)}</div>
             </div>
             <div className="kpi-card-bottom">
-              <div className="kpi-footer-row">
-                <span>🛡️ Running without failures</span>
-                <span className="text-cyan font-bold">100% UP</span>
-              </div>
-              <div className="kpi-mini-bar">
-                <div className="kpi-mini-fill fill-cyan" style={{ width: "100%" }}></div>
+              <div className="kpi-footer-row text-center-row">
+                <span>🛡️ Running without failures (100% UP)</span>
               </div>
             </div>
           </div>
@@ -625,15 +633,15 @@ export default function DashboardClient() {
           <div className="kpi-card kpi-card-amber">
             <div className="kpi-card-top">
               <div className="kpi-icon-wrapper icon-amber">☁️</div>
-              <div className="kpi-title-block">
-                <span className="kpi-title">CLOUDFLARE R2 CDN</span>
+              <div className="kpi-title-block text-center">
+                <span className="kpi-title title-amber">CLOUDFLARE R2 CDN</span>
                 <span className="kpi-subtitle">Object Storage</span>
               </div>
               <span className={`kpi-status-badge ${data.systemHealth.r2?.status === "Connected" ? "online" : "offline"}`}>
                 <span className="pulse-dot"></span> {data.systemHealth.r2?.status === "Connected" ? "CONNECTED" : "OFFLINE"}
               </span>
             </div>
-            <div className="kpi-card-middle">
+            <div className="kpi-card-middle text-center">
               <div className="kpi-value text-amber">
                 {data.systemHealth.r2 ? (
                   <>{data.systemHealth.r2.totalSizeMB} <span className="unit">MB</span></>
@@ -643,12 +651,8 @@ export default function DashboardClient() {
               </div>
             </div>
             <div className="kpi-card-bottom">
-              <div className="kpi-footer-row">
-                <span>📦 {data.systemHealth.r2 ? `${data.systemHealth.r2.totalObjects} files stored` : "0 files stored"}</span>
-                <span className="text-amber font-bold">{data.systemHealth.r2 ? `${data.systemHealth.r2.freeTierUsedPct}%` : "0%"}</span>
-              </div>
-              <div className="kpi-mini-bar">
-                <div className="kpi-mini-fill fill-amber" style={{ width: `${Math.min(100, Math.max(3, data.systemHealth.r2?.freeTierUsedPct || 0))}%` }}></div>
+              <div className="kpi-footer-row text-center-row">
+                <span>📦 {data.systemHealth.r2 ? `${data.systemHealth.r2.totalObjects} files stored (${data.systemHealth.r2.freeTierUsedPct}% free tier used)` : "0 files stored"}</span>
               </div>
             </div>
           </div>
@@ -657,8 +661,8 @@ export default function DashboardClient() {
           <div className="kpi-card kpi-card-rose memory-kpi-card">
             <div className="kpi-card-top">
               <div className="kpi-icon-wrapper icon-rose">🧠</div>
-              <div className="kpi-title-block">
-                <span className="kpi-title">GUI SERVER MEMORY</span>
+              <div className="kpi-title-block text-center">
+                <span className="kpi-title title-rose">GUI SERVER MEMORY</span>
                 <span className="kpi-subtitle">V8 Heap Memory</span>
               </div>
               <span className="kpi-status-badge online">
@@ -696,12 +700,8 @@ export default function DashboardClient() {
               </div>
             </div>
             <div className="kpi-card-bottom">
-              <div className="kpi-footer-row">
-                <span>💾 Allocated Heap</span>
-                <span className="text-rose font-bold">{data.systemHealth.memoryTotal} MB</span>
-              </div>
-              <div className="kpi-mini-bar">
-                <div className="kpi-mini-fill fill-rose" style={{ width: `${Math.min(100, Math.max(5, (data.systemHealth.memoryUsed / (data.systemHealth.memoryTotal || 512)) * 100))}%` }}></div>
+              <div className="kpi-footer-row text-center-row">
+                <span>💾 Allocated Heap ({data.systemHealth.memoryTotal} MB)</span>
               </div>
             </div>
           </div>
