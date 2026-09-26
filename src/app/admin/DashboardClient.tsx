@@ -502,8 +502,9 @@ export default function DashboardClient() {
       <main className="admin-content-pane">
         <header className="content-header">
           <div className="header-meta">
-            <h1 style={{ textAlign: 'center', color: '#34d399' }}>Analytics Security Console</h1>
-            <p style={{ textAlign: 'center', color: '#34d399', fontWeight: 'bold' }}>Real-time site reachability, geolocation metrics, and traffic aggregation.</p>          </div>
+            <h1>Analytics Security Console</h1>
+            <p>Real-time site reachability, geolocation metrics, and traffic aggregation.</p>
+          </div>
           <div className="header-actions">
             <button onClick={() => fetchStats()} className="btn-refresh">
               🔄 Refresh Logs
