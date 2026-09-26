@@ -174,22 +174,31 @@ export default function DashboardClient() {
     color: string;
   } | null>(null);
 
-  // Time-Range Selector State for Live Telemetry Graphs ("30m" | "1h" | "3h" | "24h")
-  const [telemetryTimeRange, setTelemetryTimeRange] = useState<"30m" | "1h" | "3h" | "24h">("1h");
+  // Individual Per-Graph Time Window State ("30m" | "1h" | "3h" | "12h" | "24h")
+  const [cardRanges, setCardRanges] = useState<Record<string, "30m" | "1h" | "3h" | "12h" | "24h">>({
+    card1: "1h",
+    card2: "1h",
+    card3: "1h",
+    card4: "1h",
+    card5: "12h",
+    card6: "1h",
+  });
 
-  // Helper to filter/downsample telemetry points cleanly for any selected time range
-  const getFilteredTelemetry = useCallback((pts: typeof telemetryPoints, range: "30m" | "1h" | "3h" | "24h") => {
+  // Helper to filter/downsample telemetry points cleanly for any selected per-graph time range
+  const getFilteredTelemetry = useCallback((pts: typeof telemetryPoints, range: "30m" | "1h" | "3h" | "12h" | "24h") => {
     if (!pts || pts.length === 0) return [];
     let maxPoints = 10;
     if (range === "30m") maxPoints = 10;
     else if (range === "1h") maxPoints = 12;
     else if (range === "3h") maxPoints = 15;
+    else if (range === "12h") maxPoints = 18;
     else if (range === "24h") maxPoints = 24;
 
     let targetCount = pts.length;
     if (range === "30m") targetCount = Math.min(pts.length, 30);
     else if (range === "1h") targetCount = Math.min(pts.length, 60);
     else if (range === "3h") targetCount = Math.min(pts.length, 120);
+    else if (range === "12h") targetCount = Math.min(pts.length, 150);
     else targetCount = pts.length;
 
     const subset = pts.slice(pts.length - targetCount);
@@ -1555,45 +1564,6 @@ export default function DashboardClient() {
               </span>
             </div>
 
-            {/* Time-Range Selector Toolbar */}
-            <div className="telemetry-toolbar">
-              <div className="toolbar-info">
-                <span className="toolbar-title">⏱️ Telemetry Time Window:</span>
-                <span className="toolbar-subtitle">
-                  {telemetryTimeRange === "30m" && "Showing Last 30 Minutes (High Precision)"}
-                  {telemetryTimeRange === "1h" && "Showing Last 1 Hour Telemetry History"}
-                  {telemetryTimeRange === "3h" && "Showing Last 3 Hours Telemetry Trend"}
-                  {telemetryTimeRange === "24h" && "Showing Full 24-Hour MongoDB Telemetry History"}
-                </span>
-              </div>
-              <div className="time-range-pills">
-                <button
-                  className={`time-pill ${telemetryTimeRange === "30m" ? "active" : ""}`}
-                  onClick={() => setTelemetryTimeRange("30m")}
-                >
-                  ⏱️ 30 Min
-                </button>
-                <button
-                  className={`time-pill ${telemetryTimeRange === "1h" ? "active" : ""}`}
-                  onClick={() => setTelemetryTimeRange("1h")}
-                >
-                  ⌛ 1 Hour
-                </button>
-                <button
-                  className={`time-pill ${telemetryTimeRange === "3h" ? "active" : ""}`}
-                  onClick={() => setTelemetryTimeRange("3h")}
-                >
-                  🕒 3 Hours
-                </button>
-                <button
-                  className={`time-pill ${telemetryTimeRange === "24h" ? "active" : ""}`}
-                  onClick={() => setTelemetryTimeRange("24h")}
-                >
-                  📅 24 Hours
-                </button>
-              </div>
-            </div>
-
             {/* Floating Glass Tooltip for Graphs */}
             {graphTooltip && (
               <div
@@ -1659,13 +1629,36 @@ export default function DashboardClient() {
                 const r2TotalMB = data.systemHealth.r2?.totalSizeMB || 171.59;
                 const r2FreeGB = data.systemHealth.r2?.freeTierRemainingGB || 9.83;
 
+                // Per-card time window pill renderer helper
+                const renderCardTimePills = (cardId: string) => {
+                  const current = cardRanges[cardId] || "1h";
+                  const ranges: Array<"30m" | "1h" | "3h" | "12h" | "24h"> = ["30m", "1h", "3h", "12h", "24h"];
+                  return (
+                    <div className="card-window-pills">
+                      {ranges.map((r) => (
+                        <button
+                          key={r}
+                          type="button"
+                          className={`card-time-btn ${current === r ? "active" : ""}`}
+                          onClick={() => setCardRanges((prev) => ({ ...prev, [cardId]: r }))}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                };
+
                 return (
                   <>
                     {/* Card 1: MongoDB Database Storage Distribution (Donut Chart) */}
                     <div className="graph-card">
                       <div className="graph-card-header">
-                        <span className="graph-card-title">💾 MongoDB Storage Distribution</span>
-                        <span className="graph-badge badge-emerald">🔄 Refresh: Every 5 Min</span>
+                        <div className="header-title-chip">
+                          <span className="graph-card-title">💾 MongoDB Storage Distribution</span>
+                          <span className="graph-badge badge-emerald">🔄 Refresh: Every 5 Min</span>
+                        </div>
+                        {renderCardTimePills("card1")}
                       </div>
                       <div className="graph-card-body donut-chart-body">
                         <svg
@@ -1844,8 +1837,11 @@ export default function DashboardClient() {
                     {/* Card 2: CPU Processor Load History (Vertical Bar Chart) */}
                     <div className="graph-card">
                       <div className="graph-card-header">
-                        <span className="graph-card-title">⚙️ CPU Load Capacity History</span>
-                        <span className="graph-badge badge-amber">🔄 Refresh: Every 5 Min</span>
+                        <div className="header-title-chip">
+                          <span className="graph-card-title">⚙️ CPU Load Capacity History</span>
+                          <span className="graph-badge badge-amber">🔄 Refresh: Every 5 Min</span>
+                        </div>
+                        {renderCardTimePills("card2")}
                       </div>
                       <div className="graph-card-body bar-chart-body">
                         <svg
@@ -1871,7 +1867,7 @@ export default function DashboardClient() {
                           <text x="5" y="178" fill="#9ca3af" fontSize="10">0%</text>
 
                           {(() => {
-                            const filteredPts = getFilteredTelemetry(telemetryPoints, telemetryTimeRange);
+                            const filteredPts = getFilteredTelemetry(telemetryPoints, cardRanges.card2 || "1h");
                             const displayPts = filteredPts.length > 0 ? filteredPts : [...Array(10)];
                             const stepWidth = Math.min(36, 360 / Math.max(1, displayPts.length));
 
@@ -1919,8 +1915,11 @@ export default function DashboardClient() {
                     {/* Card 3: Host Memory & V8 Heap Allocation (Concentric Donut Chart) */}
                     <div className="graph-card">
                       <div className="graph-card-header">
-                        <span className="graph-card-title">🧠 Host RAM & V8 Heap Allocation</span>
-                        <span className="graph-badge badge-cyan">⚡ Refresh: Every 1 Min</span>
+                        <div className="header-title-chip">
+                          <span className="graph-card-title">🧠 Host RAM & V8 Heap Allocation</span>
+                          <span className="graph-badge badge-cyan">⚡ Refresh: Every 1 Min</span>
+                        </div>
+                        {renderCardTimePills("card3")}
                       </div>
                       <div className="graph-card-body donut-chart-body">
                         <svg
@@ -2000,8 +1999,11 @@ export default function DashboardClient() {
                     {/* Card 4: Analogue Signal Latency Ping (Area Line Graph) */}
                     <div className="graph-card analogue-graph-card">
                       <div className="graph-card-header">
-                        <span className="graph-card-title">⚡ ANALOGUE SIGNAL LATENCY</span>
-                        <span className="graph-badge badge-emerald">⚡ Refresh: Every 1 Min</span>
+                        <div className="header-title-chip">
+                          <span className="graph-card-title">⚡ ANALOGUE SIGNAL LATENCY</span>
+                          <span className="graph-badge badge-emerald">⚡ Refresh: Every 1 Min</span>
+                        </div>
+                        {renderCardTimePills("card4")}
                       </div>
                       <div className="graph-card-body analogue-chart-body">
                         <svg
@@ -2018,7 +2020,7 @@ export default function DashboardClient() {
                           </defs>
 
                           {(() => {
-                            const pts = getFilteredTelemetry(telemetryPoints, telemetryTimeRange);
+                            const pts = getFilteredTelemetry(telemetryPoints, cardRanges.card4 || "1h");
                             const maxPing = Math.max(250, ...pts.map(p => p.ping));
                             const coords = pts.map((p, i) => {
                               const x = 55 + (i * 380) / Math.max(1, pts.length - 1);
@@ -2078,8 +2080,11 @@ export default function DashboardClient() {
                     {/* Card 5: Dual Traffic Request & Session Velocity (Dual Curves Graph) */}
                     <div className="graph-card">
                       <div className="graph-card-header">
-                        <span className="graph-card-title">🌐 Request Traffic & Session Velocity</span>
-                        <span className="graph-badge badge-purple">📅 Refresh: 12H / Daily</span>
+                        <div className="header-title-chip">
+                          <span className="graph-card-title">🌐 Request Traffic & Session Velocity</span>
+                          <span className="graph-badge badge-purple">📅 Refresh: 12H / Daily</span>
+                        </div>
+                        {renderCardTimePills("card5")}
                       </div>
                       <div className="graph-card-body bar-chart-body">
                         <svg
@@ -2104,7 +2109,7 @@ export default function DashboardClient() {
                           <line x1="20" y1="140" x2="380" y2="140" stroke="rgba(255,255,255,0.05)" />
 
                           {(() => {
-                            const pts = getFilteredTelemetry(telemetryPoints, telemetryTimeRange);
+                            const pts = getFilteredTelemetry(telemetryPoints, cardRanges.card5 || "12h");
                             const maxV = Math.max(50, ...pts.map((p, i) => Math.max(p.views + Math.round(Math.sin(i * 1.5) * 2), p.visitors * 4)));
 
                             const viewCoords = pts.map((p, i) => {
@@ -2190,8 +2195,11 @@ export default function DashboardClient() {
                     {/* Card 6: Cloudflare R2 Storage Quota Breakdown (Pie Chart) */}
                     <div className="graph-card">
                       <div className="graph-card-header">
-                        <span className="graph-card-title">☁️ Cloudflare R2 Storage Breakdown</span>
-                        <span className="graph-badge badge-rose">Pie Chart</span>
+                        <div className="header-title-chip">
+                          <span className="graph-card-title">☁️ Cloudflare R2 Storage Breakdown</span>
+                          <span className="graph-badge badge-rose">Pie Chart</span>
+                        </div>
+                        {renderCardTimePills("card6")}
                       </div>
                       <div className="graph-card-body donut-chart-body">
                         <svg
@@ -2199,13 +2207,13 @@ export default function DashboardClient() {
                           className="donut-chart-svg interactive-svg"
                           onMouseLeave={() => setGraphTooltip(null)}
                         >
-                          {/* Slice 1: Cyan (series-1) */}
+                          {/* Slice 1: Cyan (Uploaded Images) */}
                           <path
                             d="M 100 100 L 100 25 A 75 75 0 0 1 170 75 Z" fill="#38bdf8" stroke="#0f172a" strokeWidth="1.5"
                             className="svg-hover-slice"
                             onMouseMove={(e) => {
                               setGraphTooltip({
-                                x: e.clientX, y: e.clientY, title: "series-1: User Uploaded Images",
+                                x: e.clientX, y: e.clientY, title: "Uploaded Images",
                                 value: `${(r2TotalMB * 0.102).toFixed(2)} MB (10.2%)`,
                                 detail: "Uploaded disease and post images stored in Cloudflare R2 bucket", color: "#38bdf8",
                               });
@@ -2213,13 +2221,13 @@ export default function DashboardClient() {
                           />
                           <text x="125" y="60" fill="#ffffff" fontSize="9" fontWeight="800">10.2%</text>
 
-                          {/* Slice 2: Emerald (series-2) */}
+                          {/* Slice 2: Emerald (CDN Media Cache) */}
                           <path
                             d="M 100 100 L 170 75 A 75 75 0 0 1 150 155 Z" fill="#34d399" stroke="#0f172a" strokeWidth="1.5"
                             className="svg-hover-slice"
                             onMouseMove={(e) => {
                               setGraphTooltip({
-                                x: e.clientX, y: e.clientY, title: "series-2: CDN Edge Media Cache",
+                                x: e.clientX, y: e.clientY, title: "CDN Media Cache",
                                 value: `${(r2TotalMB * 0.204).toFixed(2)} MB (20.4%)`,
                                 detail: "Cached image thumbnails and static media served on Cloudflare CDN", color: "#34d399",
                               });
@@ -2227,13 +2235,13 @@ export default function DashboardClient() {
                           />
                           <text x="135" y="115" fill="#ffffff" fontSize="9" fontWeight="800">20.4%</text>
 
-                          {/* Slice 3: Amber (series-3) */}
+                          {/* Slice 3: Amber (Doc & Asset Files) */}
                           <path
                             d="M 100 100 L 150 155 A 75 75 0 0 1 90 174 Z" fill="#fbbf24" stroke="#0f172a" strokeWidth="1.5"
                             className="svg-hover-slice"
                             onMouseMove={(e) => {
                               setGraphTooltip({
-                                x: e.clientX, y: e.clientY, title: "series-3: Document & Asset Files",
+                                x: e.clientX, y: e.clientY, title: "Doc & Asset Files",
                                 value: `${(r2TotalMB * 0.143).toFixed(2)} MB (14.3%)`,
                                 detail: "Document attachments and static assets", color: "#fbbf24",
                               });
@@ -2241,13 +2249,13 @@ export default function DashboardClient() {
                           />
                           <text x="110" y="150" fill="#ffffff" fontSize="9" fontWeight="800">14.3%</text>
 
-                          {/* Slice 4: Red (series-4) */}
+                          {/* Slice 4: Red (Free Tier Remaining) */}
                           <path
                             d="M 100 100 L 90 174 A 75 75 0 0 1 25 100 Z" fill="#ef4444" stroke="#0f172a" strokeWidth="1.5"
                             className="svg-hover-slice"
                             onMouseMove={(e) => {
                               setGraphTooltip({
-                                x: e.clientX, y: e.clientY, title: "series-4: Remaining Free Quota",
+                                x: e.clientX, y: e.clientY, title: "Free Tier Remaining",
                                 value: `${r2FreeGB.toFixed(2)} GB Free Left (30.6%)`,
                                 detail: "Remaining Cloudflare R2 10 GB free monthly tier quota", color: "#ef4444",
                               });
@@ -2255,13 +2263,13 @@ export default function DashboardClient() {
                           />
                           <text x="55" y="135" fill="#ffffff" fontSize="9" fontWeight="800">30.6%</text>
 
-                          {/* Slice 5: Purple (series-5) */}
+                          {/* Slice 5: Purple (S3 Bucket Metadata) */}
                           <path
                             d="M 100 100 L 25 100 A 75 75 0 0 1 100 25 Z" fill="#c084fc" stroke="#0f172a" strokeWidth="1.5"
                             className="svg-hover-slice"
                             onMouseMove={(e) => {
                               setGraphTooltip({
-                                x: e.clientX, y: e.clientY, title: "series-5: Bucket Object Metadata",
+                                x: e.clientX, y: e.clientY, title: "S3 Bucket Metadata",
                                 value: `${(r2TotalMB * 0.245).toFixed(2)} MB (24.5%)`,
                                 detail: "Object headers, directory markers and S3 metadata indexes", color: "#c084fc",
                               });
@@ -2274,61 +2282,61 @@ export default function DashboardClient() {
                           <div
                             className="legend-item interactive-legend"
                             onMouseMove={(e) => setGraphTooltip({
-                              x: e.clientX, y: e.clientY, title: "series-1: User Uploaded Images",
+                              x: e.clientX, y: e.clientY, title: "Uploaded Images",
                               value: `${(r2TotalMB * 0.102).toFixed(2)} MB (10.2%)`,
                               detail: "Uploaded disease and post images stored in Cloudflare R2 bucket", color: "#38bdf8",
                             })}
                             onMouseLeave={() => setGraphTooltip(null)}
                           >
-                            <span className="legend-dot" style={{ background: '#38bdf8' }}></span>series-1: <strong>10.2%</strong>
+                            <span className="legend-dot" style={{ background: '#38bdf8' }}></span>Uploaded Images: <strong>10.2%</strong>
                           </div>
 
                           <div
                             className="legend-item interactive-legend"
                             onMouseMove={(e) => setGraphTooltip({
-                              x: e.clientX, y: e.clientY, title: "series-2: CDN Edge Media Cache",
+                              x: e.clientX, y: e.clientY, title: "CDN Media Cache",
                               value: `${(r2TotalMB * 0.204).toFixed(2)} MB (20.4%)`,
                               detail: "Cached image thumbnails and static media served on Cloudflare CDN", color: "#34d399",
                             })}
                             onMouseLeave={() => setGraphTooltip(null)}
                           >
-                            <span className="legend-dot" style={{ background: '#34d399' }}></span>series-2: <strong>20.4%</strong>
+                            <span className="legend-dot" style={{ background: '#34d399' }}></span>CDN Media Cache: <strong>20.4%</strong>
                           </div>
 
                           <div
                             className="legend-item interactive-legend"
                             onMouseMove={(e) => setGraphTooltip({
-                              x: e.clientX, y: e.clientY, title: "series-3: Document & Asset Files",
+                              x: e.clientX, y: e.clientY, title: "Doc & Asset Files",
                               value: `${(r2TotalMB * 0.143).toFixed(2)} MB (14.3%)`,
                               detail: "Document attachments and static assets", color: "#fbbf24",
                             })}
                             onMouseLeave={() => setGraphTooltip(null)}
                           >
-                            <span className="legend-dot" style={{ background: '#fbbf24' }}></span>series-3: <strong>14.3%</strong>
+                            <span className="legend-dot" style={{ background: '#fbbf24' }}></span>Doc & Asset Files: <strong>14.3%</strong>
                           </div>
 
                           <div
                             className="legend-item interactive-legend"
                             onMouseMove={(e) => setGraphTooltip({
-                              x: e.clientX, y: e.clientY, title: "series-4: Remaining Free Quota",
+                              x: e.clientX, y: e.clientY, title: "Free Tier Remaining",
                               value: `${r2FreeGB.toFixed(2)} GB Free Left (30.6%)`,
                               detail: "Remaining Cloudflare R2 10 GB free monthly tier quota", color: "#ef4444",
                             })}
                             onMouseLeave={() => setGraphTooltip(null)}
                           >
-                            <span className="legend-dot" style={{ background: '#ef4444' }}></span>series-4: <strong>30.6%</strong>
+                            <span className="legend-dot" style={{ background: '#ef4444' }}></span>Free Tier Remaining: <strong>30.6%</strong>
                           </div>
 
                           <div
                             className="legend-item interactive-legend"
                             onMouseMove={(e) => setGraphTooltip({
-                              x: e.clientX, y: e.clientY, title: "series-5: Bucket Object Metadata",
+                              x: e.clientX, y: e.clientY, title: "S3 Bucket Metadata",
                               value: `${(r2TotalMB * 0.245).toFixed(2)} MB (24.5%)`,
                               detail: "Object headers, directory markers and S3 metadata indexes", color: "#c084fc",
                             })}
                             onMouseLeave={() => setGraphTooltip(null)}
                           >
-                            <span className="legend-dot" style={{ background: '#c084fc' }}></span>series-5: <strong>24.5%</strong>
+                            <span className="legend-dot" style={{ background: '#c084fc' }}></span>S3 Bucket Metadata: <strong>24.5%</strong>
                           </div>
                         </div>
                       </div>
@@ -3984,69 +3992,38 @@ export default function DashboardClient() {
           letter-spacing: 0.04em;
         }
 
-        /* Telemetry Toolbar & Time Window Pills */
-        .telemetry-toolbar {
+        /* Per-Card Time Window Selectors & Headers */
+        .card-window-pills {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 1rem;
+          gap: 0.25rem;
           background: rgba(15, 23, 42, 0.6);
-          border: 1px solid rgba(192, 132, 252, 0.2);
-          border-radius: 14px;
-          padding: 0.75rem 1.25rem;
-          margin-bottom: 1.5rem;
-          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 999px;
+          padding: 0.15rem 0.25rem;
         }
 
-        .toolbar-info {
-          display: flex;
-          flex-direction: column;
-          gap: 0.15rem;
-        }
-
-        .toolbar-title {
-          font-size: 0.88rem;
-          font-weight: 700;
-          color: #e2e8f0;
-        }
-
-        .toolbar-subtitle {
-          font-size: 0.74rem;
-          color: #c084fc;
-          font-weight: 500;
-        }
-
-        .time-range-pills {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          flex-wrap: wrap;
-        }
-
-        .time-pill {
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+        .card-time-btn {
+          background: transparent;
+          border: none;
           color: #9ca3af;
-          font-size: 0.78rem;
+          font-size: 0.68rem;
           font-weight: 700;
-          padding: 0.4rem 0.85rem;
+          padding: 0.2rem 0.5rem;
           border-radius: 999px;
           cursor: pointer;
           transition: all 0.2s ease;
         }
 
-        .time-pill:hover {
+        .card-time-btn:hover {
+          color: #ffffff;
           background: rgba(192, 132, 252, 0.15);
-          color: #f3f4f6;
-          border-color: rgba(192, 132, 252, 0.35);
         }
 
-        .time-pill.active {
+        .card-time-btn.active {
           background: linear-gradient(135deg, #c084fc 0%, #9333ea 100%);
           color: #ffffff;
-          border-color: #c084fc;
-          box-shadow: 0 4px 14px rgba(192, 132, 252, 0.4);
+          box-shadow: 0 2px 8px rgba(192, 132, 252, 0.4);
         }
 
         /* Realtime Live Graphs Section (2 Cards Per Row) */
@@ -4084,9 +4061,18 @@ export default function DashboardClient() {
           display: flex;
           align-items: center;
           justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 0.5rem;
           margin-bottom: 1rem;
           padding-bottom: 0.65rem;
           border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .header-title-chip {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          flex-wrap: wrap;
         }
 
         .graph-card-title {
