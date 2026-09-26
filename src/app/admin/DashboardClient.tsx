@@ -1600,7 +1600,7 @@ export default function DashboardClient() {
                           onMouseLeave={() => setGraphTooltip(null)}
                         >
                           <circle cx="100" cy="100" r="70" fill="transparent" stroke="rgba(255,255,255,0.06)" strokeWidth="26" />
-                          
+
                           {/* Slice 1: Data Size (Emerald) */}
                           <circle
                             cx="100" cy="100" r="70" fill="transparent" stroke="#34d399" strokeWidth="26"
@@ -1611,9 +1611,9 @@ export default function DashboardClient() {
                               setGraphTooltip({
                                 x: e.clientX,
                                 y: e.clientY,
-                                title: "Data Size Allocation",
-                                value: `${dbDataMB} MB (${dbDataPct}%)`,
-                                detail: "Actual BSON document records stored in database collections",
+                                title: "💚 Data Size Allocation",
+                                value: `${dbDataMB} MB used (${dbDataPct}% of 512 MB)`,
+                                detail: `Actual BSON document records stored in database collections — Index Memory: ${dbIndexMB} MB (${dbIndexPct}%)`,
                                 color: "#34d399",
                               });
                             }}
@@ -1629,9 +1629,9 @@ export default function DashboardClient() {
                               setGraphTooltip({
                                 x: e.clientX,
                                 y: e.clientY,
-                                title: "Index Memory Allocation",
-                                value: `${dbIndexMB} MB (${dbIndexPct}%)`,
-                                detail: "B-tree index lookup structures cached in Atlas memory",
+                                title: "💜 Index Memory Allocation",
+                                value: `${dbIndexMB} MB used (${dbIndexPct}% of 512 MB)`,
+                                detail: `B-tree index lookup structures in Atlas memory — Data Size: ${dbDataMB} MB (${dbDataPct}%)`,
                                 color: "#c084fc",
                               });
                             }}
@@ -1647,9 +1647,9 @@ export default function DashboardClient() {
                               setGraphTooltip({
                                 x: e.clientX,
                                 y: e.clientY,
-                                title: "Allocated Storage Overhead",
-                                value: `${dbStorageMB} MB (${dbStoragePct}%)`,
-                                detail: "Pre-allocated disk space reserved by WiredTiger engine",
+                                title: "💙 Allocated Storage Overhead",
+                                value: `${dbStorageMB} MB allocated (${dbStoragePct}% of 512 MB)`,
+                                detail: `Pre-allocated disk space reserved by WiredTiger — Data: ${dbDataMB} MB | Index: ${dbIndexMB} MB`,
                                 color: "#60a5fa",
                               });
                             }}
@@ -1665,13 +1665,48 @@ export default function DashboardClient() {
                               setGraphTooltip({
                                 x: e.clientX,
                                 y: e.clientY,
-                                title: "Atlas Free Tier Remaining",
-                                value: `${dbFreeMB} MB (${dbFreePct}%)`,
-                                detail: "Remaining free database storage quota on Atlas Cluster0 (512 MB Limit)",
+                                title: "🟡 Atlas Free Tier Remaining",
+                                value: `${dbFreeMB} MB free (${dbFreePct}% of 512 MB limit)`,
+                                detail: `Used: Data ${dbDataMB} MB + Index ${dbIndexMB} MB + Overhead ${dbStorageMB} MB`,
                                 color: "#fbbf24",
                               });
                             }}
                           />
+
+                          {/* Center: Interactive Data Labels inside the donut hole */}
+                          <circle
+                            cx="100" cy="100" r="44"
+                            fill="rgba(15,23,42,0.7)"
+                            className="donut-center-hit"
+                            onMouseMove={(e) => {
+                              setGraphTooltip({
+                                x: e.clientX,
+                                y: e.clientY,
+                                title: "📊 MongoDB Storage Summary",
+                                value: `Data: ${dbDataMB} MB  |  Index: ${dbIndexMB} MB`,
+                                detail: `Storage Allocated: ${dbStorageMB} MB  |  Free Tier Left: ${dbFreeMB} MB (${dbFreePct}%)`,
+                                color: "#34d399",
+                              });
+                            }}
+                            onMouseLeave={() => setGraphTooltip(null)}
+                            style={{ cursor: "pointer" }}
+                          />
+                          {/* Data Size label — top half of center */}
+                          <text x="100" y="90" textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#34d399" style={{ pointerEvents: "none" }}>
+                            {dbDataMB} MB
+                          </text>
+                          <text x="100" y="101" textAnchor="middle" fontSize="7.5" fill="#86efac" style={{ pointerEvents: "none" }}>
+                            Data Size
+                          </text>
+                          {/* Divider line */}
+                          <line x1="75" y1="106" x2="125" y2="106" stroke="rgba(255,255,255,0.15)" strokeWidth="0.8" style={{ pointerEvents: "none" }} />
+                          {/* Index Memory label — bottom half of center */}
+                          <text x="100" y="116" textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#c084fc" style={{ pointerEvents: "none" }}>
+                            {dbIndexMB} MB
+                          </text>
+                          <text x="100" y="127" textAnchor="middle" fontSize="7.5" fill="#d8b4fe" style={{ pointerEvents: "none" }}>
+                            Index Mem
+                          </text>
                         </svg>
                         <div className="chart-legend-box">
                           <div
@@ -3930,9 +3965,17 @@ export default function DashboardClient() {
         }
 
         .donut-chart-svg {
-          width: 145px;
-          height: 145px;
+          width: 160px;
+          height: 160px;
           flex-shrink: 0;
+        }
+
+        circle.donut-center-hit {
+          cursor: pointer;
+          transition: fill 0.25s ease;
+        }
+        circle.donut-center-hit:hover {
+          fill: rgba(52, 211, 153, 0.12);
         }
 
         .chart-legend-box {
