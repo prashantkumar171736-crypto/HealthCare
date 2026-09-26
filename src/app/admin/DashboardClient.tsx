@@ -545,17 +545,28 @@ export default function DashboardClient() {
             <div className="kpi-value">{formatUptime(data.systemHealth.serverUptime)}</div>
             <div className="kpi-footer">Running without failures</div>
           </div>
-          {data.systemHealth.r2 && (
-            <div className="kpi-card">
-              <div className="kpi-title">CLOUDFLARE R2 CDN</div>
-              <div className="kpi-value">
-                {data.systemHealth.r2.totalSizeMB} <span className="unit">MB</span>
-              </div>
-              <div className={`kpi-status-badge ${data.systemHealth.r2.status === "Connected" ? "online" : "offline"}`}>
-                <span className="pulse-dot"></span> R2 {data.systemHealth.r2.status} ({data.systemHealth.r2.totalObjects} files)
-              </div>
+          <div className="kpi-card">
+            <div className="kpi-title">CLOUDFLARE R2 CDN</div>
+            <div className="kpi-value">
+              {data.systemHealth.r2 ? (
+                <>{data.systemHealth.r2.totalSizeMB} <span className="unit">MB</span></>
+              ) : (
+                <>0 <span className="unit">MB</span></>
+              )}
             </div>
-          )}
+            <div className={`kpi-status-badge ${data.systemHealth.r2?.status === "Connected" ? "online" : "offline"}`}>
+              <span className="pulse-dot"></span> {data.systemHealth.r2 ? `R2 ${data.systemHealth.r2.status} (${data.systemHealth.r2.totalObjects} files)` : "R2 Offline (0 files)"}
+            </div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-title">GUI SERVER MEMORY</div>
+            <div className="kpi-value">
+              {data.systemHealth.memoryUsed} <span className="unit">MB</span>
+            </div>
+            <div className="kpi-status-badge online">
+              <span className="pulse-dot"></span> Heap Healthy ({data.systemHealth.memoryTotal} MB Allocated)
+            </div>
+          </div>
         </section>
 
         {activeTab === "overview" && (
@@ -922,46 +933,6 @@ export default function DashboardClient() {
                   <p>No locations logged.</p>
                 </div>
               )}
-            </div>
-
-            {/* Server Performance monitor */}
-            <div className="panel-card system-perf-panel">
-              <h2 className="panel-title">GUI Server Memory Status</h2>
-              <div className="circular-progress-container">
-                <div className="circular-progress">
-                  <div className="progress-value">
-                    <span className="number">{data.systemHealth.memoryUsed}</span>
-                    <span className="sub">MB Used</span>
-                  </div>
-                  <svg className="circular-svg">
-                    <circle cx="70" cy="70" r="60" className="bg-circle" />
-                    <circle
-                      cx="70"
-                      cy="70"
-                      r="60"
-                      className="fill-circle"
-                      style={{
-                        strokeDashoffset:
-                          377 -
-                          (377 *
-                            Math.min(
-                              data.systemHealth.memoryUsed /
-                                (data.systemHealth.memoryTotal || 512),
-                              1
-                            ))
-                      }}
-                    />
-                  </svg>
-                </div>
-                <div className="status-legend">
-                  <p>
-                    <strong>Allocated Heap:</strong> {data.systemHealth.memoryTotal} MB
-                  </p>
-                  <p>
-                    <strong>Node.js Process:</strong> Online & Reachable
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
         )}
