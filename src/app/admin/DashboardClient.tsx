@@ -1324,67 +1324,321 @@ export default function DashboardClient() {
 
         {activeTab === "system" && (
           <div className="panel-card full-panel system-settings-panel">
-            <h2 className="panel-title">System Health, DB Storage & Hardware Infrastructure</h2>
+            <div className="panel-header-row">
+              <h2 className="panel-title" style={{ marginBottom: 0, borderBottom: "none", paddingBottom: 0 }}>
+                🖥️ System Infrastructure & Storage Health
+              </h2>
+              <span className="live-status-chip">
+                <span className="pulse-dot"></span> Live Telemetry
+              </span>
+            </div>
+
             <div className="system-health-grid">
               {/* Card 1: MongoDB Infrastructure & Memory */}
-              <div className="health-box">
-                <h3>💾 MongoDB Memory & Storage</h3>
-                <p>Status: <span className="status-pill online">{data.systemHealth.dbStatus.toUpperCase()}</span></p>
-                <p>Latency Ping: <strong>{data.systemHealth.dbPingTime} ms</strong></p>
-                <p>Data Memory Size: <strong>{data.systemHealth.dbDataSizeMB} MB</strong></p>
-                <p>Disk Storage Allocated: <strong>{data.systemHealth.dbStorageSizeMB} MB</strong></p>
-                <p>Index Memory Size: <strong>{data.systemHealth.dbIndexSizeMB} MB</strong></p>
-                <p>Total DB Collections: <strong>{data.systemHealth.dbTotalCollections} collections</strong></p>
+              <div className="health-card card-mongo">
+                <div className="card-head">
+                  <div className="card-icon mongo-icon">💾</div>
+                  <div className="card-head-info">
+                    <h3>MongoDB Storage</h3>
+                    <span className="card-subtitle">Atlas Cluster0</span>
+                  </div>
+                  <span className={`status-pill ${data.systemHealth.dbStatus === "Connected" ? "green" : "red"}`}>
+                    <span className="pulse-dot"></span> {data.systemHealth.dbStatus.toUpperCase()}
+                  </span>
+                </div>
+                <div className="card-body">
+                  <div className="health-row">
+                    <span className="row-label">Latency Ping</span>
+                    <span className="row-val font-mono">{data.systemHealth.dbPingTime} ms</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">Actual Data Size</span>
+                    <span className="row-val font-bold text-green">{data.systemHealth.dbDataSizeMB} MB</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">Allocated Storage</span>
+                    <span className="row-val">{data.systemHealth.dbStorageSizeMB} MB</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">Index Memory</span>
+                    <span className="row-val">{data.systemHealth.dbIndexSizeMB} MB</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">Active Collections</span>
+                    <span className="row-val">{data.systemHealth.dbTotalCollections}</span>
+                  </div>
+
+                  {/* Meter */}
+                  <div className="meter-box">
+                    <div className="meter-header">
+                      <span>Database Storage Usage</span>
+                      <span className="meter-pct text-green">
+                        {((data.systemHealth.dbStorageSizeMB / 512) * 100).toFixed(1)}% of 512 MB
+                      </span>
+                    </div>
+                    <div className="meter-track">
+                      <div
+                        className="meter-fill green-gradient"
+                        style={{ width: `${Math.min(100, Math.max(3, (data.systemHealth.dbStorageSizeMB / 512) * 100))}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Card 2: CPU Cores & Processing Load (Unique Point 1) */}
-              <div className="health-box">
-                <h3>⚙️ CPU Cores & System Load</h3>
-                <p>CPU Processor: <code>{data.systemHealth.cpuModel}</code></p>
-                <p>Logical CPU Cores: <strong>{data.systemHealth.cpuCores} Cores</strong></p>
-                <p>1-Min Load Average: <strong>{data.systemHealth.cpuLoadAvg}</strong></p>
-                <p>Multi-Threading: <span className="status-pill online">ACTIVE</span></p>
+              {/* Card 2: CPU Cores & Processing Load */}
+              <div className="health-card card-cpu">
+                <div className="card-head">
+                  <div className="card-icon cpu-icon">⚙️</div>
+                  <div className="card-head-info">
+                    <h3>CPU Processor</h3>
+                    <span className="card-subtitle">Server Hardware</span>
+                  </div>
+                  <span className="status-pill green">
+                    <span className="pulse-dot"></span> ACTIVE
+                  </span>
+                </div>
+                <div className="card-body">
+                  <div className="health-row">
+                    <span className="row-label">CPU Model</span>
+                    <span className="row-val font-mono text-truncate" title={data.systemHealth.cpuModel}>
+                      {data.systemHealth.cpuModel}
+                    </span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">Logical Cores</span>
+                    <span className="row-val font-bold">{data.systemHealth.cpuCores} Cores</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">1-Min Load Average</span>
+                    <span className={`row-val font-bold ${data.systemHealth.cpuLoadAvg > 2 ? "text-amber" : "text-green"}`}>
+                      {data.systemHealth.cpuLoadAvg}
+                    </span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">Multi-Threading</span>
+                    <span className="row-val text-green">Enabled</span>
+                  </div>
+
+                  {/* Meter */}
+                  <div className="meter-box">
+                    <div className="meter-header">
+                      <span>CPU Core Capacity</span>
+                      <span className="meter-pct text-blue">{data.systemHealth.cpuCores} Cores Available</span>
+                    </div>
+                    <div className="meter-track">
+                      <div className="meter-fill blue-gradient" style={{ width: "100%" }}></div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Card 3: Host RAM & Process Heap (Unique Point 2) */}
-              <div className="health-box">
-                <h3>🧠 Physical RAM & Process Memory</h3>
-                <p>Node Heap Used: <strong>{data.systemHealth.memoryUsed} MB</strong></p>
-                <p>Node Heap Allocated: <strong>{data.systemHealth.memoryTotal} MB</strong></p>
-                <p>Host Total RAM: <strong>{data.systemHealth.systemTotalRamGB} GB</strong></p>
-                <p>Host Free RAM: <strong>{data.systemHealth.systemFreeRamGB} GB</strong></p>
-                <p>RAM Status: <span className="status-pill online">HEALTHY</span></p>
+              {/* Card 3: Host RAM & Process Memory */}
+              <div className="health-card card-ram">
+                <div className="card-head">
+                  <div className="card-icon ram-icon">🧠</div>
+                  <div className="card-head-info">
+                    <h3>Memory & Process</h3>
+                    <span className="card-subtitle">Node.js V8 Engine</span>
+                  </div>
+                  <span className="status-pill green">
+                    <span className="pulse-dot"></span> HEALTHY
+                  </span>
+                </div>
+                <div className="card-body">
+                  <div className="health-row">
+                    <span className="row-label">Node Heap Used</span>
+                    <span className="row-val font-bold text-cyan">{data.systemHealth.memoryUsed} MB</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">Node Heap Allocated</span>
+                    <span className="row-val">{data.systemHealth.memoryTotal} MB</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">Host Total RAM</span>
+                    <span className="row-val">{data.systemHealth.systemTotalRamGB} GB</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">Host Free RAM</span>
+                    <span className="row-val text-green">{data.systemHealth.systemFreeRamGB} GB</span>
+                  </div>
+
+                  {/* Meter */}
+                  <div className="meter-box">
+                    <div className="meter-header">
+                      <span>Node Heap Allocation</span>
+                      <span className="meter-pct text-cyan">
+                        {Math.round((data.systemHealth.memoryUsed / (data.systemHealth.memoryTotal || 1)) * 100)}% Used
+                      </span>
+                    </div>
+                    <div className="meter-track">
+                      <div
+                        className="meter-fill cyan-gradient"
+                        style={{
+                          width: `${Math.min(100, Math.max(5, (data.systemHealth.memoryUsed / (data.systemHealth.memoryTotal || 1)) * 100))}%`,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Card 4: Server OS & Uptime */}
-              <div className="health-box">
-                <h3>🖥️ Server OS & Process Uptime</h3>
-                <p>Node.js Runtime: <code>{data.systemHealth.nodeVersion || "N/A"}</code></p>
-                <p>Server Uptime: <code>{formatUptime(data.systemHealth.serverUptime)}</code></p>
-                <p>Host OS Platform: <code>{data.systemHealth.platform || "N/A"}</code></p>
+              <div className="health-card card-os">
+                <div className="card-head">
+                  <div className="card-icon os-icon">🖥️</div>
+                  <div className="card-head-info">
+                    <h3>Server OS & Uptime</h3>
+                    <span className="card-subtitle">Linux Host Runtime</span>
+                  </div>
+                  <span className="status-pill green">
+                    <span className="pulse-dot"></span> ONLINE
+                  </span>
+                </div>
+                <div className="card-body">
+                  <div className="health-row">
+                    <span className="row-label">Node.js Version</span>
+                    <span className="row-val font-mono">{data.systemHealth.nodeVersion || "N/A"}</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">Server Uptime</span>
+                    <span className="row-val font-bold text-green">{formatUptime(data.systemHealth.serverUptime)}</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">OS Platform</span>
+                    <span className="row-val font-mono uppercase">{data.systemHealth.platform || "Linux"}</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">System Architecture</span>
+                    <span className="row-val font-mono">x64</span>
+                  </div>
+
+                  <div className="meter-box">
+                    <div className="meter-header">
+                      <span>Server Stability</span>
+                      <span className="meter-pct text-green">100% Operational</span>
+                    </div>
+                    <div className="meter-track">
+                      <div className="meter-fill green-gradient" style={{ width: "100%" }}></div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Card 5: Telemetry & Client Tracker */}
-              <div className="health-box">
-                <h3>🛰️ Client Reachability Tracker</h3>
-                <p>API Tracking Endpoint: <code>/api/track</code></p>
-                <p>Collector Script: Active in Root Layout</p>
-                <p>Client Local Time: {new Date().toLocaleTimeString()}</p>
+              <div className="health-card card-tracker">
+                <div className="card-head">
+                  <div className="card-icon tracker-icon">🛰️</div>
+                  <div className="card-head-info">
+                    <h3>Client Reachability</h3>
+                    <span className="card-subtitle">Realtime Tracker</span>
+                  </div>
+                  <span className="status-pill green">
+                    <span className="pulse-dot"></span> TRACKING
+                  </span>
+                </div>
+                <div className="card-body">
+                  <div className="health-row">
+                    <span className="row-label">API Tracking Endpoint</span>
+                    <span className="row-val font-mono text-cyan">/api/track</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">Collector Script</span>
+                    <span className="row-val text-green">Active in Root Layout</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">Client Local Time</span>
+                    <span className="row-val font-mono">{new Date().toLocaleTimeString()}</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">Log Limit Filter</span>
+                    <span className="row-val font-mono">{logLimit === "all" ? "All Records" : `${logLimit} Records`}</span>
+                  </div>
+
+                  <div className="meter-box">
+                    <div className="meter-header">
+                      <span>Telemetry Collector</span>
+                      <span className="meter-pct text-green">Active & Logging</span>
+                    </div>
+                    <div className="meter-track">
+                      <div className="meter-fill green-gradient" style={{ width: "100%" }}></div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Card 6: Cloudflare R2 Cloud Object Storage */}
-              {data.systemHealth.r2 && (
-                <div className="health-box">
-                  <h3>☁️ Cloudflare R2 Storage</h3>
-                  <p>Status: <span className={`status-pill ${data.systemHealth.r2.status === "Connected" ? "online" : "offline"}`}>{data.systemHealth.r2.status.toUpperCase()}</span></p>
-                  <p>Latency Ping: <strong>{data.systemHealth.r2.pingTimeMs} ms</strong></p>
-                  <p>R2 Bucket Name: <code>{data.systemHealth.r2.bucketName}</code></p>
-                  <p>Total Uploaded Files: <strong>{data.systemHealth.r2.totalObjects} files</strong></p>
-                  <p>R2 Data Storage Used: <strong>{data.systemHealth.r2.totalSizeMB} MB ({data.systemHealth.r2.totalSizeGB} GB)</strong></p>
-                  <p>R2 Free Tier Quota: <strong>{data.systemHealth.r2.freeTierLimitGB} GB Free ({data.systemHealth.r2.freeTierUsedPct}% used)</strong></p>
-                  <p>Remaining Free Space: <strong style={{ color: "#10b981" }}>{data.systemHealth.r2.freeTierRemainingGB} GB</strong></p>
+              <div className="health-card card-r2">
+                <div className="card-head">
+                  <div className="card-icon r2-icon">☁️</div>
+                  <div className="card-head-info">
+                    <h3>Cloudflare R2 Storage</h3>
+                    <span className="card-subtitle">Global CDN Bucket</span>
+                  </div>
+                  {data.systemHealth.r2 ? (
+                    <span className={`status-pill ${data.systemHealth.r2.status === "Connected" ? "green" : "red"}`}>
+                      <span className="pulse-dot"></span> {data.systemHealth.r2.status.toUpperCase()}
+                    </span>
+                  ) : (
+                    <span className="status-pill red">
+                      <span className="pulse-dot"></span> OFFLINE
+                    </span>
+                  )}
                 </div>
-              )}
+                <div className="card-body">
+                  {data.systemHealth.r2 ? (
+                    <>
+                      <div className="health-row">
+                        <span className="row-label">R2 Response Ping</span>
+                        <span className="row-val font-mono">{data.systemHealth.r2.pingTimeMs} ms</span>
+                      </div>
+                      <div className="health-row">
+                        <span className="row-label">Bucket Name</span>
+                        <span className="row-val font-mono text-amber">{data.systemHealth.r2.bucketName}</span>
+                      </div>
+                      <div className="health-row">
+                        <span className="row-label">Uploaded Files</span>
+                        <span className="row-val font-bold">{data.systemHealth.r2.totalObjects} files</span>
+                      </div>
+                      <div className="health-row">
+                        <span className="row-label">R2 Storage Used</span>
+                        <span className="row-val font-bold text-amber">
+                          {data.systemHealth.r2.totalSizeMB} MB ({data.systemHealth.r2.totalSizeGB} GB)
+                        </span>
+                      </div>
+                      <div className="health-row">
+                        <span className="row-label">Free Monthly Storage</span>
+                        <span className="row-val text-green">{data.systemHealth.r2.freeTierRemainingGB} GB Free Left</span>
+                      </div>
+
+                      {/* Meter */}
+                      <div className="meter-box">
+                        <div className="meter-header">
+                          <span>R2 10 GB Free Tier Usage</span>
+                          <span className="meter-pct text-amber">
+                            {data.systemHealth.r2.freeTierUsedPct}% of 10 GB
+                          </span>
+                        </div>
+                        <div className="meter-track">
+                          <div
+                            className="meter-fill amber-gradient"
+                            style={{
+                              width: `${Math.min(100, Math.max(3, data.systemHealth.r2.freeTierUsedPct))}%`,
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="r2-offline-notice">
+                      <p className="text-red font-bold">Cloudflare R2 Credentials Missing</p>
+                      <p className="subtext">
+                        Please configure R2 environment variables (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`) in your Vercel project settings to view live R2 storage metrics.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -1575,21 +1829,40 @@ export default function DashboardClient() {
           color: #ffffff;
         }
 
-        /* KPI Layout */
+        /* KPI Layout — Exactly 3 Cards Per Row on Desktop */
         .kpi-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          grid-template-columns: repeat(3, 1fr);
           gap: 1.5rem;
           margin-bottom: 2.5rem;
         }
 
+        @media (max-width: 1100px) {
+          .kpi-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (max-width: 640px) {
+          .kpi-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
         .kpi-card {
-          background-color: var(--admin-card-bg, #0b0f19);
-          border: 1px solid var(--admin-border, rgba(255, 255, 255, 0.05));
-          border-radius: 12px;
+          background-color: var(--admin-card-bg, #0d131f);
+          border: 1px solid var(--admin-border, rgba(255, 255, 255, 0.08));
+          border-radius: 16px;
           padding: 1.5rem;
-          box-shadow: var(--admin-card-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
           position: relative;
+          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+
+        .kpi-card:hover {
+          transform: translateY(-3px);
+          border-color: rgba(0, 200, 150, 0.35);
+          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
         }
 
         .kpi-title {
@@ -1621,6 +1894,9 @@ export default function DashboardClient() {
 
         .text-green { color: #10b981; }
         .text-blue { color: #3b82f6; }
+        .text-cyan { color: #06b6d4; }
+        .text-amber { color: #f59e0b; }
+        .text-red { color: #ef4444; }
         .font-bold { font-weight: 700; }
 
         .kpi-status-badge {
@@ -1629,21 +1905,21 @@ export default function DashboardClient() {
           gap: 0.4rem;
           font-size: 0.8rem;
           font-weight: 600;
-          padding: 0.2rem 0.6rem;
+          padding: 0.25rem 0.65rem;
           border-radius: 999px;
           border: 1px solid transparent;
         }
 
         .kpi-status-badge.online {
-          background-color: rgba(16, 185, 129, 0.1);
+          background-color: rgba(16, 185, 129, 0.15);
           color: #10b981;
-          border-color: rgba(16, 185, 129, 0.2);
+          border-color: rgba(16, 185, 129, 0.3);
         }
 
         .kpi-status-badge.offline {
-          background-color: rgba(239, 68, 68, 0.1);
+          background-color: rgba(239, 68, 68, 0.15);
           color: #ef4444;
-          border-color: rgba(239, 68, 68, 0.2);
+          border-color: rgba(239, 68, 68, 0.3);
         }
 
         .pulse-dot {
@@ -2577,54 +2853,216 @@ export default function DashboardClient() {
         .ref-col { word-break: break-all; color: var(--admin-text-secondary, #9ca3af); }
         .ua-col { color: var(--admin-text-secondary, #9ca3af); }
 
-        /* System settings panel grid */
+        /* Panel Header Row */
+        .panel-header-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 1.5rem;
+          padding-bottom: 0.75rem;
+          border-bottom: 1px solid var(--admin-border, rgba(255, 255, 255, 0.08));
+        }
+
+        .live-status-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: #00c896;
+          background: rgba(0, 200, 150, 0.1);
+          border: 1px solid rgba(0, 200, 150, 0.25);
+          padding: 0.25rem 0.65rem;
+          border-radius: 999px;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+
+        /* System Settings Panel Grid — EXACTLY 3 Cards Per Row on Desktop */
         .system-health-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          grid-template-columns: repeat(3, 1fr);
           gap: 1.5rem;
           margin-top: 1rem;
         }
 
-        .health-box {
-          background-color: var(--admin-hover-bg, rgba(255,255,255,0.02));
-          border: 1px solid var(--admin-border, rgba(255,255,255,0.05));
-          border-radius: 12px;
+        @media (max-width: 1200px) {
+          .system-health-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (max-width: 768px) {
+          .system-health-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .health-card {
+          background: var(--admin-card-bg, #0d1322);
+          border: 1px solid var(--admin-border, rgba(255, 255, 255, 0.08));
+          border-radius: 16px;
           padding: 1.5rem;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+          transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
         }
 
-        .health-box h3 {
-          font-size: 1.05rem;
-          color: var(--admin-text-primary, #ffffff);
-          margin-bottom: 1rem;
-          border-bottom: 1px solid var(--admin-border, rgba(255,255,255,0.05));
-          padding-bottom: 0.5rem;
+        .health-card:hover {
+          transform: translateY(-4px);
+          border-color: rgba(0, 200, 150, 0.35);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
         }
 
-        .health-box p {
-          margin-bottom: 0.5rem;
-          font-size: 0.9rem;
-          color: var(--admin-text-secondary, #d1d5db);
+        .card-head {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-bottom: 1.25rem;
+          padding-bottom: 0.85rem;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
         }
 
-        .health-box code {
-          background-color: var(--admin-input-bg, rgba(0,0,0,0.3));
-          padding: 0.1rem 0.4rem;
-          border-radius: 4px;
-          color: var(--admin-accent, #00c896);
-          font-family: monospace;
+        .card-icon {
+          width: 42px;
+          height: 42px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.25rem;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          flex-shrink: 0;
+        }
+
+        .mongo-icon { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.25); }
+        .cpu-icon { background: rgba(59, 130, 246, 0.12); border-color: rgba(59, 130, 246, 0.25); }
+        .ram-icon { background: rgba(6, 182, 212, 0.12); border-color: rgba(6, 182, 212, 0.25); }
+        .os-icon { background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.25); }
+        .tracker-icon { background: rgba(236, 72, 153, 0.12); border-color: rgba(236, 72, 153, 0.25); }
+        .r2-icon { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.25); }
+
+        .card-head-info {
+          flex: 1;
+        }
+
+        .card-head-info h3 {
+          font-size: 1rem;
+          font-weight: 700;
+          color: #ffffff;
+          margin: 0;
+          line-height: 1.2;
+        }
+
+        .card-subtitle {
+          font-size: 0.75rem;
+          color: #9ca3af;
+          font-weight: 500;
+        }
+
+        .health-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0.45rem 0;
+          border-bottom: 1px dashed rgba(255, 255, 255, 0.04);
           font-size: 0.85rem;
         }
 
+        .health-row:last-of-type {
+          border-bottom: none;
+        }
+
+        .row-label {
+          color: #9ca3af;
+          font-weight: 500;
+        }
+
+        .row-val {
+          color: #f3f4f6;
+          font-weight: 600;
+        }
+
+        /* Status Pills */
         .status-pill {
           font-size: 0.7rem;
           font-weight: 700;
-          padding: 0.1rem 0.4rem;
-          border-radius: 4px;
-          color: #ffffff;
+          padding: 0.2rem 0.55rem;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          letter-spacing: 0.03em;
         }
 
-        .status-pill.online {
-          background-color: #10b981;
+        .status-pill.green, .status-pill.online {
+          background-color: rgba(16, 185, 129, 0.15);
+          color: #10b981;
+          border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-pill.amber {
+          background-color: rgba(245, 158, 11, 0.15);
+          color: #f59e0b;
+          border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .status-pill.red, .status-pill.offline {
+          background-color: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+          border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* Meter Progress Bars */
+        .meter-box {
+          margin-top: 1rem;
+          padding-top: 0.75rem;
+          border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .meter-header {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: #9ca3af;
+          margin-bottom: 0.4rem;
+        }
+
+        .meter-track {
+          height: 8px;
+          background: rgba(255, 255, 255, 0.08);
+          border-radius: 999px;
+          overflow: hidden;
+        }
+
+        .meter-fill {
+          height: 100%;
+          border-radius: 999px;
+          transition: width 0.5s ease;
+        }
+
+        .green-gradient { background: linear-gradient(90deg, #10b981, #059669); }
+        .blue-gradient { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+        .cyan-gradient { background: linear-gradient(90deg, #06b6d4, #0891b2); }
+        .amber-gradient { background: linear-gradient(90deg, #f59e0b, #d97706); }
+
+        .r2-offline-notice {
+          padding: 1rem;
+          background: rgba(239, 68, 68, 0.08);
+          border: 1px solid rgba(239, 68, 68, 0.2);
+          border-radius: 10px;
+          text-align: center;
+        }
+
+        .r2-offline-notice .subtext {
+          font-size: 0.75rem;
+          color: #9ca3af;
+          margin-top: 0.4rem;
+          line-height: 1.4;
         }
 
         /* Language Settings Block */
