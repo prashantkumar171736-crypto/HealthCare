@@ -519,67 +519,172 @@ export default function DashboardClient() {
           </div>
         </header>
 
-        {/* KPIs Summary Cards */}
+        {/* KPIs Summary Cards — Premium Color-Coded Grid */}
         <section className="kpi-grid">
-          <div className="kpi-card">
-            <div className="kpi-title">TOTAL PAGE VIEWS</div>
-            <div className="kpi-value">{data.summary.totalViews.toLocaleString()}</div>
-            <div className="kpi-footer text-green">All-time record</div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-title">UNIQUE VISITORS</div>
-            <div className="kpi-value">{data.summary.uniqueVisitors.toLocaleString()}</div>
-            <div className="kpi-footer text-blue">Unique daily sessions</div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-title">GUI SERVER PING</div>
-            <div className="kpi-value">
-              {data.systemHealth.dbPingTime} <span className="unit">ms</span>
+          {/* Card 1: Total Page Views (Emerald Theme) */}
+          <div className="kpi-card kpi-card-emerald">
+            <div className="kpi-card-top">
+              <div className="kpi-icon-wrapper icon-emerald">📊</div>
+              <div className="kpi-title-block">
+                <span className="kpi-title">TOTAL PAGE VIEWS</span>
+                <span className="kpi-subtitle">Global Traffic</span>
+              </div>
+              <span className="kpi-badge badge-emerald">RECORD</span>
             </div>
-            <div className={`kpi-status-badge ${data.systemHealth.dbStatus === "Connected" ? "online" : "offline"}`}>
-              <span className="pulse-dot"></span> MongoDB {data.systemHealth.dbStatus}
+            <div className="kpi-card-middle">
+              <div className="kpi-value text-emerald">{data.summary.totalViews.toLocaleString()}</div>
             </div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-title">SERVER UPTIME</div>
-            <div className="kpi-value">{formatUptime(data.systemHealth.serverUptime)}</div>
-            <div className="kpi-footer">Running without failures</div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-title">CLOUDFLARE R2 CDN</div>
-            <div className="kpi-value">
-              {data.systemHealth.r2 ? (
-                <>{data.systemHealth.r2.totalSizeMB} <span className="unit">MB</span></>
-              ) : (
-                <>0 <span className="unit">MB</span></>
-              )}
-            </div>
-            <div className={`kpi-status-badge ${data.systemHealth.r2?.status === "Connected" ? "online" : "offline"}`}>
-              <span className="pulse-dot"></span> {data.systemHealth.r2 ? `R2 ${data.systemHealth.r2.status} (${data.systemHealth.r2.totalObjects} files)` : "R2 Offline (0 files)"}
+            <div className="kpi-card-bottom">
+              <div className="kpi-footer-row">
+                <span>📈 All-time record views</span>
+                <span className="text-emerald font-bold">100%</span>
+              </div>
+              <div className="kpi-mini-bar">
+                <div className="kpi-mini-fill fill-emerald" style={{ width: "100%" }}></div>
+              </div>
             </div>
           </div>
-          <div className="kpi-card memory-kpi-card">
-            <div className="kpi-title">GUI SERVER MEMORY</div>
-            <div className="circular-progress-container" style={{ padding: "0.25rem 0", margin: "0 auto" }}>
-              <div className="circular-progress" style={{ width: "110px", height: "110px" }}>
+
+          {/* Card 2: Unique Visitors (Royal Blue Theme) */}
+          <div className="kpi-card kpi-card-blue">
+            <div className="kpi-card-top">
+              <div className="kpi-icon-wrapper icon-blue">👥</div>
+              <div className="kpi-title-block">
+                <span className="kpi-title">UNIQUE VISITORS</span>
+                <span className="kpi-subtitle">Distinct Sessions</span>
+              </div>
+              <span className="kpi-badge badge-blue">DAILY</span>
+            </div>
+            <div className="kpi-card-middle">
+              <div className="kpi-value text-blue">{data.summary.uniqueVisitors.toLocaleString()}</div>
+            </div>
+            <div className="kpi-card-bottom">
+              <div className="kpi-footer-row">
+                <span>⚡ Unique daily sessions</span>
+                <span className="text-blue font-bold">Live</span>
+              </div>
+              <div className="kpi-mini-bar">
+                <div className="kpi-mini-fill fill-blue" style={{ width: "85%" }}></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: GUI Server Ping (Purple Theme) */}
+          <div className="kpi-card kpi-card-purple">
+            <div className="kpi-card-top">
+              <div className="kpi-icon-wrapper icon-purple">⚡</div>
+              <div className="kpi-title-block">
+                <span className="kpi-title">GUI SERVER PING</span>
+                <span className="kpi-subtitle">MongoDB Latency</span>
+              </div>
+              <span className={`kpi-status-badge ${data.systemHealth.dbStatus === "Connected" ? "online" : "offline"}`}>
+                <span className="pulse-dot"></span> {data.systemHealth.dbStatus === "Connected" ? "CONNECTED" : "OFFLINE"}
+              </span>
+            </div>
+            <div className="kpi-card-middle">
+              <div className="kpi-value text-purple">
+                {data.systemHealth.dbPingTime} <span className="unit">ms</span>
+              </div>
+            </div>
+            <div className="kpi-card-bottom">
+              <div className="kpi-footer-row">
+                <span>💾 Atlas Cluster Connection</span>
+                <span className="text-purple font-bold">{data.systemHealth.dbPingTime}ms</span>
+              </div>
+              <div className="kpi-mini-bar">
+                <div className="kpi-mini-fill fill-purple" style={{ width: `${Math.min(100, Math.max(10, 100 - data.systemHealth.dbPingTime / 5))}%` }}></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: Server Uptime (Cyan Theme) */}
+          <div className="kpi-card kpi-card-cyan">
+            <div className="kpi-card-top">
+              <div className="kpi-icon-wrapper icon-cyan">⏱️</div>
+              <div className="kpi-title-block">
+                <span className="kpi-title">SERVER UPTIME</span>
+                <span className="kpi-subtitle">Process Runtime</span>
+              </div>
+              <span className="kpi-badge badge-cyan">UPTIME</span>
+            </div>
+            <div className="kpi-card-middle">
+              <div className="kpi-value text-cyan">{formatUptime(data.systemHealth.serverUptime)}</div>
+            </div>
+            <div className="kpi-card-bottom">
+              <div className="kpi-footer-row">
+                <span>🛡️ Running without failures</span>
+                <span className="text-cyan font-bold">100% UP</span>
+              </div>
+              <div className="kpi-mini-bar">
+                <div className="kpi-mini-fill fill-cyan" style={{ width: "100%" }}></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 5: Cloudflare R2 CDN (Amber Theme) */}
+          <div className="kpi-card kpi-card-amber">
+            <div className="kpi-card-top">
+              <div className="kpi-icon-wrapper icon-amber">☁️</div>
+              <div className="kpi-title-block">
+                <span className="kpi-title">CLOUDFLARE R2 CDN</span>
+                <span className="kpi-subtitle">Object Storage</span>
+              </div>
+              <span className={`kpi-status-badge ${data.systemHealth.r2?.status === "Connected" ? "online" : "offline"}`}>
+                <span className="pulse-dot"></span> {data.systemHealth.r2?.status === "Connected" ? "CONNECTED" : "OFFLINE"}
+              </span>
+            </div>
+            <div className="kpi-card-middle">
+              <div className="kpi-value text-amber">
+                {data.systemHealth.r2 ? (
+                  <>{data.systemHealth.r2.totalSizeMB} <span className="unit">MB</span></>
+                ) : (
+                  <>0 <span className="unit">MB</span></>
+                )}
+              </div>
+            </div>
+            <div className="kpi-card-bottom">
+              <div className="kpi-footer-row">
+                <span>📦 {data.systemHealth.r2 ? `${data.systemHealth.r2.totalObjects} files stored` : "0 files stored"}</span>
+                <span className="text-amber font-bold">{data.systemHealth.r2 ? `${data.systemHealth.r2.freeTierUsedPct}%` : "0%"}</span>
+              </div>
+              <div className="kpi-mini-bar">
+                <div className="kpi-mini-fill fill-amber" style={{ width: `${Math.min(100, Math.max(3, data.systemHealth.r2?.freeTierUsedPct || 0))}%` }}></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 6: GUI Server Memory (Rose Circular Gauge Theme) */}
+          <div className="kpi-card kpi-card-rose memory-kpi-card">
+            <div className="kpi-card-top">
+              <div className="kpi-icon-wrapper icon-rose">🧠</div>
+              <div className="kpi-title-block">
+                <span className="kpi-title">GUI SERVER MEMORY</span>
+                <span className="kpi-subtitle">V8 Heap Memory</span>
+              </div>
+              <span className="kpi-status-badge online">
+                <span className="pulse-dot"></span> HEALTHY
+              </span>
+            </div>
+            <div className="kpi-card-middle circular-gauge-middle">
+              <div className="circular-progress" style={{ width: "95px", height: "95px" }}>
                 <div className="progress-value">
-                  <span className="number" style={{ fontSize: "1.5rem" }}>{data.systemHealth.memoryUsed}</span>
-                  <span className="sub">MB Used</span>
+                  <span className="number" style={{ fontSize: "1.35rem", color: "#f472b6" }}>{data.systemHealth.memoryUsed}</span>
+                  <span className="sub" style={{ fontSize: "0.6rem" }}>MB Used</span>
                 </div>
-                <svg className="circular-svg" style={{ width: "110px", height: "110px" }}>
-                  <circle cx="55" cy="55" r="46" className="bg-circle" style={{ strokeWidth: 7 }} />
+                <svg className="circular-svg" style={{ width: "95px", height: "95px" }}>
+                  <circle cx="47.5" cy="47.5" r="40" className="bg-circle" style={{ strokeWidth: 6 }} />
                   <circle
-                    cx="55"
-                    cy="55"
-                    r="46"
+                    cx="47.5"
+                    cy="47.5"
+                    r="40"
                     className="fill-circle"
                     style={{
-                      strokeWidth: 7,
-                      stroke: "#4ade80",
-                      strokeDasharray: 289,
+                      strokeWidth: 6,
+                      stroke: "#f472b6",
+                      strokeDasharray: 251,
                       strokeDashoffset:
-                        289 -
-                        (289 *
+                        251 -
+                        (251 *
                           Math.min(
                             data.systemHealth.memoryUsed /
                               (data.systemHealth.memoryTotal || 512),
@@ -590,8 +695,14 @@ export default function DashboardClient() {
                 </svg>
               </div>
             </div>
-            <div className="kpi-status-badge online" style={{ marginTop: "0.25rem" }}>
-              <span className="pulse-dot"></span> Heap Healthy ({data.systemHealth.memoryTotal} MB Allocated)
+            <div className="kpi-card-bottom">
+              <div className="kpi-footer-row">
+                <span>💾 Allocated Heap</span>
+                <span className="text-rose font-bold">{data.systemHealth.memoryTotal} MB</span>
+              </div>
+              <div className="kpi-mini-bar">
+                <div className="kpi-mini-fill fill-rose" style={{ width: `${Math.min(100, Math.max(5, (data.systemHealth.memoryUsed / (data.systemHealth.memoryTotal || 512)) * 100))}%` }}></div>
+              </div>
             </div>
           </div>
         </section>
@@ -1848,85 +1959,206 @@ export default function DashboardClient() {
         }
 
         .kpi-card {
-          background-color: var(--admin-card-bg, #0d131f);
-          border: 1px solid var(--admin-border, rgba(255, 255, 255, 0.08));
-          border-radius: 16px;
-          padding: 1.5rem;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+          background: linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(11, 15, 25, 0.98) 100%);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 18px;
+          padding: 1.35rem 1.5rem;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
           position: relative;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
           transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+          overflow: hidden;
         }
 
-        .kpi-card:hover {
-          transform: translateY(-3px);
-          border-color: rgba(0, 200, 150, 0.35);
-          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+        .kpi-card::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          border-radius: 18px 18px 0 0;
+          opacity: 0.85;
+        }
+
+        /* Specific Color Themes per Card */
+        .kpi-card-emerald::before { background: linear-gradient(90deg, #10b981, #00ffaa); }
+        .kpi-card-emerald { border-color: rgba(16, 185, 129, 0.25); }
+        .kpi-card-emerald:hover { border-color: rgba(16, 185, 129, 0.5); box-shadow: 0 10px 30px rgba(16, 185, 129, 0.25); transform: translateY(-4px); }
+
+        .kpi-card-blue::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        .kpi-card-blue { border-color: rgba(59, 130, 246, 0.25); }
+        .kpi-card-blue:hover { border-color: rgba(59, 130, 246, 0.5); box-shadow: 0 10px 30px rgba(59, 130, 246, 0.25); transform: translateY(-4px); }
+
+        .kpi-card-purple::before { background: linear-gradient(90deg, #a855f7, #c084fc); }
+        .kpi-card-purple { border-color: rgba(168, 85, 247, 0.25); }
+        .kpi-card-purple:hover { border-color: rgba(168, 85, 247, 0.5); box-shadow: 0 10px 30px rgba(168, 85, 247, 0.25); transform: translateY(-4px); }
+
+        .kpi-card-cyan::before { background: linear-gradient(90deg, #06b6d4, #22d3ee); }
+        .kpi-card-cyan { border-color: rgba(6, 182, 212, 0.25); }
+        .kpi-card-cyan:hover { border-color: rgba(6, 182, 212, 0.5); box-shadow: 0 10px 30px rgba(6, 182, 212, 0.25); transform: translateY(-4px); }
+
+        .kpi-card-amber::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .kpi-card-amber { border-color: rgba(245, 158, 11, 0.25); }
+        .kpi-card-amber:hover { border-color: rgba(245, 158, 11, 0.5); box-shadow: 0 10px 30px rgba(245, 158, 11, 0.25); transform: translateY(-4px); }
+
+        .kpi-card-rose::before { background: linear-gradient(90deg, #f472b6, #ec4899); }
+        .kpi-card-rose { border-color: rgba(244, 114, 182, 0.25); }
+        .kpi-card-rose:hover { border-color: rgba(244, 114, 182, 0.5); box-shadow: 0 10px 30px rgba(244, 114, 182, 0.25); transform: translateY(-4px); }
+
+        /* Card Top Header */
+        .kpi-card-top {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-bottom: 0.85rem;
+        }
+
+        .kpi-icon-wrapper {
+          width: 38px;
+          height: 38px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.15rem;
+          flex-shrink: 0;
+        }
+
+        .icon-emerald { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .icon-blue { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); }
+        .icon-purple { background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); }
+        .icon-cyan { background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.3); }
+        .icon-amber { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .icon-rose { background: rgba(244, 114, 182, 0.15); border: 1px solid rgba(244, 114, 182, 0.3); }
+
+        .kpi-title-block {
+          flex: 1;
         }
 
         .kpi-title {
           font-size: 0.8rem;
-          color: var(--admin-text-secondary, #9ca3af);
+          color: #f3f4f6;
           font-weight: 700;
-          letter-spacing: 0.05em;
-          margin-bottom: 0.5rem;
-          text-align: center;
+          letter-spacing: 0.04em;
+          display: block;
+          line-height: 1.2;
+        }
+
+        .kpi-subtitle {
+          font-size: 0.7rem;
+          color: #9ca3af;
+          font-weight: 500;
+          display: block;
+        }
+
+        .kpi-badge {
+          font-size: 0.65rem;
+          font-weight: 800;
+          padding: 0.2rem 0.5rem;
+          border-radius: 999px;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+
+        .badge-emerald { background: rgba(16, 185, 129, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); }
+        .badge-blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); }
+        .badge-cyan { background: rgba(6, 182, 212, 0.15); color: #22d3ee; border: 1px solid rgba(34, 211, 238, 0.3); }
+
+        /* Card Middle Metric */
+        .kpi-card-middle {
+          margin-bottom: 0.75rem;
+        }
+
+        .circular-gauge-middle {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          padding: 0.2rem 0;
         }
 
         .kpi-value {
           font-size: 2.1rem;
           font-weight: 800;
-          color: var(--admin-text-primary, #ffffff);
           line-height: 1.1;
-          margin-bottom: 0.5rem;
-          text-align: center;
         }
 
         .kpi-value .unit {
           font-size: 1rem;
-          color: var(--admin-text-secondary, #9ca3af);
+          color: #9ca3af;
           font-weight: 400;
         }
 
-        .kpi-footer {
-          font-size: 0.8rem;
-          color: var(--admin-text-secondary, #9ca3af);
-          text-align: center;
-        }
-
-        .text-green { color: #4ade80; }
+        .text-emerald { color: #4ade80; }
         .text-blue { color: #60a5fa; }
+        .text-purple { color: #c084fc; }
         .text-cyan { color: #22d3ee; }
         .text-amber { color: #fbbf24; }
+        .text-rose { color: #f472b6; }
         .text-red { color: #ff6b6b; }
-        .font-bold { font-weight: 700; }
+
+        /* Card Bottom Row & Mini Progress Bars */
+        .kpi-card-bottom {
+          display: flex;
+          flex-direction: column;
+          gap: 0.4rem;
+        }
+
+        .kpi-footer-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-size: 0.75rem;
+          color: #9ca3af;
+          font-weight: 500;
+        }
+
+        .kpi-mini-bar {
+          height: 6px;
+          background: rgba(255, 255, 255, 0.08);
+          border-radius: 999px;
+          overflow: hidden;
+        }
+
+        .kpi-mini-fill {
+          height: 100%;
+          border-radius: 999px;
+          transition: width 0.5s ease;
+        }
+
+        .fill-emerald { background: linear-gradient(90deg, #10b981, #4ade80); }
+        .fill-blue { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        .fill-purple { background: linear-gradient(90deg, #a855f7, #c084fc); }
+        .fill-cyan { background: linear-gradient(90deg, #06b6d4, #22d3ee); }
+        .fill-amber { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .fill-rose { background: linear-gradient(90deg, #ec4899, #f472b6); }
 
         .kpi-status-badge {
           display: inline-flex;
           align-items: center;
-          justify-content: center;
-          gap: 0.4rem;
-          font-size: 0.75rem;
+          gap: 0.35rem;
+          font-size: 0.7rem;
           font-weight: 800;
-          padding: 0.3rem 0.75rem;
+          padding: 0.25rem 0.6rem;
           border-radius: 999px;
-          border: 1px solid transparent;
-          margin: 0 auto;
-          letter-spacing: 0.04em;
+          letter-spacing: 0.03em;
           text-transform: uppercase;
         }
 
         .kpi-status-badge.online {
           background-color: rgba(34, 197, 94, 0.22);
           color: #4ade80;
-          border-color: rgba(74, 222, 128, 0.6);
-          box-shadow: 0 0 12px rgba(74, 222, 128, 0.35);
+          border: 1px solid rgba(74, 222, 128, 0.6);
+          box-shadow: 0 0 10px rgba(74, 222, 128, 0.35);
         }
 
         .kpi-status-badge.offline {
           background-color: rgba(239, 68, 68, 0.25);
           color: #ff6b6b;
-          border-color: rgba(255, 107, 107, 0.65);
-          box-shadow: 0 0 12px rgba(255, 107, 107, 0.4);
+          border: 1px solid rgba(255, 107, 107, 0.65);
+          box-shadow: 0 0 10px rgba(255, 107, 107, 0.4);
         }
 
         .pulse-dot {
