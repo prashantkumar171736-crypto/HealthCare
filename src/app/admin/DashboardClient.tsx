@@ -1866,19 +1866,21 @@ export default function DashboardClient() {
         }
 
         .kpi-title {
-          font-size: 0.75rem;
+          font-size: 0.8rem;
           color: var(--admin-text-secondary, #9ca3af);
           font-weight: 700;
           letter-spacing: 0.05em;
           margin-bottom: 0.5rem;
+          text-align: center;
         }
 
         .kpi-value {
-          font-size: 2rem;
+          font-size: 2.1rem;
           font-weight: 800;
           color: var(--admin-text-primary, #ffffff);
-          line-height: 1;
+          line-height: 1.1;
           margin-bottom: 0.5rem;
+          text-align: center;
         }
 
         .kpi-value .unit {
@@ -1890,36 +1892,43 @@ export default function DashboardClient() {
         .kpi-footer {
           font-size: 0.8rem;
           color: var(--admin-text-secondary, #9ca3af);
+          text-align: center;
         }
 
-        .text-green { color: #10b981; }
-        .text-blue { color: #3b82f6; }
-        .text-cyan { color: #06b6d4; }
-        .text-amber { color: #f59e0b; }
-        .text-red { color: #ef4444; }
+        .text-green { color: #4ade80; }
+        .text-blue { color: #60a5fa; }
+        .text-cyan { color: #22d3ee; }
+        .text-amber { color: #fbbf24; }
+        .text-red { color: #ff6b6b; }
         .font-bold { font-weight: 700; }
 
         .kpi-status-badge {
           display: inline-flex;
           align-items: center;
+          justify-content: center;
           gap: 0.4rem;
-          font-size: 0.8rem;
-          font-weight: 600;
-          padding: 0.25rem 0.65rem;
+          font-size: 0.75rem;
+          font-weight: 800;
+          padding: 0.3rem 0.75rem;
           border-radius: 999px;
           border: 1px solid transparent;
+          margin: 0 auto;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
         }
 
         .kpi-status-badge.online {
-          background-color: rgba(16, 185, 129, 0.15);
-          color: #10b981;
-          border-color: rgba(16, 185, 129, 0.3);
+          background-color: rgba(34, 197, 94, 0.22);
+          color: #4ade80;
+          border-color: rgba(74, 222, 128, 0.6);
+          box-shadow: 0 0 12px rgba(74, 222, 128, 0.35);
         }
 
         .kpi-status-badge.offline {
-          background-color: rgba(239, 68, 68, 0.15);
-          color: #ef4444;
-          border-color: rgba(239, 68, 68, 0.3);
+          background-color: rgba(239, 68, 68, 0.25);
+          color: #ff6b6b;
+          border-color: rgba(255, 107, 107, 0.65);
+          box-shadow: 0 0 12px rgba(255, 107, 107, 0.4);
         }
 
         .pulse-dot {
@@ -2947,20 +2956,24 @@ export default function DashboardClient() {
 
         .card-head-info {
           flex: 1;
+          text-align: center;
         }
 
         .card-head-info h3 {
-          font-size: 1rem;
+          font-size: 1.05rem;
           font-weight: 700;
           color: #ffffff;
           margin: 0;
           line-height: 1.2;
+          text-align: center;
         }
 
         .card-subtitle {
           font-size: 0.75rem;
           color: #9ca3af;
           font-weight: 500;
+          text-align: center;
+          display: block;
         }
 
         .health-row {
@@ -2986,34 +2999,40 @@ export default function DashboardClient() {
           font-weight: 600;
         }
 
-        /* Status Pills */
+        /* Bright & Vivid Status Pills */
         .status-pill {
-          font-size: 0.7rem;
-          font-weight: 700;
-          padding: 0.2rem 0.55rem;
+          font-size: 0.75rem;
+          font-weight: 800;
+          padding: 0.28rem 0.65rem;
           border-radius: 999px;
           display: inline-flex;
           align-items: center;
           gap: 0.35rem;
-          letter-spacing: 0.03em;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+          flex-shrink: 0;
         }
 
         .status-pill.green, .status-pill.online {
-          background-color: rgba(16, 185, 129, 0.15);
-          color: #10b981;
-          border: 1px solid rgba(16, 185, 129, 0.3);
+          background-color: rgba(34, 197, 94, 0.22);
+          color: #4ade80;
+          border: 1px solid rgba(74, 222, 128, 0.6);
+          box-shadow: 0 0 12px rgba(74, 222, 128, 0.35);
         }
 
         .status-pill.amber {
-          background-color: rgba(245, 158, 11, 0.15);
-          color: #f59e0b;
-          border: 1px solid rgba(245, 158, 11, 0.3);
+          background-color: rgba(245, 158, 11, 0.22);
+          color: #fbbf24;
+          border: 1px solid rgba(251, 191, 36, 0.6);
+          box-shadow: 0 0 12px rgba(251, 191, 36, 0.35);
         }
 
         .status-pill.red, .status-pill.offline {
-          background-color: rgba(239, 68, 68, 0.15);
-          color: #ef4444;
-          border: 1px solid rgba(239, 68, 68, 0.3);
+          background-color: rgba(239, 68, 68, 0.25);
+          color: #ff6b6b;
+          border: 1px solid rgba(255, 107, 107, 0.65);
+          box-shadow: 0 0 12px rgba(255, 107, 107, 0.4);
         }
 
         /* Meter Progress Bars */
