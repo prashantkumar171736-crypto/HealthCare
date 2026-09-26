@@ -103,11 +103,11 @@ interface StatsResponse {
 }
 
 const PERIOD_OPTIONS = [
-  { value: "1d",          label: "1 Day (24 Hours)" },
-  { value: "7d",          label: "7 Days (Weekly)" },
-  { value: "monthly",     label: "Monthly" },
+  { value: "1d", label: "1 Day (24 Hours)" },
+  { value: "7d", label: "7 Days (Weekly)" },
+  { value: "monthly", label: "Monthly" },
   { value: "half-yearly", label: "Half Yearly" },
-  { value: "yearly",      label: "Yearly" },
+  { value: "yearly", label: "Yearly" },
 ];
 
 export default function DashboardClient() {
@@ -120,7 +120,7 @@ export default function DashboardClient() {
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation" | "comments" | "appearance">("overview");
   const [theme, setTheme] = useState<AdminTheme>(DEFAULT_THEME);
-  
+
   // Live Server Request Log filters & controls
   const [logLimit, setLogLimit] = useState<string>("50");
   const [sortField, setSortField] = useState<"timestamp" | "ip" | "country" | "state" | "geo" | "path" | "referrer" | "userAgent">("timestamp");
@@ -148,13 +148,13 @@ export default function DashboardClient() {
     try {
       const saved = localStorage.getItem(LS_THEME_KEY);
       if (saved) setTheme({ ...DEFAULT_THEME, ...JSON.parse(saved) });
-    } catch {}
+    } catch { }
   }, []);
 
   // Save theme to localStorage whenever it changes
   const handleThemeChange = useCallback((t: AdminTheme) => {
     setTheme(t);
-    try { localStorage.setItem(LS_THEME_KEY, JSON.stringify(t)); } catch {}
+    try { localStorage.setItem(LS_THEME_KEY, JSON.stringify(t)); } catch { }
   }, []);
 
   const fetchStats = async (period: string = chartPeriod, limit: string = logLimit) => {
@@ -398,20 +398,20 @@ export default function DashboardClient() {
   const isLight = bgLum > 0.4;
 
   const themeVars = {
-    "--admin-bg":             theme.bgColor,
-    "--admin-sidebar-bg":    theme.sidebarColor,
-    "--admin-card-bg":       theme.cardColor,
-    "--admin-accent":        theme.accentColor,
-    "--admin-text-primary":   theme.textPrimary,
+    "--admin-bg": theme.bgColor,
+    "--admin-sidebar-bg": theme.sidebarColor,
+    "--admin-card-bg": theme.cardColor,
+    "--admin-accent": theme.accentColor,
+    "--admin-text-primary": theme.textPrimary,
     "--admin-text-secondary": theme.textSecondary,
-    "--admin-font-family":    theme.fontFamily,
-    "--admin-font-size":      `${theme.fontSize}px`,
-    "--admin-border":         isLight ? "rgba(0, 0, 0, 0.08)" : "rgba(255, 255, 255, 0.08)",
-    "--admin-border-strong":  isLight ? "rgba(0, 0, 0, 0.16)" : "rgba(255, 255, 255, 0.16)",
-    "--admin-hover-bg":       isLight ? "rgba(0, 0, 0, 0.04)" : "rgba(255, 255, 255, 0.05)",
-    "--admin-input-bg":       isLight ? "#ffffff" : "rgba(0, 0, 0, 0.35)",
-    "--admin-input-border":   isLight ? "rgba(0, 0, 0, 0.18)" : "rgba(255, 255, 255, 0.12)",
-    "--admin-card-shadow":   isLight ? "0 4px 20px -2px rgba(0, 0, 0, 0.06)" : "0 4px 20px -2px rgba(0, 0, 0, 0.35)",
+    "--admin-font-family": theme.fontFamily,
+    "--admin-font-size": `${theme.fontSize}px`,
+    "--admin-border": isLight ? "rgba(0, 0, 0, 0.08)" : "rgba(255, 255, 255, 0.08)",
+    "--admin-border-strong": isLight ? "rgba(0, 0, 0, 0.16)" : "rgba(255, 255, 255, 0.16)",
+    "--admin-hover-bg": isLight ? "rgba(0, 0, 0, 0.04)" : "rgba(255, 255, 255, 0.05)",
+    "--admin-input-bg": isLight ? "#ffffff" : "rgba(0, 0, 0, 0.35)",
+    "--admin-input-border": isLight ? "rgba(0, 0, 0, 0.18)" : "rgba(255, 255, 255, 0.12)",
+    "--admin-card-shadow": isLight ? "0 4px 20px -2px rgba(0, 0, 0, 0.06)" : "0 4px 20px -2px rgba(0, 0, 0, 0.35)",
   } as React.CSSProperties;
 
   return (
@@ -503,8 +503,7 @@ export default function DashboardClient() {
         <header className="content-header">
           <div className="header-meta">
             <h1>Analytics Security Console</h1>
-            <p>Real-time site reachability, geolocation metrics, and traffic aggregation.</p>
-          </div>
+            <p style={{ fontWeight: 'bold' }}>Real-time site reachability, geolocation metrics, and traffic aggregation.</p>          </div>
           <div className="header-actions">
             <button onClick={() => fetchStats()} className="btn-refresh">
               🔄 Refresh Logs
@@ -691,7 +690,7 @@ export default function DashboardClient() {
                         (251 *
                           Math.min(
                             data.systemHealth.memoryUsed /
-                              (data.systemHealth.memoryTotal || 512),
+                            (data.systemHealth.memoryTotal || 512),
                             1
                           ))
                     }}
@@ -1763,7 +1762,7 @@ export default function DashboardClient() {
             <DonationSettings />
           </div>
         )}
-        
+
         {activeTab === "comments" && (
           <div className="panel-card full-panel">
             <CommentsManager />
