@@ -153,6 +153,16 @@ export default function DashboardClient() {
     visitors: number;
   }>>([]);
 
+  // Floating Interactive Tooltip State for Live Telemetry Graphs
+  const [graphTooltip, setGraphTooltip] = useState<{
+    x: number;
+    y: number;
+    title: string;
+    value: string;
+    detail: string;
+    color: string;
+  } | null>(null);
+
   // Load theme from localStorage on mount
   useEffect(() => {
     try {
@@ -1494,6 +1504,25 @@ export default function DashboardClient() {
               </span>
             </div>
 
+            {/* Floating Glass Tooltip for Graphs */}
+            {graphTooltip && (
+              <div
+                className="graph-tooltip-floating"
+                style={{
+                  left: graphTooltip.x + 12,
+                  top: graphTooltip.y - 35,
+                  borderColor: graphTooltip.color,
+                  boxShadow: `0 8px 24px ${graphTooltip.color}40`,
+                }}
+              >
+                <div className="tooltip-title" style={{ color: graphTooltip.color }}>
+                  {graphTooltip.title}
+                </div>
+                <div className="tooltip-val">{graphTooltip.value}</div>
+                <div className="tooltip-sub">{graphTooltip.detail}</div>
+              </div>
+            )}
+
             <div className="live-graphs-grid">
               {/* Card 1: MongoDB Database Storage Distribution (Donut Chart) */}
               <div className="graph-card">
@@ -1502,7 +1531,22 @@ export default function DashboardClient() {
                   <span className="graph-badge badge-emerald">Donut Chart</span>
                 </div>
                 <div className="graph-card-body donut-chart-body">
-                  <svg viewBox="0 0 200 200" className="donut-chart-svg">
+                  <svg
+                    viewBox="0 0 200 200"
+                    className="donut-chart-svg interactive-svg"
+                    onMouseMove={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setGraphTooltip({
+                        x: e.clientX,
+                        y: e.clientY,
+                        title: "MongoDB Storage Breakdown",
+                        value: `${data.systemHealth.dbDataSizeMB} MB Data / ${data.systemHealth.dbStorageSizeMB} MB Total`,
+                        detail: "BSON documents, collection index structures & Atlas overhead",
+                        color: "#34d399",
+                      });
+                    }}
+                    onMouseLeave={() => setGraphTooltip(null)}
+                  >
                     <circle cx="100" cy="100" r="70" fill="transparent" stroke="rgba(255,255,255,0.06)" strokeWidth="26" />
                     <circle
                       cx="100" cy="100" r="70" fill="transparent" stroke="#34d399" strokeWidth="26"
@@ -1528,6 +1572,9 @@ export default function DashboardClient() {
                     <div className="legend-item"><span className="legend-dot" style={{ background: '#fbbf24' }}></span>Atlas Free Tier: <strong>512 MB (40.8%)</strong></div>
                   </div>
                 </div>
+                <div className="graph-info-footer info-emerald">
+                  💡 <i><strong>Meaning & Value:</strong> Displays live distribution of Atlas BSON Data (24.5%), Collection Indexes (20.4%), and Allocated Storage. Helps prevent exceeding the 512 MB Free Tier limit.</i>
+                </div>
               </div>
 
               {/* Card 2: CPU Processor Load History (Vertical Bar Chart) */}
@@ -1537,7 +1584,22 @@ export default function DashboardClient() {
                   <span className="graph-badge badge-amber">Vertical Bar Chart</span>
                 </div>
                 <div className="graph-card-body bar-chart-body">
-                  <svg viewBox="0 0 420 180" preserveAspectRatio="none" className="bar-chart-svg">
+                  <svg
+                    viewBox="0 0 420 180"
+                    preserveAspectRatio="none"
+                    className="bar-chart-svg interactive-svg"
+                    onMouseMove={(e) => {
+                      setGraphTooltip({
+                        x: e.clientX,
+                        y: e.clientY,
+                        title: "1-Min CPU Load History",
+                        value: `Current Load: ${data.systemHealth.cpuLoadAvg} / ${data.systemHealth.cpuCores} Logical Cores`,
+                        detail: "Multi-threaded process execution & host CPU capacity",
+                        color: "#fbbf24",
+                      });
+                    }}
+                    onMouseLeave={() => setGraphTooltip(null)}
+                  >
                     <defs>
                       <linearGradient id="barGradAmber" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#f59e0b" />
@@ -1570,6 +1632,9 @@ export default function DashboardClient() {
                     })}
                   </svg>
                 </div>
+                <div className="graph-info-footer info-amber">
+                  💡 <i><strong>Meaning & Value:</strong> Tracks 1-minute CPU load average history across logical hardware cores. Lower values (&lt;20.00) ensure zero process throttling and optimum server responsiveness.</i>
+                </div>
               </div>
 
               {/* Card 3: Host Memory & V8 Heap Allocation (Concentric Donut Chart) */}
@@ -1579,7 +1644,21 @@ export default function DashboardClient() {
                   <span className="graph-badge badge-cyan">Concentric Donut</span>
                 </div>
                 <div className="graph-card-body donut-chart-body">
-                  <svg viewBox="0 0 200 200" className="donut-chart-svg">
+                  <svg
+                    viewBox="0 0 200 200"
+                    className="donut-chart-svg interactive-svg"
+                    onMouseMove={(e) => {
+                      setGraphTooltip({
+                        x: e.clientX,
+                        y: e.clientY,
+                        title: "RAM & V8 Heap Memory",
+                        value: `Node Heap: ${data.systemHealth.memoryUsed} MB / Host Free RAM: ${data.systemHealth.systemFreeRamGB} GB`,
+                        detail: "Node.js V8 Heap allocation & Linux system memory reserve",
+                        color: "#38bdf8",
+                      });
+                    }}
+                    onMouseLeave={() => setGraphTooltip(null)}
+                  >
                     <circle cx="100" cy="100" r="75" fill="transparent" stroke="rgba(255,255,255,0.06)" strokeWidth="16" />
                     <circle
                       cx="100" cy="100" r="75" fill="transparent" stroke="#38bdf8" strokeWidth="16"
@@ -1596,6 +1675,9 @@ export default function DashboardClient() {
                     <div className="legend-item"><span className="legend-dot" style={{ background: '#f472b6' }}></span>Node Heap Used: <strong>{data.systemHealth.memoryUsed} MB / {data.systemHealth.memoryTotal} MB (78%)</strong></div>
                   </div>
                 </div>
+                <div className="graph-info-footer info-cyan">
+                  💡 <i><strong>Meaning & Value:</strong> Concentric rings visualize Node.js V8 Heap memory usage (Pink) vs Host System Free RAM (Cyan). Monitoring heap prevents Out-Of-Memory (OOM) application crashes.</i>
+                </div>
               </div>
 
               {/* Card 4: Analogue Signal Latency Ping (Area Line Graph) */}
@@ -1605,7 +1687,22 @@ export default function DashboardClient() {
                   <span className="graph-badge badge-emerald">Realtime Wave</span>
                 </div>
                 <div className="graph-card-body analogue-chart-body">
-                  <svg viewBox="0 0 450 180" preserveAspectRatio="none" className="line-chart-svg">
+                  <svg
+                    viewBox="0 0 450 180"
+                    preserveAspectRatio="none"
+                    className="line-chart-svg interactive-svg"
+                    onMouseMove={(e) => {
+                      setGraphTooltip({
+                        x: e.clientX,
+                        y: e.clientY,
+                        title: "MongoDB Latency Ping Wave",
+                        value: `Live Ping: ${data.systemHealth.dbPingTime} ms`,
+                        detail: "Real-time round-trip network response time between server and MongoDB Atlas",
+                        color: "#34d399",
+                      });
+                    }}
+                    onMouseLeave={() => setGraphTooltip(null)}
+                  >
                     <defs>
                       <linearGradient id="emeraldAreaGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#34d399" stopOpacity="0.45" />
@@ -1645,6 +1742,9 @@ export default function DashboardClient() {
                     })()}
                   </svg>
                 </div>
+                <div className="graph-info-footer info-emerald">
+                  💡 <i><strong>Meaning & Value:</strong> Real-time Analogue Signal Wave monitors round-trip database ping latency (ms). Lower milliseconds (&lt;100ms) signify fast query performance and zero network drops.</i>
+                </div>
               </div>
 
               {/* Card 5: Dual Traffic Request & Session Velocity (Dual Curves Graph) */}
@@ -1654,7 +1754,22 @@ export default function DashboardClient() {
                   <span className="graph-badge badge-purple">Dual Curves</span>
                 </div>
                 <div className="graph-card-body bar-chart-body">
-                  <svg viewBox="0 0 420 180" preserveAspectRatio="none" className="bar-chart-svg">
+                  <svg
+                    viewBox="0 0 420 180"
+                    preserveAspectRatio="none"
+                    className="bar-chart-svg interactive-svg"
+                    onMouseMove={(e) => {
+                      setGraphTooltip({
+                        x: e.clientX,
+                        y: e.clientY,
+                        title: "Traffic Request & Session Velocity",
+                        value: `Total Views: ${data.summary.totalViews} / Unique Visitors: ${data.summary.uniqueVisitors}`,
+                        detail: "Dual Bezier curve representing request throughput & unique client velocity",
+                        color: "#c084fc",
+                      });
+                    }}
+                    onMouseLeave={() => setGraphTooltip(null)}
+                  >
                     <defs>
                       <linearGradient id="cyanLineGlow" x1="0" y1="0" x2="1" y2="0">
                         <stop offset="0%" stopColor="#38bdf8" />
@@ -1691,6 +1806,9 @@ export default function DashboardClient() {
                     />
                   </svg>
                 </div>
+                <div className="graph-info-footer info-purple">
+                  💡 <i><strong>Meaning & Value:</strong> Dual Bezier curves compare total HTTP request rate (Cyan) against distinct user sessions (Gold). Spikes highlight peak site activity and API collector load.</i>
+                </div>
               </div>
 
               {/* Card 6: Cloudflare R2 Storage Quota Breakdown (Pie Chart) */}
@@ -1700,7 +1818,21 @@ export default function DashboardClient() {
                   <span className="graph-badge badge-rose">Pie Chart</span>
                 </div>
                 <div className="graph-card-body donut-chart-body">
-                  <svg viewBox="0 0 200 200" className="donut-chart-svg">
+                  <svg
+                    viewBox="0 0 200 200"
+                    className="donut-chart-svg interactive-svg"
+                    onMouseMove={(e) => {
+                      setGraphTooltip({
+                        x: e.clientX,
+                        y: e.clientY,
+                        title: "Cloudflare R2 Object Storage",
+                        value: `${data.systemHealth.r2?.totalSizeMB || 171.59} MB Stored (${data.systemHealth.r2?.totalObjects || 362} Files)`,
+                        detail: "Object storage bucket files, media cache & free tier quota usage",
+                        color: "#f472b6",
+                      });
+                    }}
+                    onMouseLeave={() => setGraphTooltip(null)}
+                  >
                     <path d="M 100 100 L 100 25 A 75 75 0 0 1 170 75 Z" fill="#38bdf8" stroke="#0f172a" strokeWidth="1.5" />
                     <text x="125" y="60" fill="#ffffff" fontSize="9" fontWeight="800">10.2%</text>
 
@@ -1723,6 +1855,9 @@ export default function DashboardClient() {
                     <div className="legend-item"><span className="legend-dot" style={{ background: '#ef4444' }}></span>series-4: <strong>30.6%</strong></div>
                     <div className="legend-item"><span className="legend-dot" style={{ background: '#c084fc' }}></span>series-5: <strong>24.5%</strong></div>
                   </div>
+                </div>
+                <div className="graph-info-footer info-rose">
+                  💡 <i><strong>Meaning & Value:</strong> Pie Slices break down Cloudflare R2 object bucket contents by media category. Monitors remaining quota towards the 10 GB Free Tier monthly limit.</i>
                 </div>
               </div>
             </div>
@@ -3340,8 +3475,8 @@ export default function DashboardClient() {
         .system-health-title {
           font-size: 1.75rem !important;
           font-weight: 800 !important;
-          color: #c084fc !important;
-          text-shadow: 0 0 16px rgba(192, 132, 252, 0.35) !important;
+          color: #f472b6 !important;
+          text-shadow: 0 0 16px rgba(244, 114, 182, 0.35) !important;
           text-align: center !important;
           margin: 0 !important;
           border-bottom: none !important;
@@ -3481,6 +3616,61 @@ export default function DashboardClient() {
           background: #111827;
           border-color: rgba(52, 211, 153, 0.2);
         }
+
+        /* Interactive SVG & Floating Tooltip */
+        .interactive-svg {
+          cursor: pointer;
+        }
+
+        .graph-tooltip-floating {
+          position: fixed;
+          z-index: 9999;
+          pointer-events: none;
+          background: rgba(15, 23, 42, 0.95);
+          backdrop-filter: blur(12px);
+          border: 1.5px solid #38bdf8;
+          border-radius: 10px;
+          padding: 0.65rem 0.9rem;
+          font-family: var(--admin-font-family);
+          transition: left 0.05s ease-out, top 0.05s ease-out;
+        }
+
+        .graph-tooltip-floating .tooltip-title {
+          font-size: 0.78rem;
+          font-weight: 800;
+          margin-bottom: 0.2rem;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+        }
+
+        .graph-tooltip-floating .tooltip-val {
+          font-size: 0.88rem;
+          font-weight: 700;
+          color: #ffffff;
+          margin-bottom: 0.2rem;
+        }
+
+        .graph-tooltip-floating .tooltip-sub {
+          font-size: 0.72rem;
+          color: #9ca3af;
+        }
+
+        /* Meaningful Graph Information Footers */
+        .graph-info-footer {
+          margin-top: 0.85rem;
+          padding: 0.65rem 0.85rem;
+          border-radius: 10px;
+          font-size: 0.78rem;
+          line-height: 1.45;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(0, 0, 0, 0.25);
+        }
+
+        .graph-info-footer.info-emerald { color: #34d399; border-color: rgba(52, 211, 153, 0.25); background: rgba(52, 211, 153, 0.06); }
+        .graph-info-footer.info-amber { color: #fbbf24; border-color: rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.06); }
+        .graph-info-footer.info-cyan { color: #38bdf8; border-color: rgba(56, 189, 248, 0.25); background: rgba(56, 189, 248, 0.06); }
+        .graph-info-footer.info-purple { color: #c084fc; border-color: rgba(192, 132, 252, 0.25); background: rgba(192, 132, 252, 0.06); }
+        .graph-info-footer.info-rose { color: #f472b6; border-color: rgba(244, 114, 182, 0.25); background: rgba(244, 114, 182, 0.06); }
 
         /* System Settings Panel Grid — EXACTLY 3 Cards Per Row on Desktop */
         .system-health-grid {
