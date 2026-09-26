@@ -1584,8 +1584,31 @@ export default function DashboardClient() {
             )}
 
             <div className="live-graphs-grid">
-              {/* Helper calculations for Card 1: MongoDB Storage Distribution */}
+              {/* Helper function to generate smooth cubic bezier SVG curves */}
               {(() => {
+                const getSmoothCurvePath = (pts: { x: number; y: number }[]): string => {
+                  if (!pts || pts.length === 0) return "";
+                  if (pts.length === 1) return `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+                  if (pts.length === 2) return `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)} L ${pts[1].x.toFixed(1)} ${pts[1].y.toFixed(1)}`;
+
+                  let path = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+                  for (let i = 0; i < pts.length - 1; i++) {
+                    const p0 = pts[i === 0 ? i : i - 1];
+                    const p1 = pts[i];
+                    const p2 = pts[i + 1];
+                    const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
+
+                    const cp1x = p1.x + (p2.x - p0.x) / 6;
+                    const cp1y = p1.y + (p2.y - p0.y) / 6;
+                    const cp2x = p2.x - (p3.x - p1.x) / 6;
+                    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+                    path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+                  }
+                  return path;
+                };
+
+                /* Helper calculations for Card 1: MongoDB Storage Distribution */
                 const dbDataMB = data.systemHealth.dbDataSizeMB || 0;
                 const dbIndexMB = data.systemHealth.dbIndexSizeMB || 0;
                 const dbStorageMB = data.systemHealth.dbStorageSizeMB || 0;
@@ -1835,7 +1858,7 @@ export default function DashboardClient() {
                       </div>
                     </div>
 
-                    {/* Card 2: CPU Processor Load History (Vertical Bar Chart) */}
+                    {/* Card 2: CPU Processor Load History (Smooth Bezier Area Chart) */}
                     <div className="graph-card">
                       <div className="graph-card-header">
                         <div className="header-title-chip">
@@ -1852,64 +1875,110 @@ export default function DashboardClient() {
                           onMouseLeave={() => setGraphTooltip(null)}
                         >
                           <defs>
-                            <linearGradient id="barGradAmber" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#f59e0b" />
-                              <stop offset="100%" stopColor="#ef4444" />
+                            <linearGradient id="amberAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.45" />
+                              <stop offset="100%" stopColor="#ef4444" stopOpacity="0.02" />
                             </linearGradient>
                           </defs>
-                          <line x1="40" y1="20" x2="410" y2="20" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
-                          <line x1="40" y1="60" x2="410" y2="60" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
-                          <line x1="40" y1="100" x2="410" y2="100" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
-                          <line x1="40" y1="140" x2="410" y2="140" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
-                          <text x="5" y="24" fill="#9ca3af" fontSize="10">100%</text>
-                          <text x="5" y="64" fill="#9ca3af" fontSize="10">75%</text>
-                          <text x="5" y="104" fill="#9ca3af" fontSize="10">50%</text>
-                          <text x="5" y="144" fill="#9ca3af" fontSize="10">25%</text>
-                          <text x="5" y="178" fill="#9ca3af" fontSize="10">0%</text>
 
                           {(() => {
                             const filteredPts = getFilteredTelemetry(telemetryPoints, cardRanges.card2 || "1h");
-                            const displayPts = filteredPts.length > 0 ? filteredPts : [...Array(10)];
-                            const stepWidth = Math.min(36, 360 / Math.max(1, displayPts.length));
+                            const pts = filteredPts.length > 0 ? filteredPts : [...Array(10)].map((_, i) => ({
+                              time: `19:${40 + i * 3}`,
+                              cpu: [18, 22, 25, 20, 16, 19, 24, 28, 22, 19][i],
+                              ping: 45, views: 10, visitors: 3
+                            }));
 
-                            return displayPts.map((pt, idx) => {
-                              const rawCpuPct = pt ? pt.cpu : [25, 22, 18, 14, 10, 8, 12, 18, 28, 34][idx];
-                              const h = (rawCpuPct / 100) * 130;
-                              const x = 45 + idx * stepWidth;
-                              const y = 160 - h;
-                              const timeLabel = pt ? pt.time : `19:${40 + idx * 3}`;
-                              const cpuCores = data.systemHealth.cpuCores || 4;
-                              const load1m = ((rawCpuPct / 100) * cpuCores).toFixed(2);
-                              const load5m = (((rawCpuPct / 100) * cpuCores * 0.95) + 0.02).toFixed(2);
+                            const cpuVals = pts.map(p => p.cpu);
+                            const minCpuRaw = Math.min(...cpuVals);
+                            const maxCpuRaw = Math.max(...cpuVals);
 
-                              return (
-                                <g
-                                  key={idx}
-                                  className="svg-hover-group"
-                                  onMouseMove={(e) => {
-                                    setGraphTooltip({
-                                      x: e.clientX,
-                                      y: e.clientY,
-                                      title: `CPU Load (${timeLabel})`,
-                                      value: `${load1m} Load Avg (1-Min) | ${load5m} (5-Min)`,
-                                      detail: `Hardware Cores: ${cpuCores} Active Linux Cores (${rawCpuPct.toFixed(1)}% Core Util)`,
-                                      color: "#fbbf24",
-                                    });
-                                  }}
-                                >
-                                  <rect x={x - 2} y={15} width={Math.max(20, stepWidth - 4)} height="150" fill="transparent" />
-                                  <rect x={x} y={y} width={Math.max(14, stepWidth - 8)} height={Math.max(6, h)} rx="4" fill="url(#barGradAmber)" />
-                                  <text x={x + Math.max(7, (stepWidth - 8) / 2)} y="176" fill="#9ca3af" fontSize="8" textAnchor="middle">
-                                    {timeLabel.slice(0, 5)}
-                                  </text>
-                                </g>
-                              );
+                            let minVal = 0;
+                            let maxVal = 100;
+
+                            if (maxCpuRaw === minCpuRaw) {
+                              minVal = Math.max(0, Math.floor(minCpuRaw * 0.7));
+                              maxVal = Math.min(100, Math.ceil((minCpuRaw * 1.3) || 10));
+                            } else {
+                              const rng = maxCpuRaw - minCpuRaw;
+                              minVal = Math.max(0, Math.floor(minCpuRaw - rng * 0.2));
+                              maxVal = Math.min(100, Math.ceil(maxCpuRaw + rng * 0.25));
+                            }
+
+                            const effectiveRng = Math.max(1, maxVal - minVal);
+
+                            const coords = pts.map((p, idx) => {
+                              const x = 45 + (idx * 350) / Math.max(1, pts.length - 1);
+                              const y = 160 - ((p.cpu - minVal) / effectiveRng) * 135;
+                              return { x, y, cpu: p.cpu, time: p.time };
                             });
+
+                            const labelStep = Math.max(1, Math.ceil(pts.length / 7));
+                            const curvePath = getSmoothCurvePath(coords);
+                            const areaPath = coords.length >= 2 ? `${curvePath} L ${coords[coords.length - 1].x.toFixed(1)} 160 L ${coords[0].x.toFixed(1)} 160 Z` : "";
+
+                            const tick4 = `${maxVal}%`;
+                            const tick3 = `${Math.round(minVal + effectiveRng * 0.75)}%`;
+                            const tick2 = `${Math.round(minVal + effectiveRng * 0.50)}%`;
+                            const tick1 = `${Math.round(minVal + effectiveRng * 0.25)}%`;
+                            const tick0 = `${minVal}%`;
+
+                            return (
+                              <>
+                                <line x1="40" y1="20" x2="410" y2="20" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
+                                <line x1="40" y1="55" x2="410" y2="55" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
+                                <line x1="40" y1="90" x2="410" y2="90" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
+                                <line x1="40" y1="125" x2="410" y2="125" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
+                                <line x1="40" y1="160" x2="410" y2="160" stroke="rgba(255,255,255,0.1)" />
+
+                                <text x="5" y="24" fill="#9ca3af" fontSize="9">{tick4}</text>
+                                <text x="5" y="59" fill="#9ca3af" fontSize="9">{tick3}</text>
+                                <text x="5" y="94" fill="#9ca3af" fontSize="9">{tick2}</text>
+                                <text x="5" y="129" fill="#9ca3af" fontSize="9">{tick1}</text>
+                                <text x="5" y="164" fill="#9ca3af" fontSize="9">{tick0}</text>
+
+                                {areaPath && <path d={areaPath} fill="url(#amberAreaGrad)" />}
+                                {curvePath && <path d={curvePath} fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" />}
+
+                                {coords.map((c, idx) => {
+                                  const rawCpuPct = c.cpu;
+                                  const cpuCores = data.systemHealth.cpuCores || 2;
+                                  const load1m = ((rawCpuPct / 100) * cpuCores).toFixed(2);
+                                  const load5m = (((rawCpuPct / 100) * cpuCores * 0.95) + 0.02).toFixed(2);
+                                  const showLabel = idx % labelStep === 0 || idx === coords.length - 1;
+
+                                  return (
+                                    <g
+                                      key={idx}
+                                      className="svg-hover-group"
+                                      onMouseMove={(e) => {
+                                        setGraphTooltip({
+                                          x: e.clientX,
+                                          y: e.clientY,
+                                          title: `CPU Load (${c.time})`,
+                                          value: `${load1m} Load Avg (1-Min) | ${load5m} (5-Min)`,
+                                          detail: `Hardware Cores: ${cpuCores} Active Linux Cores (${rawCpuPct.toFixed(1)}% Core Util)`,
+                                          color: "#fbbf24",
+                                        });
+                                      }}
+                                    >
+                                      <circle cx={c.x} cy={100} r="16" fill="transparent" />
+                                      <circle cx={c.x} cy={c.y} r="4.5" fill="#f59e0b" stroke="#0f172a" strokeWidth="2" />
+                                      {showLabel && (
+                                        <text x={c.x} y="176" fill="#9ca3af" fontSize="8" textAnchor="middle">
+                                          {c.time.slice(0, 5)}
+                                        </text>
+                                      )}
+                                    </g>
+                                  );
+                                })}
+                              </>
+                            );
                           })()}
                         </svg>
                       </div>
                       <div className="graph-info-footer info-amber">
-                        💡 <i><strong>Meaning & Value:</strong> Updated every 5 minutes. Tracks 1-minute vs 5-minute Linux load average history across logical hardware cores. Lower load ensures zero process throttling.</i>
+                        💡 <i><strong>Meaning & Value:</strong> Updated every 5 minutes. Dynamic auto-scaled smooth curve area chart tracks 1-minute vs 5-minute Linux load average history across hardware cores.</i>
                       </div>
                     </div>
 
@@ -1997,7 +2066,7 @@ export default function DashboardClient() {
                       </div>
                     </div>
 
-                    {/* Card 4: Analogue Signal Latency Ping (Area Line Graph) */}
+                    {/* Card 4: Analogue Signal Latency Ping (Smooth Bezier Area Line Graph) */}
                     <div className="graph-card analogue-graph-card">
                       <div className="graph-card-header">
                         <div className="header-title-chip">
@@ -2022,63 +2091,87 @@ export default function DashboardClient() {
 
                           {(() => {
                             const pts = getFilteredTelemetry(telemetryPoints, cardRanges.card4 || "1h");
-                            const maxPing = Math.max(250, ...pts.map(p => p.ping));
+                            const pingVals = pts.map(p => p.ping);
+                            const minPingRaw = Math.min(...pingVals);
+                            const maxPingRaw = Math.max(...pingVals);
+
+                            let minVal = 0;
+                            let maxVal = 250;
+
+                            if (maxPingRaw === minPingRaw) {
+                              minVal = Math.max(0, Math.floor(minPingRaw * 0.7));
+                              maxVal = Math.ceil(minPingRaw * 1.3 || 100);
+                            } else {
+                              const rng = maxPingRaw - minPingRaw;
+                              minVal = Math.max(0, Math.floor(minPingRaw - rng * 0.2));
+                              maxVal = Math.ceil(maxPingRaw + rng * 0.25);
+                            }
+
+                            const effectiveRng = Math.max(1, maxVal - minVal);
+
                             const coords = pts.map((p, i) => {
                               const x = 55 + (i * 380) / Math.max(1, pts.length - 1);
-                              const y = 160 - (p.ping / maxPing) * 135;
+                              const y = 160 - ((p.ping - minVal) / effectiveRng) * 135;
                               return { x, y, time: p.time, ping: p.ping };
                             });
+
+                            const labelStep = Math.max(1, Math.ceil(pts.length / 7));
+                            const curvePath = getSmoothCurvePath(coords);
+                            const areaPath = coords.length >= 2 ? `${curvePath} L ${coords[coords.length - 1].x.toFixed(1)} 160 L ${coords[0].x.toFixed(1)} 160 Z` : "";
+
                             return (
                               <>
-                                <text x="5" y="24" fill="#34d399" fontSize="9">{maxPing} ms</text>
-                                <text x="5" y="60" fill="#34d399" fontSize="9">{Math.round(maxPing * 0.75)} ms</text>
-                                <text x="5" y="95" fill="#34d399" fontSize="9">{Math.round(maxPing * 0.5)} ms</text>
-                                <text x="5" y="130" fill="#34d399" fontSize="9">{Math.round(maxPing * 0.25)} ms</text>
-                                <text x="5" y="165" fill="#34d399" fontSize="9">0 ms</text>
+                                <line x1="50" y1="20" x2="440" y2="20" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
+                                <line x1="50" y1="55" x2="440" y2="55" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
+                                <line x1="50" y1="90" x2="440" y2="90" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
+                                <line x1="50" y1="125" x2="440" y2="125" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
 
-                                {coords.length >= 2 && (() => {
-                                  const pathStr = coords.reduce((acc, c, i) => i === 0 ? `M ${c.x} ${c.y}` : `${acc} L ${c.x} ${c.y}`, "");
-                                  const areaStr = `${pathStr} L ${coords[coords.length - 1].x} 165 L ${coords[0].x} 165 Z`;
+                                <text x="5" y="24" fill="#34d399" fontSize="9">{maxVal} ms</text>
+                                <text x="5" y="59" fill="#34d399" fontSize="9">{Math.round(minVal + effectiveRng * 0.75)} ms</text>
+                                <text x="5" y="94" fill="#34d399" fontSize="9">{Math.round(minVal + effectiveRng * 0.5)} ms</text>
+                                <text x="5" y="129" fill="#34d399" fontSize="9">{Math.round(minVal + effectiveRng * 0.25)} ms</text>
+                                <text x="5" y="164" fill="#34d399" fontSize="9">{minVal} ms</text>
+
+                                {areaPath && <path d={areaPath} fill="url(#emeraldAreaGrad)" />}
+                                {curvePath && <path d={curvePath} fill="none" stroke="#34d399" strokeWidth="2.5" strokeLinecap="round" />}
+                                {coords.map((c, i) => {
+                                  const showLabel = i % labelStep === 0 || i === coords.length - 1;
                                   return (
-                                    <>
-                                      <path d={areaStr} fill="url(#emeraldAreaGrad)" />
-                                      <path d={pathStr} fill="none" stroke="#34d399" strokeWidth="2.5" />
-                                      {coords.map((c, i) => (
-                                        <g
-                                          key={i}
-                                          className="svg-hover-group"
-                                          onMouseMove={(e) => {
-                                            setGraphTooltip({
-                                              x: e.clientX,
-                                              y: e.clientY,
-                                              title: `Ping Latency (${c.time})`,
-                                              value: `${c.ping} ms Latency`,
-                                              detail: "Round-trip database ping response time between app server and Atlas",
-                                              color: "#34d399",
-                                            });
-                                          }}
-                                        >
-                                          <circle cx={c.x} cy={100} r="18" fill="transparent" />
-                                          <circle cx={c.x} cy={c.y} r="5" fill="#34d399" stroke="#0f172a" strokeWidth="2" />
-                                          <text x={c.x} y="178" fill="#6b7280" fontSize="8" textAnchor="middle">
-                                            {c.time.slice(0, 5)}
-                                          </text>
-                                        </g>
-                                      ))}
-                                    </>
+                                    <g
+                                      key={i}
+                                      className="svg-hover-group"
+                                      onMouseMove={(e) => {
+                                        setGraphTooltip({
+                                          x: e.clientX,
+                                          y: e.clientY,
+                                          title: `Ping Latency (${c.time})`,
+                                          value: `${c.ping} ms Latency`,
+                                          detail: "Round-trip database ping response time between app server and Atlas",
+                                          color: "#34d399",
+                                        });
+                                      }}
+                                    >
+                                      <circle cx={c.x} cy={100} r="16" fill="transparent" />
+                                      <circle cx={c.x} cy={c.y} r="4.5" fill="#34d399" stroke="#0f172a" strokeWidth="2" />
+                                      {showLabel && (
+                                        <text x={c.x} y="178" fill="#6b7280" fontSize="8" textAnchor="middle">
+                                          {c.time.slice(0, 5)}
+                                        </text>
+                                      )}
+                                    </g>
                                   );
-                                })()}
+                                })}
                               </>
                             );
                           })()}
                         </svg>
                       </div>
                       <div className="graph-info-footer info-emerald">
-                        💡 <i><strong>Meaning & Value:</strong> Updated every 1 minute. Real-time Analogue Signal Wave monitors round-trip database ping latency (ms). Lower milliseconds (&lt;100ms) signify fast query performance.</i>
+                        💡 <i><strong>Meaning & Value:</strong> Updated every 1 minute. Real-time dynamic auto-scaled smooth curve monitors round-trip database ping latency (ms).</i>
                       </div>
                     </div>
 
-                    {/* Card 5: Dual Traffic Request & Session Velocity (Dual Curves Graph) */}
+                    {/* Card 5: Dual Traffic Request & Session Velocity (Smooth Dual Bezier Curve Graph) */}
                     <div className="graph-card">
                       <div className="graph-card-header">
                         <div className="header-title-chip">
@@ -2133,8 +2226,9 @@ export default function DashboardClient() {
                               };
                             });
 
-                            const pathViews = viewCoords.reduce((acc, c, i) => i === 0 ? `M ${c.x} ${c.y}` : `${acc} L ${c.x} ${c.y}`, "");
-                            const pathVisitors = visitorCoords.reduce((acc, c, i) => i === 0 ? `M ${c.x} ${c.y}` : `${acc} L ${c.x} ${c.y}`, "");
+                            const labelStep = Math.max(1, Math.ceil(pts.length / 7));
+                            const pathViewsStr = getSmoothCurvePath(viewCoords);
+                            const pathVisitorsStr = getSmoothCurvePath(visitorCoords);
 
                             return (
                               <>
@@ -2142,29 +2236,37 @@ export default function DashboardClient() {
                                 <text x="385" y="95" fill="#9ca3af" fontSize="9">{Math.round(maxV / 2)}</text>
                                 <text x="385" y="165" fill="#9ca3af" fontSize="9">0</text>
 
-                                {/* Cyan Curve: Page Views */}
-                                {pathViews && <path d={pathViews} fill="none" stroke="url(#cyanLineGlow)" strokeWidth="3" strokeLinecap="round" />}
-                                {viewCoords.map((c, i) => (
-                                  <g
-                                    key={`v-${i}`}
-                                    className="svg-hover-group"
-                                    onMouseMove={(e) => {
-                                      setGraphTooltip({
-                                        x: e.clientX,
-                                        y: e.clientY,
-                                        title: `Cyan Curve: Page Views (${c.time})`,
-                                        value: `${c.views} Request Views logged at ${c.time}`,
-                                        detail: `Total accumulated site request views: ${(data.summary.totalViews || 0).toLocaleString()}`,
-                                        color: "#38bdf8",
-                                      });
-                                    }}
-                                  >
-                                    <circle cx={c.x} cy={c.y} r="4.5" fill="#38bdf8" stroke="#0f172a" strokeWidth="1.5" />
-                                  </g>
-                                ))}
+                                {/* Cyan Bezier Curve: Page Views */}
+                                {pathViewsStr && <path d={pathViewsStr} fill="none" stroke="url(#cyanLineGlow)" strokeWidth="3" strokeLinecap="round" />}
+                                {viewCoords.map((c, i) => {
+                                  const showLabel = i % labelStep === 0 || i === viewCoords.length - 1;
+                                  return (
+                                    <g
+                                      key={`v-${i}`}
+                                      className="svg-hover-group"
+                                      onMouseMove={(e) => {
+                                        setGraphTooltip({
+                                          x: e.clientX,
+                                          y: e.clientY,
+                                          title: `Cyan Curve: Page Views (${c.time})`,
+                                          value: `${c.views} Request Views logged at ${c.time}`,
+                                          detail: `Total accumulated site request views: ${(data.summary.totalViews || 0).toLocaleString()}`,
+                                          color: "#38bdf8",
+                                        });
+                                      }}
+                                    >
+                                      <circle cx={c.x} cy={c.y} r="4" fill="#38bdf8" stroke="#0f172a" strokeWidth="1.5" />
+                                      {showLabel && (
+                                        <text x={c.x} y="176" fill="#6b7280" fontSize="8" textAnchor="middle">
+                                          {c.time.slice(0, 5)}
+                                        </text>
+                                      )}
+                                    </g>
+                                  );
+                                })}
 
-                                {/* Amber Curve: Unique Sessions */}
-                                {pathVisitors && <path d={pathVisitors} fill="none" stroke="url(#amberLineGlow)" strokeWidth="3" strokeLinecap="round" />}
+                                {/* Amber Bezier Curve: Unique Sessions */}
+                                {pathVisitorsStr && <path d={pathVisitorsStr} fill="none" stroke="url(#amberLineGlow)" strokeWidth="3" strokeLinecap="round" />}
                                 {visitorCoords.map((c, i) => (
                                   <g
                                     key={`vis-${i}`}
@@ -2180,7 +2282,7 @@ export default function DashboardClient() {
                                       });
                                     }}
                                   >
-                                    <circle cx={c.x} cy={c.y} r="4.5" fill="#fbbf24" stroke="#0f172a" strokeWidth="1.5" />
+                                    <circle cx={c.x} cy={c.y} r="4" fill="#fbbf24" stroke="#0f172a" strokeWidth="1.5" />
                                   </g>
                                 ))}
                               </>
