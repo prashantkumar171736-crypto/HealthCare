@@ -326,7 +326,7 @@ export default function DashboardClient() {
     }
 
     const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Kolkata' });
     const currentPing = data.systemHealth.dbPingTime || 185;
     const currentCpu = Math.max(5, Math.min(95, Math.round((data.systemHealth.cpuLoadAvg || 0.15) * 20 + 15)));
     const currentHeap = data.systemHealth.memoryUsed || 29;
@@ -344,7 +344,7 @@ export default function DashboardClient() {
         for (let i = 9; i >= 0; i--) {
           const t = new Date(now.getTime() - i * 15000);
           seeds.push({
-            time: t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            time: t.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Kolkata' }),
             ping: Math.max(80, Math.min(350, currentPing + Math.floor(Math.sin(i) * 35))),
             cpu: Math.max(10, Math.min(85, currentCpu + Math.floor(Math.cos(i * 0.8) * 15))),
             heap: Math.max(15, Math.min(heapTotal, heapUsed + Math.floor(Math.sin(i * 1.2) * 4))),
@@ -1583,8 +1583,8 @@ export default function DashboardClient() {
                       sortedLogs.map((log) => (
                         <tr key={log.id}>
                           <td className="time-col">
-                            {new Date(log.timestamp).toLocaleTimeString()}<br />
-                            <span className="date-sub">{new Date(log.timestamp).toLocaleDateString()}</span>
+                            {new Date(log.timestamp).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}<br />
+                            <span className="date-sub">{new Date(log.timestamp).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>
                           </td>
                           <td className="ip-col font-mono">{log.ip}</td>
                           <td className="country-col">
@@ -2512,16 +2512,11 @@ export default function DashboardClient() {
                             const minPingRaw = Math.min(...pingVals);
                             const maxPingRaw = Math.max(...pingVals);
 
-                            // Flexible Y-Axis Scaling for Ping: Minimum 20 ms span so 184-188ms stays smooth & realistic
-                            const minSpan = 20;
-                            let minVal = Math.max(0, Math.floor(minPingRaw - 4));
+                            // Y-Axis starts from 0 so the line rises from the bottom of the graph
+                            const minVal = 0;
                             let maxVal = Math.ceil(maxPingRaw + 5);
-
-                            if (maxVal - minVal < minSpan) {
-                              const pad = Math.ceil((minSpan - (maxVal - minVal)) / 2);
-                              minVal = Math.max(0, minVal - pad);
-                              maxVal = maxVal + pad;
-                            }
+                            // Ensure at least 20ms visible span for smooth display
+                            if (maxVal < 20) maxVal = 20;
 
                             const effectiveRng = Math.max(1, maxVal - minVal);
 
@@ -3173,7 +3168,7 @@ export default function DashboardClient() {
                   </div>
                   <div className="health-row">
                     <span className="row-label">Client Local Time</span>
-                    <span className="row-val font-mono">{new Date().toLocaleTimeString()}</span>
+                    <span className="row-val font-mono">{new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })} IST</span>
                   </div>
                   <div className="health-row">
                     <span className="row-label">Log Limit Filter</span>
