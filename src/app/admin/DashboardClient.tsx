@@ -2339,7 +2339,7 @@ export default function DashboardClient() {
                           const gap = n > 40 ? 1.5 : 2;
                           const barW = Math.max(2.5, Math.floor((chartW - (n - 1) * gap) / Math.max(1, n)));
                           const gridLines = 4;
-                          const labelStep = Math.max(1, Math.ceil(n / 8));
+                          const labelStep = Math.max(1, Math.ceil(n / 7));
 
                           return (
                             <svg
@@ -2390,7 +2390,8 @@ export default function DashboardClient() {
                                 const pct = d.totalVisits / maxVisits;
                                 const grad = pct > 0.65 ? "url(#trafficBarGradHigh)" : pct > 0.3 ? "url(#trafficBarGradMid)" : "url(#trafficBarGradLow)";
                                 const isActive = trafficHovered?.isoDate === d.isoDate;
-                                const showLabel = i % labelStep === 0 || i === n - 1;
+                                const isNearEnd = (n - 1 - i) < Math.floor(labelStep * 0.75);
+                                const showLabel = (i % labelStep === 0 && !isNearEnd) || i === n - 1;
 
                                 return (
                                   <g
@@ -2398,17 +2399,35 @@ export default function DashboardClient() {
                                     className="traffic-bar-group"
                                     onMouseMove={(e) => {
                                       setTrafficHovered(d);
-                                      const tooltipW = 270;
-                                      const tooltipH = 280;
-                                      let left = e.clientX + 15;
-                                      if (left + tooltipW > window.innerWidth - 10) {
-                                        left = Math.max(10, e.clientX - tooltipW - 15);
+                                      const cardEl = e.currentTarget.closest(".traffic-bar-card") as HTMLElement | null;
+                                      if (cardEl) {
+                                        const cardRect = cardEl.getBoundingClientRect();
+                                        const tooltipW = 270;
+                                        const tooltipH = 240;
+
+                                        // Try placing tooltip ABOVE cursor
+                                        let top = e.clientY - tooltipH - 12;
+                                        if (top < cardRect.top + 45) {
+                                          top = e.clientY + 15;
+                                        }
+
+                                        // Strictly clamp top between card header bottom and card bottom
+                                        const maxTop = cardRect.bottom - tooltipH - 10;
+                                        const minTop = cardRect.top + 45;
+                                        top = Math.max(minTop, Math.min(top, maxTop));
+
+                                        let left = e.clientX + 15;
+                                        if (left + tooltipW > cardRect.right - 10) {
+                                          left = e.clientX - tooltipW - 15;
+                                        }
+                                        const maxLeft = cardRect.right - tooltipW - 10;
+                                        const minLeft = cardRect.left + 10;
+                                        left = Math.max(minLeft, Math.min(left, maxLeft));
+
+                                        setTrafficTooltipPos({ x: left, y: top });
+                                      } else {
+                                        setTrafficTooltipPos({ x: e.clientX + 15, y: e.clientY - 100 });
                                       }
-                                      let top = e.clientY - 30;
-                                      if (top + tooltipH > window.innerHeight - 10) {
-                                        top = Math.max(10, e.clientY - tooltipH + 20);
-                                      }
-                                      setTrafficTooltipPos({ x: left, y: top });
                                     }}
                                     style={{ cursor: "pointer" }}
                                   >
