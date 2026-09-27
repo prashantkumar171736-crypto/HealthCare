@@ -35,21 +35,21 @@ async function createAdmin(username: string, password: string) {
   console.log(`Successfully saved admin user "${username}" to MongoDB database.`);
 }
 
-// Load default credentials from environment or fallback
-const defaultUsername = "kumar.pk6342@gmail.com";
-const defaultPassword = "P7@xN4!Lm9#Qv2$Tr8^Hy5&Bk1*Zw6Cf3%Ud0!Js8@Rp2#Xe7$Mn5^Lt9&Wq4";
-
 async function run() {
+  const username = process.env.ADMIN_BOOTSTRAP_USERNAME?.trim();
+  const password = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+  if (!username || !password || username.toLowerCase() === "admin") {
+    throw new Error("Set ADMIN_BOOTSTRAP_USERNAME and ADMIN_BOOTSTRAP_PASSWORD; username cannot be admin.");
+  }
+
   const db = await getDb();
-  
-  // 1. Create/update the new admin user
-  await createAdmin(defaultUsername, defaultPassword);
-  
-  // 2. Delete the old "admin" user if it exists to clean up
-  const result = await db.collection("admins").deleteOne({ username: "admin" });
+
+  await createAdmin(username, password);
+  const result = await db.collection("admins").deleteMany({ username: /^admin$/i });
   if (result.deletedCount > 0) {
     console.log("Successfully removed old 'admin' user from the database.");
   }
+  await db.collection("admin_sessions").deleteMany({});
 }
 
 run()

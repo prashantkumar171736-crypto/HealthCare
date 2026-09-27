@@ -1,6 +1,8 @@
 const { MongoClient } = require("mongodb");
 
-const uri = "mongodb+srv://healthcare:1994%40prashant@cluster0.ry3iuxp.mongodb.net/healthcare?retryWrites=true&w=majority&appName=Cluster0";
+const uri = process.env.MONGODB_URI;
+
+if (!uri) throw new Error("MONGODB_URI must be configured.");
 
 async function test() {
   const client = new MongoClient(uri);

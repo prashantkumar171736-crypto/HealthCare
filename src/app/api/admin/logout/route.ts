@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { revokeSession } from "../login/route";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const cookieStore = await cookies();
+    await revokeSession(cookieStore.get("admin_session")?.value);
     cookieStore.set("admin_session", "", {
       path: "/",
       maxAge: 0,
@@ -33,6 +35,7 @@ export async function GET(request: Request) {
 export async function POST() {
   try {
     const cookieStore = await cookies();
+    await revokeSession(cookieStore.get("admin_session")?.value);
     cookieStore.set("admin_session", "", {
       path: "/",
       maxAge: 0,

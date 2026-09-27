@@ -2,9 +2,9 @@ import "@/lib/env";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import crypto from "crypto";
 
-const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || "0a3cbe6f17e4c7af5282f6ea74a15943";
-const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID || "ac0e90071f79e3b4dcb9ac3d02cbe98e";
-const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY || "6367dc023915612f4568d30734e691389175eb6db79ba94fcf8099950883a425";
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || "healthcare-uploads";
 const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || "https://pub-8ded07f2075a43daaa93fc2d473091fb.r2.dev";
 
@@ -12,14 +12,25 @@ const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || "https://pub-8ded07f2075a43da
  * Cloudflare R2 client (S3-compatible API).
  * Reads from environment variables with fallback credentials for serverless environments.
  */
-const r2Client = new S3Client({
-  region: "auto",
-  endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: R2_ACCESS_KEY_ID,
-    secretAccessKey: R2_SECRET_ACCESS_KEY,
-  },
-});
+let r2Client: S3Client | null = null;
+
+function getR2Client(): S3Client {
+  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
+    throw new Error("R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY must be configured.");
+  }
+
+  if (!r2Client) {
+    r2Client = new S3Client({
+      region: "auto",
+      endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: R2_ACCESS_KEY_ID,
+        secretAccessKey: R2_SECRET_ACCESS_KEY,
+      },
+    });
+  }
+  return r2Client;
+}
 
 /**
  * Uploads a file buffer to Cloudflare R2 and returns the public CDN URL.
@@ -33,7 +44,7 @@ export async function uploadToR2(
   const randomSuffix = crypto.randomBytes(6).toString("hex");
   const key = `uploads/${Date.now()}-${randomSuffix}.${ext}`;
 
-  await r2Client.send(
+  await getR2Client().send(
     new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
       Key: key,
@@ -55,7 +66,7 @@ export async function deleteFromR2(publicUrl: string): Promise<void> {
     const key = publicUrl.replace(`${baseUrl}/`, "");
     if (!key || key === publicUrl) return;
 
-    await r2Client.send(
+    await getR2Client().send(
       new DeleteObjectCommand({
         Bucket: R2_BUCKET_NAME,
         Key: key,
@@ -102,7 +113,7 @@ export async function getR2Stats(): Promise<R2Stats> {
         ContinuationToken: continuationToken,
         MaxKeys: 1000,
       });
-      const response = await r2Client.send(command);
+      const response = await getR2Client().send(command);
 
       if (response.Contents) {
         totalObjects += response.Contents.length;

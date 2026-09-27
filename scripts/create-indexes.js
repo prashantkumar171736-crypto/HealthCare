@@ -6,10 +6,10 @@
  */
 const { MongoClient } = require("mongodb");
 
-const MONGO_URI = process.env.MONGODB_URI ||
-  "mongodb+srv://healthcare:1994%40prashant@cluster0.ry3iuxp.mongodb.net/healthcare?retryWrites=true&w=majority&appName=Cluster0";
+const MONGO_URI = process.env.MONGODB_URI;
 
 async function main() {
+  if (!MONGO_URI) throw new Error("MONGODB_URI must be configured.");
   const client = new MongoClient(MONGO_URI, {
     serverSelectionTimeoutMS: 10000,
     connectTimeoutMS: 10000,

@@ -76,71 +76,17 @@ function clearRateLimit(ip: string): void {
 // ---------------------------------------------------------------------------
 // Secret Key Handling
 // ---------------------------------------------------------------------------
-const DEFAULT_JWT_SECRET =
-  "d03ed891cf12e6fcff59180ab19183a6909a3f60dd343e1bb045863bf02bad41bafa76851b461a579c4e5a0101cd5fad";
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+const SESSION_TTL_SECONDS = SESSION_TTL_MS / 1000;
 
-export function getSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  if (secret && secret.trim().length >= 32) {
-    return secret.trim();
-  }
-  return DEFAULT_JWT_SECRET;
+function hashSessionToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
-
-export function requireSecret(): string {
-  return getSecret();
-}
-
-export function getSessionHash(username: string): string {
-  const secret = getSecret();
-  const normalized = (username || "").trim().toLowerCase();
-  return crypto
-    .createHmac("sha256", secret)
-    .update(`admin-session:${normalized}:${secret}`)
-    .digest("hex");
-}
-
-// ---------------------------------------------------------------------------
-// Session Cache & Validation
-// ---------------------------------------------------------------------------
-const sessionCache = new Map<string, { username: string; expiresAt: number }>();
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache to avoid constant Atlas lag
 
 export async function validateSession(
   sessionToken: string | undefined
 ): Promise<boolean> {
-  if (!sessionToken || sessionToken.length !== 64) return false;
-
-  const now = Date.now();
-  const cached = sessionCache.get(sessionToken);
-  if (cached && cached.expiresAt > now) {
-    return true;
-  }
-
-  const secret = getSecret();
-
-  // Fast-check known primary admin identifiers
-  const knownAdmins = [
-    "admin",
-    "kumar.pk6342@gmail.com",
-    process.env.ADMIN_USERNAME,
-  ].filter(Boolean) as string[];
-
-  for (const name of knownAdmins) {
-    const expected = crypto
-      .createHmac("sha256", secret)
-      .update(`admin-session:${name.trim().toLowerCase()}:${secret}`)
-      .digest("hex");
-    if (
-      expected.length === sessionToken.length &&
-      crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sessionToken))
-    ) {
-      sessionCache.set(sessionToken, { username: name, expiresAt: now + CACHE_TTL_MS });
-      return true;
-    }
-  }
-
-  // Check MongoDB admins collection
+  if (!sessionToken || !/^[a-f0-9]{64}$/i.test(sessionToken)) return false;
   try {
     const db = await Promise.race([
       getDb(),
@@ -150,99 +96,38 @@ export async function validateSession(
     ]);
 
     if (!db) return false;
+    const session = await db.collection("admin_sessions").findOne({
+      tokenHash: hashSessionToken(sessionToken),
+      expiresAt: { $gt: new Date() },
+    });
+    if (!session?.username || session.username.toLowerCase() === "admin") return false;
 
-    const admins = await db
-      .collection("admins")
-      .find({}, { projection: { username: 1 } })
-      .toArray();
-
-    for (const admin of admins) {
-      if (!admin.username) continue;
-      const expected = crypto
-        .createHmac("sha256", secret)
-        .update(`admin-session:${admin.username.trim().toLowerCase()}:${secret}`)
-        .digest("hex");
-
-      if (
-        expected.length === sessionToken.length &&
-        crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sessionToken))
-      ) {
-        sessionCache.set(sessionToken, { username: admin.username, expiresAt: now + CACHE_TTL_MS });
-        return true;
-      }
-    }
+    const admin = await db.collection("admins").findOne(
+      { username: session.username },
+      { projection: { _id: 1 } }
+    );
+    return Boolean(admin);
   } catch (err) {
     console.error("validateSession DB lookup error:", err);
+    return false;
   }
-
-  return false;
 }
 
 // ---------------------------------------------------------------------------
 // Helper: Verify Password Against MongoDB Admin Document
 // ---------------------------------------------------------------------------
 function verifyAdminPassword(password: string, admin: any): boolean {
-  // 1. PBKDF2 with salt (standard format in MongoDB admins collection)
-  if (admin.passwordHash && admin.salt) {
-    try {
-      const computed = crypto
-        .pbkdf2Sync(password, admin.salt, 10000, 64, "sha512")
-        .toString("hex");
-
-      if (
-        computed.length === admin.passwordHash.length &&
-        crypto.timingSafeEqual(
-          Buffer.from(computed),
-          Buffer.from(admin.passwordHash)
-        )
-      ) {
-        return true;
-      }
-    } catch (e) {
-      console.error("PBKDF2 verification error:", e);
-    }
+  if (typeof admin.passwordHash !== "string" || typeof admin.salt !== "string") return false;
+  try {
+    const computed = crypto
+      .pbkdf2Sync(password, admin.salt, 10000, 64, "sha512")
+      .toString("hex");
+    const expected = Buffer.from(admin.passwordHash, "hex");
+    const actual = Buffer.from(computed, "hex");
+    return expected.length === actual.length && crypto.timingSafeEqual(actual, expected);
+  } catch {
+    return false;
   }
-
-  // 2. Direct SHA-256 hash without salt
-  if (admin.passwordHash) {
-    try {
-      const sha256 = crypto.createHash("sha256").update(password).digest("hex");
-      if (
-        sha256.length === admin.passwordHash.length &&
-        crypto.timingSafeEqual(
-          Buffer.from(sha256),
-          Buffer.from(admin.passwordHash)
-        )
-      ) {
-        return true;
-      }
-    } catch (e) {
-      console.error("SHA256 verification error:", e);
-    }
-  }
-
-  // 3. Plaintext match if stored directly
-  if (typeof admin.password === "string" && admin.password === password) {
-    return true;
-  }
-  if (typeof admin.passwordHash === "string" && admin.passwordHash === password) {
-    return true;
-  }
-
-  // 4. Default admin password fallback for primary administrative accounts
-  const defaultAdminPassword = process.env.ADMIN_PASSWORD || "admin";
-  if (password === defaultAdminPassword) {
-    const uLower = (admin.username || "").toLowerCase();
-    if (
-      uLower === "admin" ||
-      uLower === "kumar.pk6342@gmail.com" ||
-      uLower === (process.env.ADMIN_USERNAME || "").toLowerCase()
-    ) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -299,6 +184,7 @@ export async function POST(request: Request) {
   // --- Authenticate credentials against MongoDB ---
   let isValid = false;
   let authenticatedUsername = username;
+  let sessionToken = "";
 
   try {
     const db = await Promise.race([
@@ -326,44 +212,20 @@ export async function POST(request: Request) {
       ],
     });
 
-    if (admin) {
+    if (admin && admin.username?.trim().toLowerCase() !== "admin") {
       authenticatedUsername = admin.username || username;
       isValid = verifyAdminPassword(password, admin);
-    } else {
-      // If admin doesn't exist yet, check primary configured credentials
-      const defaultAdminUsername = (process.env.ADMIN_USERNAME || "admin").toLowerCase();
-      const defaultAdminPassword = process.env.ADMIN_PASSWORD || "admin";
-
-      if (
-        (username.toLowerCase() === "admin" || username.toLowerCase() === defaultAdminUsername) &&
-        password === defaultAdminPassword
-      ) {
-        isValid = true;
-        authenticatedUsername = "admin";
-
-        // Auto-seed admin user into MongoDB so it lives in the database
-        try {
-          const salt = crypto.randomBytes(16).toString("hex");
-          const passwordHash = crypto
-            .pbkdf2Sync(password, salt, 10000, 64, "sha512")
-            .toString("hex");
-
-          await db.collection("admins").updateOne(
-            { username: "admin" },
-            {
-              $set: {
-                username: "admin",
-                passwordHash,
-                salt,
-                updatedAt: new Date(),
-              },
-              $setOnInsert: { createdAt: new Date() },
-            },
-            { upsert: true }
-          );
-        } catch (seedErr) {
-          console.error("Auto-seed admin error:", seedErr);
-        }
+      if (isValid) {
+        sessionToken = crypto.randomBytes(32).toString("hex");
+        const now = new Date();
+        const sessions = db.collection("admin_sessions");
+        await sessions.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+        await sessions.insertOne({
+          tokenHash: hashSessionToken(sessionToken),
+          username: authenticatedUsername,
+          createdAt: now,
+          expiresAt: new Date(now.getTime() + SESSION_TTL_MS),
+        });
       }
     }
   } catch (dbErr) {
@@ -378,20 +240,14 @@ export async function POST(request: Request) {
   if (isValid) {
     clearRateLimit(ip);
 
-    const sessionHash = getSessionHash(authenticatedUsername);
-    sessionCache.set(sessionHash, {
-      username: authenticatedUsername,
-      expiresAt: Date.now() + CACHE_TTL_MS,
-    });
-
     const cookieStore = await cookies();
 
-    cookieStore.set("admin_session", sessionHash, {
+    cookieStore.set("admin_session", sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24, // 24 hours
+      maxAge: SESSION_TTL_SECONDS,
     });
 
     return NextResponse.json({ success: true, username: authenticatedUsername });
@@ -407,4 +263,16 @@ export async function POST(request: Request) {
     { error: "Invalid username or password." },
     { status: 401 }
   );
+}
+
+export async function revokeSession(sessionToken: string | undefined): Promise<void> {
+  if (!sessionToken || !/^[a-f0-9]{64}$/i.test(sessionToken)) return;
+  try {
+    const db = await getDb();
+    await db.collection("admin_sessions").deleteOne({
+      tokenHash: hashSessionToken(sessionToken),
+    });
+  } catch (err) {
+    console.error("Failed to revoke admin session:", err);
+  }
 }

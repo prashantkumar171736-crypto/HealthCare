@@ -10,10 +10,6 @@ export function loadEnvLocal() {
   // On Vercel or cloud serverless, environment variables are already injected in process.env.
   // Skipping filesystem operations prevents Turbopack NFT from tracing the workspace root into serverless function bundles.
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim().length < 32) {
-      process.env.JWT_SECRET =
-        "d03ed891cf12e6fcff59180ab19183a6909a3f60dd343e1bb045863bf02bad41bafa76851b461a579c4e5a0101cd5fad";
-    }
     return;
   }
 
@@ -52,11 +48,6 @@ export function loadEnvLocal() {
     // Non-fatal
   }
 
-  // Ensure JWT_SECRET fallback if still unset
-  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim().length < 32) {
-    process.env.JWT_SECRET =
-      "d03ed891cf12e6fcff59180ab19183a6909a3f60dd343e1bb045863bf02bad41bafa76851b461a579c4e5a0101cd5fad";
-  }
 }
 
 // Auto-execute on import
