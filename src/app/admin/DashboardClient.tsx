@@ -362,9 +362,16 @@ export default function DashboardClient() {
         router.push("/admin/login");
         return;
       }
-      const json = await res.json();
+      const contentType = res.headers.get("content-type") || "";
+      let json: any = null;
+      if (contentType.includes("application/json")) {
+        json = await res.json();
+      } else {
+        await res.text();
+        throw new Error(`Server returned ${res.status}: ${res.statusText || "Unexpected response"}`);
+      }
       if (!res.ok) {
-        throw new Error(json.error || "Failed to load statistics");
+        throw new Error(json?.error || `Failed to load statistics (${res.status})`);
       }
       setData(json);
     } catch (err: any) {
@@ -381,8 +388,11 @@ export default function DashboardClient() {
       const rangeParam = range.toLowerCase();
       const res = await fetch(`/api/admin/traffic?range=${rangeParam}`);
       if (!res.ok) return;
-      const json = await res.json();
-      setTrafficData(json.buckets || []);
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const json = await res.json();
+        setTrafficData(json.buckets || []);
+      }
     } catch {
       // Silently fail — fallback to empty
     } finally {
