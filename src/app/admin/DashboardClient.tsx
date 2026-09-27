@@ -2120,7 +2120,7 @@ export default function DashboardClient() {
                                   const cpuCores = data.systemHealth.cpuCores || 2;
                                   const load1m = ((rawCpuPct / 100) * cpuCores).toFixed(2);
                                   const load5m = (((rawCpuPct / 100) * cpuCores * 0.95) + 0.02).toFixed(2);
-                                  const isNearEnd = (coords.length - 1 - idx) < Math.floor(labelStep * 0.75);
+                                  const isNearEnd = (coords.length - 1 - idx) < labelStep;
                                   const showLabel = (idx % labelStep === 0 && !isNearEnd) || idx === coords.length - 1;
 
                                   return (
@@ -2479,7 +2479,7 @@ export default function DashboardClient() {
 
                                 {/* X-Axis Labels: ROSE PINK (#fb7185), BOLDER (700), OPTIMIZED SIZE (9.5px) */}
                                 {coords.map((c, idx) => {
-                                  const isNearEnd = (coords.length - 1 - idx) < Math.floor(labelStep * 0.75);
+                                  const isNearEnd = (coords.length - 1 - idx) < labelStep;
                                   const showLabel = (idx % labelStep === 0 && !isNearEnd) || idx === coords.length - 1;
                                   if (!showLabel) return null;
                                   return (
@@ -2715,7 +2715,7 @@ export default function DashboardClient() {
                                 const pct = d.totalVisits / maxVisits;
                                 const grad = pct > 0.65 ? "url(#trafficBarGradHigh)" : pct > 0.3 ? "url(#trafficBarGradMid)" : "url(#trafficBarGradLow)";
                                 const isActive = trafficHovered?.isoDate === d.isoDate;
-                                const isNearEnd = (n - 1 - i) < Math.floor(labelStep * 0.75);
+                                const isNearEnd = (n - 1 - i) < labelStep;
                                 const showLabel = (i % labelStep === 0 && !isNearEnd) || i === n - 1;
 
                                 return (
@@ -3132,7 +3132,7 @@ export default function DashboardClient() {
 
                                 {/* Invisible Hover Hit Areas */}
                                 {coords.map((c, i) => {
-                                  const isNearEnd = (coords.length - 1 - i) < Math.floor(labelStep * 0.75);
+                                  const isNearEnd = (coords.length - 1 - i) < labelStep;
                                   const showLabel = (i % labelStep === 0 && !isNearEnd) || i === coords.length - 1;
                                   return (
                                     <g
