@@ -118,6 +118,9 @@ interface StatsResponse {
     cpu: number;
     cpuLoadAvg?: number;
     heap: number;
+    heapTotal?: number;
+    freeRamGB?: number;
+    totalRamGB?: number;
     views: number;
     visitors: number;
     timestamp?: string;
@@ -171,6 +174,9 @@ export default function DashboardClient() {
     ping: number;
     cpu: number;
     heap: number;
+    heapTotal?: number;
+    freeRamGB?: number;
+    totalRamGB?: number;
     views: number;
     visitors: number;
   }>>([]);
@@ -184,6 +190,19 @@ export default function DashboardClient() {
     detail: string;
     color: string;
   } | null>(null);
+
+  // Dedicated Card-Bounded Hover Tooltip State for Card 3 (Host RAM & V8 Heap)
+  const [card3HoveredPoint, setCard3HoveredPoint] = useState<{
+    time: string;
+    usedRamGB: string;
+    totRam: string;
+    freeRam: string;
+    ramPct: string;
+    hUsed: number;
+    hTot: number;
+    heapPct: string;
+  } | null>(null);
+  const [card3TooltipPos, setCard3TooltipPos] = useState<{ x: number; y: number } | null>(null);
 
   // Traffic analytics state for Card 5
   const [trafficRange, setTrafficRange] = useState<TrafficRange>("Daily");
@@ -314,6 +333,11 @@ export default function DashboardClient() {
     const currentVisitors = data.summary.uniqueVisitors || 38;
 
     setTelemetryPoints((prev) => {
+      const totRam = data.systemHealth.systemTotalRamGB || 8;
+      const freeRam = data.systemHealth.systemFreeRamGB || 1.8;
+      const heapUsed = data.systemHealth.memoryUsed || 29;
+      const heapTotal = data.systemHealth.memoryTotal || 64;
+
       if (prev.length === 0) {
         const seeds = [];
         for (let i = 9; i >= 0; i--) {
@@ -322,7 +346,10 @@ export default function DashboardClient() {
             time: t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             ping: Math.max(80, Math.min(350, currentPing + Math.floor(Math.sin(i) * 35))),
             cpu: Math.max(10, Math.min(85, currentCpu + Math.floor(Math.cos(i * 0.8) * 15))),
-            heap: Math.max(20, Math.min(100, currentHeap + Math.floor(Math.sin(i * 1.2) * 6))),
+            heap: Math.max(15, Math.min(heapTotal, heapUsed + Math.floor(Math.sin(i * 1.2) * 4))),
+            heapTotal,
+            freeRamGB: Math.max(0.5, Math.min(totRam, freeRam + Math.sin(i * 0.9) * 0.2)),
+            totalRamGB: totRam,
             views: Math.max(100, currentViews + Math.floor(Math.sin(i) * 12)),
             visitors: Math.max(10, currentVisitors + Math.floor(Math.cos(i * 4))),
           });
@@ -336,6 +363,9 @@ export default function DashboardClient() {
           ping: currentPing,
           cpu: currentCpu,
           heap: currentHeap,
+          heapTotal,
+          freeRamGB: freeRam,
+          totalRamGB: totRam,
           views: currentViews,
           visitors: currentVisitors,
         }
@@ -2039,87 +2069,366 @@ export default function DashboardClient() {
                       </div>
                     </div>
 
-                    {/* Card 3: Host Memory & V8 Heap Allocation (Concentric Donut Chart) */}
-                    <div className="graph-card">
+                    {/* Card 3: Host RAM & V8 Heap Allocation (Live Dual-Line Telemetry Graph) */}
+                    <div
+                      className="graph-card host-ram-v8-graph-card"
+                      style={{
+                        position: "relative",
+                        overflow: "hidden",
+                        background: "linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(13, 17, 28, 0.98) 100%)",
+                        borderColor: "rgba(244, 63, 94, 0.25)"
+                      }}
+                      onMouseLeave={() => {
+                        setCard3HoveredPoint(null);
+                        setCard3TooltipPos(null);
+                      }}
+                    >
                       <div className="graph-card-header">
                         <div className="header-title-chip">
                           <span className="graph-card-title">🧠 Host RAM & V8 Heap Allocation</span>
-                          <span className="graph-badge badge-cyan">⚡ Refresh: Every 1 Min</span>
+                          <span
+                            className="graph-badge badge-rose"
+                            style={{
+                              background: "rgba(244, 63, 94, 0.15)",
+                              color: "#fb7185",
+                              border: "1px solid rgba(244, 63, 94, 0.3)"
+                            }}
+                          >
+                            ⚡ Refresh: Every 1 Min
+                          </span>
                         </div>
-                        {renderCardTimePills("card3")}
+                        <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+                          {/* Card Legend styled like user attached image */}
+                          <div className="card3-custom-legend" style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "0.75rem", fontWeight: 700 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span style={{ width: "12px", height: "12px", borderRadius: "3px", background: "linear-gradient(135deg, #f59e0b 0%, #ec4899 100%)", display: "inline-block", boxShadow: "0 0 6px rgba(236,72,153,0.5)" }} />
+                              <span style={{ color: "#f3f4f6", letterSpacing: "0.02em" }}>DATA 01 (Host RAM)</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span style={{ width: "12px", height: "12px", borderRadius: "3px", background: "linear-gradient(135deg, #10b981 0%, #38bdf8 100%)", display: "inline-block", boxShadow: "0 0 6px rgba(56,189,248,0.5)" }} />
+                              <span style={{ color: "#f3f4f6", letterSpacing: "0.02em" }}>DATA 02 (V8 Heap)</span>
+                            </div>
+                          </div>
+                          {renderCardTimePills("card3")}
+                        </div>
                       </div>
-                      <div className="graph-card-body donut-chart-body">
+
+                      {/* Card-bounded floating hover tooltip details */}
+                      {card3HoveredPoint && card3TooltipPos && (() => {
+                        const tooltipWidth = 240;
+                        const tooltipHeight = 135;
+                        let posX = card3TooltipPos.x + 14;
+                        let posY = card3TooltipPos.y - 15;
+
+                        // Clamp strictly inside live graph card boundaries so tooltip never escapes/overflows
+                        if (posX + tooltipWidth > 450) {
+                          posX = Math.max(10, card3TooltipPos.x - tooltipWidth - 14);
+                        }
+                        if (posX < 10) posX = 10;
+
+                        if (posY + tooltipHeight > 250) {
+                          posY = Math.max(10, card3TooltipPos.y - tooltipHeight - 10);
+                        }
+                        if (posY < 10) posY = 10;
+
+                        return (
+                          <div
+                            className="card3-bounded-tooltip"
+                            style={{
+                              position: "absolute",
+                              left: `${posX}px`,
+                              top: `${posY}px`,
+                              width: `${tooltipWidth}px`,
+                              pointerEvents: "none",
+                              zIndex: 40,
+                              background: "rgba(15, 23, 42, 0.95)",
+                              backdropFilter: "blur(12px)",
+                              WebkitBackdropFilter: "blur(12px)",
+                              border: "1px solid rgba(244, 63, 94, 0.4)",
+                              borderRadius: "12px",
+                              padding: "10px 14px",
+                              boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(244, 63, 94, 0.25)",
+                              transition: "left 0.08s ease-out, top 0.08s ease-out",
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "5px", marginBottom: "7px" }}>
+                              <span style={{ fontSize: "0.76rem", fontWeight: 700, color: "#fb7185", letterSpacing: "0.02em" }}>
+                                🧠 Live Telemetry ({card3HoveredPoint.time})
+                              </span>
+                              <span style={{ fontSize: "0.65rem", background: "rgba(244, 63, 94, 0.2)", color: "#f472b6", padding: "1px 5px", borderRadius: "4px", fontWeight: 700 }}>
+                                LIVE STREAM
+                              </span>
+                            </div>
+
+                            {/* DATA 01: Host System RAM */}
+                            <div style={{ marginBottom: "7px" }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.74rem", marginBottom: "2px" }}>
+                                <span style={{ color: "#f97316", fontWeight: 700, display: "flex", alignItems: "center", gap: "5px" }}>
+                                  <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f97316" }} />
+                                  DATA 01 (Host RAM):
+                                </span>
+                                <span style={{ color: "#f3f4f6", fontWeight: 800 }}>
+                                  {card3HoveredPoint.usedRamGB} GB ({card3HoveredPoint.ramPct}%)
+                                </span>
+                              </div>
+                              <div style={{ fontSize: "0.66rem", color: "#9ca3af", paddingLeft: "12px" }}>
+                                Total: {card3HoveredPoint.totRam} GB | Free: {card3HoveredPoint.freeRam} GB
+                              </div>
+                            </div>
+
+                            {/* DATA 02: Node.js V8 Heap */}
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.74rem", marginBottom: "2px" }}>
+                                <span style={{ color: "#38bdf8", fontWeight: 700, display: "flex", alignItems: "center", gap: "5px" }}>
+                                  <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#38bdf8" }} />
+                                  DATA 02 (V8 Heap):
+                                </span>
+                                <span style={{ color: "#f3f4f6", fontWeight: 800 }}>
+                                  {card3HoveredPoint.hUsed} MB ({card3HoveredPoint.heapPct}%)
+                                </span>
+                              </div>
+                              <div style={{ fontSize: "0.66rem", color: "#9ca3af", paddingLeft: "12px" }}>
+                                Total Allocated Heap: {card3HoveredPoint.hTot} MB
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <div className="graph-card-body bar-chart-body" style={{ position: "relative", width: "100%" }}>
                         <svg
-                          viewBox="0 0 200 200"
-                          className="donut-chart-svg interactive-svg"
-                          onMouseLeave={() => setGraphTooltip(null)}
+                          viewBox="0 0 450 190"
+                          preserveAspectRatio="none"
+                          className="line-chart-svg interactive-svg"
+                          style={{ width: "100%", height: "190px" }}
                         >
-                          {/* Outer Ring: Host Free RAM (Cyan) */}
-                          <circle cx="100" cy="100" r="75" fill="transparent" stroke="rgba(255,255,255,0.06)" strokeWidth="16" />
-                          <circle
-                            cx="100" cy="100" r="75" fill="transparent" stroke="#38bdf8" strokeWidth="16"
-                            strokeDasharray={`${outerLen} ${outerCirc - outerLen}`} transform="rotate(-90 100 100)"
-                            className="svg-hover-slice"
-                            onMouseMove={(e) => {
-                              setGraphTooltip({
-                                x: e.clientX,
-                                y: e.clientY,
-                                title: "Host Free System RAM",
-                                value: `${sysFreeRam} GB Free / ${sysTotalRam} GB Total (${sysFreeRamPct}%)`,
-                                detail: `Host Server Used RAM: ${sysUsedRamGB} GB (${sysUsedRamPct}%)`,
-                                color: "#38bdf8",
-                              });
-                            }}
-                          />
+                          <defs>
+                            {/* Line 1 Gradient: Host System RAM (Yellow to Orange to Rose Pink) */}
+                            <linearGradient id="card3HostRamGrad" x1="0" y1="0" x2="1" y2="0">
+                              <stop offset="0%" stopColor="#eab308" />
+                              <stop offset="50%" stopColor="#f97316" />
+                              <stop offset="100%" stopColor="#ec4899" />
+                            </linearGradient>
 
-                          {/* Inner Ring: Node Heap Used (Rose Pink) */}
-                          <circle cx="100" cy="100" r="50" fill="transparent" stroke="rgba(255,255,255,0.06)" strokeWidth="16" />
-                          <circle
-                            cx="100" cy="100" r="50" fill="transparent" stroke="#f472b6" strokeWidth="16"
-                            strokeDasharray={`${innerLen} ${innerCirc - innerLen}`} transform="rotate(-90 100 100)"
-                            className="svg-hover-slice"
-                            onMouseMove={(e) => {
-                              setGraphTooltip({
-                                x: e.clientX,
-                                y: e.clientY,
-                                title: "Node.js V8 Heap Memory Used",
-                                value: `${heapUsedMB} MB Heap Used / ${heapTotalMB} MB Total (${heapUsedPct}%)`,
-                                detail: "JavaScript V8 engine heap memory consumed by Next.js server process",
-                                color: "#f472b6",
-                              });
-                            }}
-                          />
+                            {/* Line 2 Gradient: V8 Heap (Mint Green to Teal to Cyan Blue) */}
+                            <linearGradient id="card3V8HeapGrad" x1="0" y1="0" x2="1" y2="0">
+                              <stop offset="0%" stopColor="#34d399" />
+                              <stop offset="50%" stopColor="#06b6d4" />
+                              <stop offset="100%" stopColor="#38bdf8" />
+                            </linearGradient>
+
+                            {/* Glowing Depth Fills */}
+                            <linearGradient id="card3RamAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#ec4899" stopOpacity="0.22" />
+                              <stop offset="100%" stopColor="#ec4899" stopOpacity="0.0" />
+                            </linearGradient>
+                            <linearGradient id="card3HeapAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.18" />
+                              <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.0" />
+                            </linearGradient>
+
+                            {/* Neon Line Filter */}
+                            <filter id="card3NeonGlow" x="-10%" y="-10%" width="120%" height="120%">
+                              <feGaussianBlur stdDeviation="1.8" result="blur" />
+                              <feMerge>
+                                <feMergeNode in="blur" />
+                                <feMergeNode in="SourceGraphic" />
+                              </feMerge>
+                            </filter>
+                          </defs>
+
+                          {(() => {
+                            const filteredPts = getFilteredTelemetry(telemetryPoints, cardRanges.card3 || "1h");
+                            const sysTotalRam = data.systemHealth.systemTotalRamGB || 8;
+
+                            const pts = filteredPts.length > 0 ? filteredPts : [...Array(8)].map((_, i) => ({
+                              time: `19:${40 + i * 3}`,
+                              freeRamGB: 1.8 + Math.sin(i) * 0.3,
+                              totalRamGB: sysTotalRam,
+                              heap: 32 + Math.cos(i) * 6,
+                              heapTotal: 64,
+                              ping: 185, cpu: 20, views: 10, visitors: 3
+                            }));
+
+                            const coords = pts.map((p, idx) => {
+                              const x = 55 + (idx * 375) / Math.max(1, pts.length - 1);
+
+                              const freeRam = p.freeRamGB ?? (data.systemHealth.systemFreeRamGB || 1.8);
+                              const totRam = p.totalRamGB ?? sysTotalRam;
+                              const usedRamGB = Math.max(0, totRam - freeRam);
+                              const ramPct = Math.min(100, Math.max(0, (usedRamGB / totRam) * 100));
+
+                              const hUsed = p.heap ?? (data.systemHealth.memoryUsed || 30);
+                              const hTot = p.heapTotal ?? (data.systemHealth.memoryTotal || 64);
+                              const heapPct = Math.min(100, Math.max(0, (hUsed / hTot) * 100));
+
+                              const ramY = 155 - (ramPct / 100) * 130;
+                              const heapY = 155 - (heapPct / 100) * 130;
+
+                              return {
+                                x,
+                                ramY,
+                                heapY,
+                                time: p.time,
+                                ramPct,
+                                usedRamGB,
+                                freeRam,
+                                totRam,
+                                hUsed,
+                                hTot,
+                                heapPct,
+                              };
+                            });
+
+                            const ramCoords = coords.map(c => ({ x: c.x, y: c.ramY }));
+                            const heapCoords = coords.map(c => ({ x: c.x, y: c.heapY }));
+
+                            const ramCurve = getSmoothCurvePath(ramCoords);
+                            const heapCurve = getSmoothCurvePath(heapCoords);
+
+                            const ramArea = coords.length >= 2 ? `${ramCurve} L ${coords[coords.length - 1].x.toFixed(1)} 155 L ${coords[0].x.toFixed(1)} 155 Z` : "";
+                            const heapArea = coords.length >= 2 ? `${heapCurve} L ${coords[coords.length - 1].x.toFixed(1)} 155 L ${coords[0].x.toFixed(1)} 155 Z` : "";
+
+                            const labelStep = Math.max(1, Math.ceil(pts.length / 6));
+
+                            return (
+                              <>
+                                {/* Subdued horizontal grid lines matching target image style */}
+                                <line x1="50" y1="25" x2="440" y2="25" stroke="rgba(255,255,255,0.07)" strokeDasharray="4 4" />
+                                <line x1="50" y1="57.5" x2="440" y2="57.5" stroke="rgba(255,255,255,0.07)" strokeDasharray="4 4" />
+                                <line x1="50" y1="90" x2="440" y2="90" stroke="rgba(255,255,255,0.07)" strokeDasharray="4 4" />
+                                <line x1="50" y1="122.5" x2="440" y2="122.5" stroke="rgba(255,255,255,0.07)" strokeDasharray="4 4" />
+
+                                {/* Dashed bottom baseline */}
+                                <line x1="50" y1="155" x2="440" y2="155" stroke="rgba(255,255,255,0.18)" strokeDasharray="4 4" />
+
+                                {/* Both Axis Text: ROSE PINK (#fb7185), BOLDER (700), LARGER (11.5px) */}
+                                <text x="5" y="29" fill="#fb7185" fontSize="11.5" fontWeight="700">250</text>
+                                <text x="5" y="61" fill="#fb7185" fontSize="11.5" fontWeight="700">200</text>
+                                <text x="5" y="94" fill="#fb7185" fontSize="11.5" fontWeight="700">150</text>
+                                <text x="5" y="126" fill="#fb7185" fontSize="11.5" fontWeight="700">100</text>
+                                <text x="5" y="159" fill="#fb7185" fontSize="11.5" fontWeight="700">50</text>
+
+                                {/* Translucent Glow Depth Fills */}
+                                {ramArea && <path d={ramArea} fill="url(#card3RamAreaGrad)" />}
+                                {heapArea && <path d={heapArea} fill="url(#card3HeapAreaGrad)" />}
+
+                                {/* Dual Lines with SVG Gradients and Glowing Stroke */}
+                                {ramCurve && (
+                                  <path
+                                    d={ramCurve}
+                                    fill="none"
+                                    stroke="url(#card3HostRamGrad)"
+                                    strokeWidth="3.5"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    filter="url(#card3NeonGlow)"
+                                  />
+                                )}
+                                {heapCurve && (
+                                  <path
+                                    d={heapCurve}
+                                    fill="none"
+                                    stroke="url(#card3V8HeapGrad)"
+                                    strokeWidth="3.5"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    filter="url(#card3NeonGlow)"
+                                  />
+                                )}
+
+                                {/* X-Axis baseline tick dots (Cyan dots along baseline like in target graph image) */}
+                                {coords.map((c, idx) => (
+                                  <circle
+                                    key={`dot-${idx}`}
+                                    cx={c.x}
+                                    cy="155"
+                                    r="3.5"
+                                    fill="#38bdf8"
+                                    stroke="#0f172a"
+                                    strokeWidth="1.5"
+                                  />
+                                ))}
+
+                                {/* X-Axis Labels: ROSE PINK (#fb7185), BOLDER (700), LARGER (11.5px) */}
+                                {coords.map((c, idx) => {
+                                  const showLabel = idx % labelStep === 0 || idx === coords.length - 1;
+                                  if (!showLabel) return null;
+                                  return (
+                                    <text
+                                      key={`xlabel-${idx}`}
+                                      x={c.x}
+                                      y="178"
+                                      fill="#fb7185"
+                                      fontSize="11.5"
+                                      fontWeight="700"
+                                      textAnchor="middle"
+                                    >
+                                      {c.time.slice(0, 5)}
+                                    </text>
+                                  );
+                                })}
+
+                                {/* Hover hit groups for pointer detection */}
+                                {coords.map((c, idx) => (
+                                  <g
+                                    key={`hover-${idx}`}
+                                    className="svg-hover-group"
+                                    onMouseMove={(e) => {
+                                      const cardEl = e.currentTarget.closest(".host-ram-v8-graph-card") as HTMLElement | null;
+                                      if (cardEl) {
+                                        const rect = cardEl.getBoundingClientRect();
+                                        const cursorX = e.clientX - rect.left;
+                                        const cursorY = e.clientY - rect.top;
+
+                                        setCard3HoveredPoint({
+                                          time: c.time,
+                                          usedRamGB: c.usedRamGB.toFixed(2),
+                                          totRam: c.totRam.toFixed(1),
+                                          freeRam: c.freeRam.toFixed(2),
+                                          ramPct: c.ramPct.toFixed(1),
+                                          hUsed: c.hUsed,
+                                          hTot: c.hTot,
+                                          heapPct: c.heapPct.toFixed(1),
+                                        });
+                                        setCard3TooltipPos({ x: cursorX, y: cursorY });
+                                      }
+                                    }}
+                                  >
+                                    {/* Crosshair & Glowing Intersection Dots on Hover */}
+                                    {card3HoveredPoint?.time === c.time && (
+                                      <>
+                                        <line
+                                          x1={c.x}
+                                          y1="20"
+                                          x2={c.x}
+                                          y2="155"
+                                          stroke="rgba(244, 63, 94, 0.45)"
+                                          strokeWidth="1.5"
+                                          strokeDasharray="3 3"
+                                        />
+                                        <circle cx={c.x} cy={c.ramY} r="5.5" fill="#ec4899" stroke="#ffffff" strokeWidth="2" />
+                                        <circle cx={c.x} cy={c.heapY} r="5.5" fill="#38bdf8" stroke="#ffffff" strokeWidth="2" />
+                                      </>
+                                    )}
+
+                                    {/* Invisible hover area */}
+                                    <rect
+                                      x={c.x - 20}
+                                      y="15"
+                                      width="40"
+                                      height="150"
+                                      fill="transparent"
+                                    />
+                                  </g>
+                                ))}
+                              </>
+                            );
+                          })()}
                         </svg>
-                        <div className="chart-legend-box">
-                          <div
-                            className="legend-item interactive-legend"
-                            onMouseMove={(e) => setGraphTooltip({
-                              x: e.clientX, y: e.clientY, title: "Host Free System RAM",
-                              value: `${sysFreeRam} GB Free / ${sysTotalRam} GB Total (${sysFreeRamPct}%)`,
-                              detail: `Host Server Used RAM: ${sysUsedRamGB} GB (${sysUsedRamPct}%)`, color: "#38bdf8",
-                            })}
-                            onMouseLeave={() => setGraphTooltip(null)}
-                          >
-                            <span className="legend-dot" style={{ background: '#38bdf8' }}></span>
-                            Host Free RAM: <strong>{sysFreeRam} GB ({sysFreeRamPct}%)</strong>
-                          </div>
-
-                          <div
-                            className="legend-item interactive-legend"
-                            onMouseMove={(e) => setGraphTooltip({
-                              x: e.clientX, y: e.clientY, title: "Node.js V8 Heap Memory Used",
-                              value: `${heapUsedMB} MB Heap Used / ${heapTotalMB} MB Total (${heapUsedPct}%)`,
-                              detail: "JavaScript V8 engine heap memory consumed by Next.js server process", color: "#f472b6",
-                            })}
-                            onMouseLeave={() => setGraphTooltip(null)}
-                          >
-                            <span className="legend-dot" style={{ background: '#f472b6' }}></span>
-                            Node Heap Used: <strong>{heapUsedMB} MB ({heapUsedPct}%)</strong>
-                          </div>
-                        </div>
                       </div>
-                      <div className="graph-info-footer info-cyan">
-                        💡 <i><strong>Meaning & Value:</strong> Updated every 1 minute. Concentric rings visualize Node.js V8 Heap memory usage ({heapUsedPct}% Pink) vs Host System Free RAM ({sysFreeRamPct}% Cyan). Prevents Out-Of-Memory (OOM) application crashes.</i>
+                      <div className="graph-info-footer info-rose" style={{ borderTop: "1px solid rgba(244, 63, 94, 0.15)", background: "rgba(244, 63, 94, 0.05)", color: "#fb7185" }}>
+                        💡 <i><strong>Meaning & Value:</strong> Dual telemetry live line graph redesign. Tracks Host RAM usage ({sysUsedRamGB} GB / {sysUsedRamPct}%) vs Node.js V8 Heap memory allocation ({heapUsedMB} MB / {heapUsedPct}%) over real-time rolling windows.</i>
                       </div>
                     </div>
 
