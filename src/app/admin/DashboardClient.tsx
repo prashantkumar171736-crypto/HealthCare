@@ -2363,10 +2363,6 @@ export default function DashboardClient() {
                                 <text x="412" y="126" fill="#f97316" fontSize="11" fontWeight="700">{formatPctTick(minRamScale + ramRng * 0.25)}</text>
                                 <text x="412" y="159" fill="#f97316" fontSize="11" fontWeight="700">{formatPctTick(minRamScale)}</text>
 
-                                {/* Translucent Glow Depth Fills */}
-                                {ramArea && <path d={ramArea} fill="url(#card3RamAreaGrad)" />}
-                                {heapArea && <path d={heapArea} fill="url(#card3HeapAreaGrad)" />}
-
                                 {/* Dual Lines with SVG Gradients and Glowing Stroke */}
                                 {ramCurve && (
                                   <path
