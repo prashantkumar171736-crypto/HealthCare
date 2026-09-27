@@ -9,10 +9,12 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [locked, setLocked] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (locked) return;
     setError("");
     setLoading(true);
 
@@ -25,18 +27,34 @@ export default function AdminLogin() {
 
       const data = await res.json();
 
+      if (res.status === 429) {
+        // Rate-limited / locked out
+        setLocked(true);
+        setError(data.error || "Too many failed attempts. Please wait before trying again.");
+        const retryAfter = res.headers.get("Retry-After");
+        if (retryAfter) {
+          const ms = parseInt(retryAfter, 10) * 1000;
+          setTimeout(() => {
+            setLocked(false);
+            setError("");
+          }, ms);
+        }
+        return;
+      }
+
       if (res.ok && data.success) {
         router.push("/admin");
         router.refresh();
       } else {
         setError(data.error || "Invalid credentials. Please try again.");
       }
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred. Please try again later.");
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div
@@ -174,23 +192,23 @@ export default function AdminLogin() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || locked}
             style={{
               width: "100%",
               padding: "0.85rem",
               borderRadius: "8px",
-              backgroundColor: "var(--primary, #00c896)",
+              backgroundColor: locked ? "#6b7280" : "var(--primary, #00c896)",
               color: "#ffffff",
               fontWeight: 700,
               fontSize: "0.95rem",
               border: "none",
-              cursor: loading ? "not-allowed" : "pointer",
+              cursor: loading || locked ? "not-allowed" : "pointer",
               transition: "transform 0.15s, opacity 0.2s",
-              boxShadow: "0 4px 12px rgba(0, 200, 150, 0.3)",
-              opacity: loading ? 0.7 : 1,
+              boxShadow: locked ? "none" : "0 4px 12px rgba(0, 200, 150, 0.3)",
+              opacity: loading || locked ? 0.7 : 1,
             }}
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {locked ? "🔒 Account Temporarily Locked" : loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
