@@ -194,6 +194,7 @@ export default function DashboardClient() {
   // Dedicated Card-Bounded Hover Tooltip State for Card 3 (Host RAM & V8 Heap)
   const [card3HoveredPoint, setCard3HoveredPoint] = useState<{
     time: string;
+    activeTarget: "ram" | "heap";
     usedRamGB: string;
     totRam: string;
     freeRam: string;
@@ -2113,10 +2114,11 @@ export default function DashboardClient() {
                         </div>
                       </div>
 
-                      {/* Card-bounded floating hover tooltip details */}
+                      {/* Card-bounded floating hover tooltip details - SEPARATE FOR HOVERED LINE GRAPH */}
                       {card3HoveredPoint && card3TooltipPos && (() => {
-                        const tooltipWidth = 240;
-                        const tooltipHeight = 135;
+                        const isRamHover = card3HoveredPoint.activeTarget === "ram";
+                        const tooltipWidth = 230;
+                        const tooltipHeight = 100;
                         let posX = card3TooltipPos.x + 14;
                         let posY = card3TooltipPos.y - 15;
 
@@ -2141,56 +2143,53 @@ export default function DashboardClient() {
                               width: `${tooltipWidth}px`,
                               pointerEvents: "none",
                               zIndex: 40,
-                              background: "rgba(15, 23, 42, 0.95)",
+                              background: "rgba(15, 23, 42, 0.96)",
                               backdropFilter: "blur(12px)",
                               WebkitBackdropFilter: "blur(12px)",
-                              border: "1px solid rgba(244, 63, 94, 0.4)",
+                              border: isRamHover ? "1px solid rgba(249, 115, 22, 0.5)" : "1px solid rgba(56, 189, 248, 0.5)",
                               borderRadius: "12px",
                               padding: "10px 14px",
-                              boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(244, 63, 94, 0.25)",
+                              boxShadow: isRamHover
+                                ? "0 8px 24px -4px rgba(249, 115, 22, 0.35)"
+                                : "0 8px 24px -4px rgba(56, 189, 248, 0.35)",
                               transition: "left 0.08s ease-out, top 0.08s ease-out",
                             }}
                           >
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "5px", marginBottom: "7px" }}>
-                              <span style={{ fontSize: "0.76rem", fontWeight: 700, color: "#fb7185", letterSpacing: "0.02em" }}>
-                                🧠 Live Telemetry ({card3HoveredPoint.time})
-                              </span>
-                              <span style={{ fontSize: "0.65rem", background: "rgba(244, 63, 94, 0.2)", color: "#f472b6", padding: "1px 5px", borderRadius: "4px", fontWeight: 700 }}>
-                                LIVE STREAM
-                              </span>
-                            </div>
-
-                            {/* DATA 01: Host System RAM */}
-                            <div style={{ marginBottom: "7px" }}>
-                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.74rem", marginBottom: "2px" }}>
-                                <span style={{ color: "#f97316", fontWeight: 700, display: "flex", alignItems: "center", gap: "5px" }}>
-                                  <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f97316" }} />
-                                  DATA 01 (Host RAM):
-                                </span>
-                                <span style={{ color: "#f3f4f6", fontWeight: 800 }}>
-                                  {card3HoveredPoint.usedRamGB} GB ({card3HoveredPoint.ramPct}%)
-                                </span>
+                            {isRamHover ? (
+                              /* Separate Tooltip for DATA 01 (Host System RAM) Hover */
+                              <div>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(249, 115, 22, 0.25)", paddingBottom: "4px", marginBottom: "6px" }}>
+                                  <span style={{ fontSize: "0.76rem", fontWeight: 700, color: "#f97316", display: "flex", alignItems: "center", gap: "6px" }}>
+                                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#f97316" }} />
+                                    DATA 01 (Host RAM)
+                                  </span>
+                                  <span style={{ fontSize: "0.66rem", color: "#fb7185", fontWeight: 700 }}>{card3HoveredPoint.time}</span>
+                                </div>
+                                <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#f3f4f6", marginBottom: "3px" }}>
+                                  {card3HoveredPoint.usedRamGB} GB Used ({card3HoveredPoint.ramPct}%)
+                                </div>
+                                <div style={{ fontSize: "0.68rem", color: "#9ca3af" }}>
+                                  Total RAM: {card3HoveredPoint.totRam} GB | Free: {card3HoveredPoint.freeRam} GB
+                                </div>
                               </div>
-                              <div style={{ fontSize: "0.66rem", color: "#9ca3af", paddingLeft: "12px" }}>
-                                Total: {card3HoveredPoint.totRam} GB | Free: {card3HoveredPoint.freeRam} GB
+                            ) : (
+                              /* Separate Tooltip for DATA 02 (Node.js V8 Heap) Hover */
+                              <div>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(56, 189, 248, 0.25)", paddingBottom: "4px", marginBottom: "6px" }}>
+                                  <span style={{ fontSize: "0.76rem", fontWeight: 700, color: "#38bdf8", display: "flex", alignItems: "center", gap: "6px" }}>
+                                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#38bdf8" }} />
+                                    DATA 02 (V8 Heap)
+                                  </span>
+                                  <span style={{ fontSize: "0.66rem", color: "#fb7185", fontWeight: 700 }}>{card3HoveredPoint.time}</span>
+                                </div>
+                                <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#f3f4f6", marginBottom: "3px" }}>
+                                  {card3HoveredPoint.hUsed} MB Used ({card3HoveredPoint.heapPct}%)
+                                </div>
+                                <div style={{ fontSize: "0.68rem", color: "#9ca3af" }}>
+                                  Total Allocated Heap: {card3HoveredPoint.hTot} MB
+                                </div>
                               </div>
-                            </div>
-
-                            {/* DATA 02: Node.js V8 Heap */}
-                            <div>
-                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.74rem", marginBottom: "2px" }}>
-                                <span style={{ color: "#38bdf8", fontWeight: 700, display: "flex", alignItems: "center", gap: "5px" }}>
-                                  <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#38bdf8" }} />
-                                  DATA 02 (V8 Heap):
-                                </span>
-                                <span style={{ color: "#f3f4f6", fontWeight: 800 }}>
-                                  {card3HoveredPoint.hUsed} MB ({card3HoveredPoint.heapPct}%)
-                                </span>
-                              </div>
-                              <div style={{ fontSize: "0.66rem", color: "#9ca3af", paddingLeft: "12px" }}>
-                                Total Allocated Heap: {card3HoveredPoint.hTot} MB
-                              </div>
-                            </div>
+                            )}
                           </div>
                         );
                       })()}
@@ -2241,42 +2240,74 @@ export default function DashboardClient() {
                             const filteredPts = getFilteredTelemetry(telemetryPoints, cardRanges.card3 || "1h");
                             const sysTotalRam = data.systemHealth.systemTotalRamGB || 8;
 
-                            const pts = filteredPts.length > 0 ? filteredPts : [...Array(8)].map((_, i) => ({
+                            const pts = filteredPts.length > 0 ? filteredPts : [...Array(10)].map((_, i) => ({
                               time: `19:${40 + i * 3}`,
-                              freeRamGB: 1.8 + Math.sin(i) * 0.3,
+                              freeRamGB: 1.8 + Math.sin(i * 0.8) * 0.3,
                               totalRamGB: sysTotalRam,
-                              heap: 32 + Math.cos(i) * 6,
+                              heap: 32 + Math.cos(i * 0.9) * 6,
                               heapTotal: 64,
                               ping: 185, cpu: 20, views: 10, visitors: 3
                             }));
 
-                            const coords = pts.map((p, idx) => {
-                              const x = 55 + (idx * 375) / Math.max(1, pts.length - 1);
-
-                              const freeRam = p.freeRamGB ?? (data.systemHealth.systemFreeRamGB || 1.8);
-                              const totRam = p.totalRamGB ?? sysTotalRam;
+                            // Raw percentage extraction
+                            const rawPoints = pts.map((p) => {
+                              const freeRam = (p as any).freeRamGB ?? (data.systemHealth.systemFreeRamGB || 1.8);
+                              const totRam = (p as any).totalRamGB ?? sysTotalRam;
                               const usedRamGB = Math.max(0, totRam - freeRam);
                               const ramPct = Math.min(100, Math.max(0, (usedRamGB / totRam) * 100));
 
-                              const hUsed = p.heap ?? (data.systemHealth.memoryUsed || 30);
-                              const hTot = p.heapTotal ?? (data.systemHealth.memoryTotal || 64);
+                              const hUsed = (p as any).heap ?? (data.systemHealth.memoryUsed || 30);
+                              const hTot = (p as any).heapTotal ?? (data.systemHealth.memoryTotal || 64);
                               const heapPct = Math.min(100, Math.max(0, (hUsed / hTot) * 100));
 
-                              const ramY = 155 - (ramPct / 100) * 130;
-                              const heapY = 155 - (heapPct / 100) * 130;
+                              return { time: p.time, freeRam, totRam, usedRamGB, ramPct, hUsed, hTot, heapPct };
+                            });
+
+                            // Calculate min/max for Host RAM & V8 Heap with flexible auto-scaled ranges
+                            const ramVals = rawPoints.map(r => r.ramPct);
+                            const minRamRaw = Math.min(...ramVals);
+                            const maxRamRaw = Math.max(...ramVals);
+
+                            const minSpan = 15; // Minimum 15% range span so minor fluctuations curve smoothly
+                            let minRam = Math.max(0, Math.floor(minRamRaw - 2));
+                            let maxRam = Math.min(100, Math.ceil(maxRamRaw + 3));
+                            if (maxRam - minRam < minSpan) {
+                              const pad = Math.ceil((minSpan - (maxRam - minRam)) / 2);
+                              minRam = Math.max(0, minRam - pad);
+                              maxRam = Math.min(100, maxRam + pad);
+                            }
+                            const ramRng = Math.max(1, maxRam - minRam);
+
+                            const heapVals = rawPoints.map(r => r.heapPct);
+                            const minHeapRaw = Math.min(...heapVals);
+                            const maxHeapRaw = Math.max(...heapVals);
+                            let minHeap = Math.max(0, Math.floor(minHeapRaw - 3));
+                            let maxHeap = Math.min(100, Math.ceil(maxHeapRaw + 4));
+                            if (maxHeap - minHeap < minSpan) {
+                              const pad = Math.ceil((minSpan - (maxHeap - minHeap)) / 2);
+                              minHeap = Math.max(0, minHeap - pad);
+                              maxHeap = Math.min(100, maxHeap + pad);
+                            }
+                            const heapRng = Math.max(1, maxHeap - minHeap);
+
+                            // Auto-scale Y coordinates from 155 (bottom) to 30 (top)
+                            const coords = rawPoints.map((r, idx) => {
+                              const x = 55 + (idx * 375) / Math.max(1, rawPoints.length - 1);
+                              const ramY = 155 - ((r.ramPct - minRam) / ramRng) * 125;
+                              const heapY = 155 - ((r.heapPct - minHeap) / heapRng) * 125;
 
                               return {
                                 x,
                                 ramY,
                                 heapY,
-                                time: p.time,
-                                ramPct,
-                                usedRamGB,
-                                freeRam,
-                                totRam,
-                                hUsed,
-                                hTot,
-                                heapPct,
+                                time: r.time,
+                                ramPct: r.ramPct,
+                                usedRamGB: r.usedRamGB,
+                                freeRam: r.freeRam,
+                                totRam: r.totRam,
+                                hUsed: r.hUsed,
+                                hTot: r.hTot,
+                                heapPct: r.heapPct,
                               };
                             });
 
@@ -2381,8 +2412,15 @@ export default function DashboardClient() {
                                         const cursorX = e.clientX - rect.left;
                                         const cursorY = e.clientY - rect.top;
 
+                                        // Convert cursor Y relative to SVG height (190px)
+                                        const svgY = (cursorY / (rect.height || 190)) * 190;
+                                        const distRam = Math.abs(svgY - c.ramY);
+                                        const distHeap = Math.abs(svgY - c.heapY);
+                                        const activeTarget: "ram" | "heap" = distRam <= distHeap ? "ram" : "heap";
+
                                         setCard3HoveredPoint({
                                           time: c.time,
+                                          activeTarget,
                                           usedRamGB: c.usedRamGB.toFixed(2),
                                           totRam: c.totRam.toFixed(1),
                                           freeRam: c.freeRam.toFixed(2),
@@ -2395,7 +2433,7 @@ export default function DashboardClient() {
                                       }
                                     }}
                                   >
-                                    {/* Crosshair & Glowing Intersection Dots on Hover */}
+                                    {/* Crosshair & Glowing Intersection Dot for the Hovered Line */}
                                     {card3HoveredPoint?.time === c.time && (
                                       <>
                                         <line
@@ -2403,12 +2441,15 @@ export default function DashboardClient() {
                                           y1="20"
                                           x2={c.x}
                                           y2="155"
-                                          stroke="rgba(244, 63, 94, 0.45)"
+                                          stroke={card3HoveredPoint.activeTarget === "ram" ? "rgba(249, 115, 22, 0.45)" : "rgba(56, 189, 248, 0.45)"}
                                           strokeWidth="1.5"
                                           strokeDasharray="3 3"
                                         />
-                                        <circle cx={c.x} cy={c.ramY} r="5.5" fill="#ec4899" stroke="#ffffff" strokeWidth="2" />
-                                        <circle cx={c.x} cy={c.heapY} r="5.5" fill="#38bdf8" stroke="#ffffff" strokeWidth="2" />
+                                        {card3HoveredPoint.activeTarget === "ram" ? (
+                                          <circle cx={c.x} cy={c.ramY} r="6" fill="#ec4899" stroke="#ffffff" strokeWidth="2.5" />
+                                        ) : (
+                                          <circle cx={c.x} cy={c.heapY} r="6" fill="#38bdf8" stroke="#ffffff" strokeWidth="2.5" />
+                                        )}
                                       </>
                                     )}
 
@@ -2428,7 +2469,7 @@ export default function DashboardClient() {
                         </svg>
                       </div>
                       <div className="graph-info-footer info-rose" style={{ borderTop: "1px solid rgba(244, 63, 94, 0.15)", background: "rgba(244, 63, 94, 0.05)", color: "#fb7185" }}>
-                        💡 <i><strong>Meaning & Value:</strong> Dual telemetry live line graph redesign. Tracks Host RAM usage ({sysUsedRamGB} GB / {sysUsedRamPct}%) vs Node.js V8 Heap memory allocation ({heapUsedMB} MB / {heapUsedPct}%) over real-time rolling windows.</i>
+                        💡 <i><strong>Meaning & Value:</strong> Dual telemetry live line graph redesign with dynamic Y auto-scaling. Tracks Host RAM usage ({sysUsedRamGB} GB / {sysUsedRamPct}%) vs Node.js V8 Heap memory allocation ({heapUsedMB} MB / {heapUsedPct}%) with line-specific tooltips.</i>
                       </div>
                     </div>
 
