@@ -2827,14 +2827,15 @@ export default function DashboardClient() {
                         {renderCardTimePills("card6")}
                       </div>
                       <div className="graph-card-body donut-chart-body">
+                        {/* Enlarged Pie Chart SVG */}
                         <svg
-                          viewBox="0 0 200 200"
+                          viewBox="0 0 240 240"
                           className="donut-chart-svg interactive-svg"
                           onMouseLeave={() => setGraphTooltip(null)}
                         >
-                          {/* Slice 1: Cyan (Uploaded Images) */}
+                          {/* Slice 1: Cyan (Uploaded Images: 10.2%) */}
                           <path
-                            d="M 100 100 L 100 25 A 75 75 0 0 1 170 75 Z" fill="#38bdf8" stroke="#0f172a" strokeWidth="1.5"
+                            d="M 120 120 L 120.0 25.0 A 95 95 0 0 1 176.8 43.9 Z" fill="#38bdf8" stroke="#0f172a" strokeWidth="1.5"
                             className="svg-hover-slice"
                             onMouseMove={(e) => {
                               setGraphTooltip({
@@ -2844,11 +2845,11 @@ export default function DashboardClient() {
                               });
                             }}
                           />
-                          <text x="125" y="60" fill="#ffffff" fontSize="9" fontWeight="800">10.2%</text>
+                          <text x="138" y="66" fill="#ffffff" fontSize="10.5" fontWeight="800">10.2%</text>
 
-                          {/* Slice 2: Emerald (CDN Media Cache) */}
+                          {/* Slice 2: Emerald (CDN Media Cache: 20.4%) */}
                           <path
-                            d="M 100 100 L 170 75 A 75 75 0 0 1 150 155 Z" fill="#34d399" stroke="#0f172a" strokeWidth="1.5"
+                            d="M 120 120 L 176.8 43.9 A 95 95 0 0 1 209.2 152.7 Z" fill="#34d399" stroke="#0f172a" strokeWidth="1.5"
                             className="svg-hover-slice"
                             onMouseMove={(e) => {
                               setGraphTooltip({
@@ -2858,11 +2859,11 @@ export default function DashboardClient() {
                               });
                             }}
                           />
-                          <text x="135" y="115" fill="#ffffff" fontSize="9" fontWeight="800">20.4%</text>
+                          <text x="175" y="104" fill="#ffffff" fontSize="10.5" fontWeight="800">20.4%</text>
 
-                          {/* Slice 3: Amber (Doc & Asset Files) */}
+                          {/* Slice 3: Amber (Doc & Asset Files: 14.3%) */}
                           <path
-                            d="M 100 100 L 150 155 A 75 75 0 0 1 90 174 Z" fill="#fbbf24" stroke="#0f172a" strokeWidth="1.5"
+                            d="M 120 120 L 209.2 152.7 A 95 95 0 0 1 149.9 210.2 Z" fill="#fbbf24" stroke="#0f172a" strokeWidth="1.5"
                             className="svg-hover-slice"
                             onMouseMove={(e) => {
                               setGraphTooltip({
@@ -2872,11 +2873,11 @@ export default function DashboardClient() {
                               });
                             }}
                           />
-                          <text x="110" y="150" fill="#ffffff" fontSize="9" fontWeight="800">14.3%</text>
+                          <text x="160" y="161" fill="#ffffff" fontSize="10.5" fontWeight="800">14.3%</text>
 
-                          {/* Slice 4: Red (Free Tier Remaining) */}
+                          {/* Slice 4: Red (Free Tier Remaining: 30.6%) */}
                           <path
-                            d="M 100 100 L 90 174 A 75 75 0 0 1 25 100 Z" fill="#ef4444" stroke="#0f172a" strokeWidth="1.5"
+                            d="M 120 120 L 149.9 210.2 A 95 95 0 1 1 25.0 117.0 Z" fill="#ef4444" stroke="#0f172a" strokeWidth="1.5"
                             className="svg-hover-slice"
                             onMouseMove={(e) => {
                               setGraphTooltip({
@@ -2886,11 +2887,11 @@ export default function DashboardClient() {
                               });
                             }}
                           />
-                          <text x="55" y="135" fill="#ffffff" fontSize="9" fontWeight="800">30.6%</text>
+                          <text x="86" y="166" fill="#ffffff" fontSize="10.5" fontWeight="800">30.6%</text>
 
-                          {/* Slice 5: Purple (S3 Bucket Metadata) */}
+                          {/* Slice 5: Purple (S3 Bucket Metadata: 24.5%) */}
                           <path
-                            d="M 100 100 L 25 100 A 75 75 0 0 1 100 25 Z" fill="#c084fc" stroke="#0f172a" strokeWidth="1.5"
+                            d="M 120 120 L 25.0 117.0 A 95 95 0 0 1 120.0 25.0 Z" fill="#c084fc" stroke="#0f172a" strokeWidth="1.5"
                             className="svg-hover-slice"
                             onMouseMove={(e) => {
                               setGraphTooltip({
@@ -2900,9 +2901,75 @@ export default function DashboardClient() {
                               });
                             }}
                           />
-                          <text x="55" y="65" fill="#ffffff" fontSize="9" fontWeight="800">24.5%</text>
+                          <text x="80" y="79" fill="#ffffff" fontSize="10.5" fontWeight="800">24.5%</text>
                         </svg>
 
+                        {/* 2 Vertical Bar Lines for 10 GB Quota (Used GB vs Free GB) */}
+                        <div className="r2-vbars-panel">
+                          <div className="r2-vbars-title">10 GB Free Quota Status</div>
+                          <div className="r2-vbars-row">
+                            {/* Vertical Bar 1: Used GB */}
+                            <div
+                              className="r2-vbar-col interactive-legend"
+                              onMouseMove={(e) => {
+                                const usedGB = (r2TotalMB / 1024).toFixed(2);
+                                const usedPct = ((r2TotalMB / 1024 / 10) * 100).toFixed(1);
+                                setGraphTooltip({
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                  title: "☁️ Cloudflare R2 Used Storage",
+                                  value: `${usedGB} GB Used (${usedPct}% of 10 GB)`,
+                                  detail: "Storage used by uploaded images, attachments & CDN cache in R2 bucket",
+                                  color: "#38bdf8",
+                                });
+                              }}
+                              onMouseLeave={() => setGraphTooltip(null)}
+                            >
+                              <div className="vbar-track">
+                                <div
+                                  className="vbar-fill vbar-used"
+                                  style={{ height: `${Math.max(8, Math.min(100, (r2TotalMB / 1024 / 10) * 100))}%` }}
+                                />
+                              </div>
+                              <div className="vbar-meta">
+                                <span className="vbar-name" style={{ color: "#38bdf8" }}>Used</span>
+                                <span className="vbar-val">{(r2TotalMB / 1024).toFixed(2)} GB</span>
+                                <span className="vbar-pct">{((r2TotalMB / 1024 / 10) * 100).toFixed(1)}%</span>
+                              </div>
+                            </div>
+
+                            {/* Vertical Bar 2: Free GB */}
+                            <div
+                              className="r2-vbar-col interactive-legend"
+                              onMouseMove={(e) => {
+                                const freePct = ((r2FreeGB / 10) * 100).toFixed(1);
+                                setGraphTooltip({
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                  title: "☁️ Cloudflare R2 Free Tier Remaining",
+                                  value: `${r2FreeGB.toFixed(2)} GB Free (${freePct}% of 10 GB)`,
+                                  detail: "Remaining unused storage quota under Cloudflare R2 10 GB free monthly tier limit",
+                                  color: "#34d399",
+                                });
+                              }}
+                              onMouseLeave={() => setGraphTooltip(null)}
+                            >
+                              <div className="vbar-track">
+                                <div
+                                  className="vbar-fill vbar-free"
+                                  style={{ height: `${Math.max(8, Math.min(100, (r2FreeGB / 10) * 100))}%` }}
+                                />
+                              </div>
+                              <div className="vbar-meta">
+                                <span className="vbar-name" style={{ color: "#34d399" }}>Free</span>
+                                <span className="vbar-val">{r2FreeGB.toFixed(2)} GB</span>
+                                <span className="vbar-pct">{((r2FreeGB / 10) * 100).toFixed(1)}%</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Pie Slices Legend */}
                         <div className="chart-legend-box">
                           <div
                             className="legend-item interactive-legend"
@@ -4856,15 +4923,107 @@ export default function DashboardClient() {
         .donut-chart-body {
           display: flex;
           align-items: center;
-          justify-content: space-around;
-          gap: 1.2rem;
-          padding: 0.5rem 0;
+          justify-content: space-between;
+          gap: 1rem;
+          padding: 0.5rem 0.25rem;
         }
 
         .donut-chart-svg {
-          width: 160px;
-          height: 160px;
+          width: 210px;
+          height: 210px;
           flex-shrink: 0;
+        }
+
+        .r2-vbars-panel {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.4rem;
+          background: rgba(15, 23, 42, 0.55);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 12px;
+          padding: 0.6rem 0.85rem;
+          flex-shrink: 0;
+        }
+
+        .r2-vbars-title {
+          font-size: 0.68rem;
+          font-weight: 700;
+          color: #94a3b8;
+          letter-spacing: 0.4px;
+          text-transform: uppercase;
+        }
+
+        .r2-vbars-row {
+          display: flex;
+          align-items: flex-end;
+          gap: 1.25rem;
+          height: 135px;
+        }
+
+        .r2-vbar-col {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          height: 100%;
+          cursor: pointer;
+          padding: 4px 6px;
+          border-radius: 8px;
+          transition: background 0.2s ease, transform 0.15s ease;
+        }
+        .r2-vbar-col:hover {
+          background: rgba(255, 255, 255, 0.06);
+          transform: translateY(-2px);
+        }
+
+        .vbar-track {
+          width: 22px;
+          flex: 1;
+          background: rgba(255, 255, 255, 0.06);
+          border-radius: 12px;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+          overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .vbar-fill {
+          width: 100%;
+          border-radius: 10px;
+          transition: height 0.4s ease;
+        }
+
+        .vbar-fill.vbar-used {
+          background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+          box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+        }
+
+        .vbar-fill.vbar-free {
+          background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+          box-shadow: 0 0 10px rgba(52, 211, 153, 0.35);
+        }
+
+        .vbar-meta {
+          margin-top: 5px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          font-size: 0.68rem;
+          line-height: 1.2;
+        }
+
+        .vbar-name {
+          font-weight: 700;
+          font-size: 0.7rem;
+        }
+        .vbar-val {
+          color: #f3f4f6;
+          font-weight: 600;
+        }
+        .vbar-pct {
+          color: #9ca3af;
+          font-size: 0.62rem;
         }
 
         circle.donut-center-hit {
