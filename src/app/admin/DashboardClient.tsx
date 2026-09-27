@@ -2242,7 +2242,7 @@ export default function DashboardClient() {
 
                             const pts = filteredPts.length > 0 ? filteredPts : [...Array(10)].map((_, i) => ({
                               time: `19:${40 + i * 3}`,
-                              freeRamGB: 1.8 + Math.sin(i * 0.8) * 0.3,
+                              freeRamGB: sysTotalRam - (0.103 + Math.sin(i * 0.7) * 0.02 + Math.cos(i * 1.3) * 0.015) * sysTotalRam,
                               totalRamGB: sysTotalRam,
                               heap: 32 + Math.cos(i * 0.9) * 6,
                               heapTotal: 64,
@@ -2251,7 +2251,7 @@ export default function DashboardClient() {
 
                             // Raw percentage extraction
                             const rawPoints = pts.map((p) => {
-                              const freeRam = (p as any).freeRamGB ?? (data.systemHealth.systemFreeRamGB || 1.8);
+                              const freeRam = (p as any).freeRamGB ?? (data.systemHealth.systemFreeRamGB || 7.17);
                               const totRam = (p as any).totalRamGB ?? sysTotalRam;
                               const usedRamGB = Math.max(0, totRam - freeRam);
                               const ramPct = Math.min(100, Math.max(0, (usedRamGB / totRam) * 100));
@@ -2263,24 +2263,34 @@ export default function DashboardClient() {
                               return { time: p.time, freeRam, totRam, usedRamGB, ramPct, hUsed, hTot, heapPct };
                             });
 
-                            // Calculate min/max for Host RAM & V8 Heap with flexible auto-scaled ranges
+                            // Calculate Host RAM (DATA 01) scale: Default 10% to 15%, auto-adjust if values < 10% or > 15%
                             const ramVals = rawPoints.map(r => r.ramPct);
                             const minRamRaw = Math.min(...ramVals);
                             const maxRamRaw = Math.max(...ramVals);
 
-                            const minSpan = 15; // Minimum 15% range span so minor fluctuations curve smoothly
-                            let minRam = Math.max(0, Math.floor(minRamRaw - 2));
-                            let maxRam = Math.min(100, Math.ceil(maxRamRaw + 3));
-                            if (maxRam - minRam < minSpan) {
-                              const pad = Math.ceil((minSpan - (maxRam - minRam)) / 2);
-                              minRam = Math.max(0, minRam - pad);
-                              maxRam = Math.min(100, maxRam + pad);
-                            }
-                            const ramRng = Math.max(1, maxRam - minRam);
+                            let minRamScale = 10;
+                            let maxRamScale = 15;
 
+                            if (minRamRaw < 10) {
+                              minRamScale = Math.max(0, Math.floor(minRamRaw - 0.5));
+                            }
+                            if (maxRamRaw > 15) {
+                              maxRamScale = Math.min(100, Math.ceil(maxRamRaw + 0.5));
+                            }
+
+                            // Ensure minimum 2% span so the line always curves smoothly
+                            if (maxRamScale - minRamScale < 2) {
+                              const mid = (maxRamScale + minRamScale) / 2;
+                              minRamScale = Math.max(0, Math.floor(mid - 1));
+                              maxRamScale = Math.min(100, Math.ceil(mid + 1));
+                            }
+                            const ramRng = Math.max(0.1, maxRamScale - minRamScale);
+
+                            // Calculate V8 Heap (DATA 02) auto-scale range
                             const heapVals = rawPoints.map(r => r.heapPct);
                             const minHeapRaw = Math.min(...heapVals);
                             const maxHeapRaw = Math.max(...heapVals);
+                            const minSpan = 15;
                             let minHeap = Math.max(0, Math.floor(minHeapRaw - 3));
                             let maxHeap = Math.min(100, Math.ceil(maxHeapRaw + 4));
                             if (maxHeap - minHeap < minSpan) {
@@ -2292,8 +2302,8 @@ export default function DashboardClient() {
 
                             // Auto-scale Y coordinates from 155 (bottom) to 30 (top)
                             const coords = rawPoints.map((r, idx) => {
-                              const x = 55 + (idx * 375) / Math.max(1, rawPoints.length - 1);
-                              const ramY = 155 - ((r.ramPct - minRam) / ramRng) * 125;
+                              const x = 45 + (idx * 360) / Math.max(1, rawPoints.length - 1);
+                              const ramY = 155 - ((r.ramPct - minRamScale) / ramRng) * 125;
                               const heapY = 155 - ((r.heapPct - minHeap) / heapRng) * 125;
 
                               return {
@@ -2322,23 +2332,36 @@ export default function DashboardClient() {
 
                             const labelStep = Math.max(1, Math.ceil(pts.length / 6));
 
+                            // Helper for right Y-axis tick percentage formatting
+                            const formatPctTick = (val: number) => {
+                              const rounded = Math.round(val * 10) / 10;
+                              return rounded % 1 === 0 ? `${rounded}%` : `${rounded.toFixed(1)}%`;
+                            };
+
                             return (
                               <>
-                                {/* Subdued horizontal grid lines matching target image style */}
-                                <line x1="50" y1="25" x2="440" y2="25" stroke="rgba(255,255,255,0.07)" strokeDasharray="4 4" />
-                                <line x1="50" y1="57.5" x2="440" y2="57.5" stroke="rgba(255,255,255,0.07)" strokeDasharray="4 4" />
-                                <line x1="50" y1="90" x2="440" y2="90" stroke="rgba(255,255,255,0.07)" strokeDasharray="4 4" />
-                                <line x1="50" y1="122.5" x2="440" y2="122.5" stroke="rgba(255,255,255,0.07)" strokeDasharray="4 4" />
+                                {/* Subdued horizontal grid lines */}
+                                <line x1="45" y1="25" x2="405" y2="25" stroke="rgba(255,255,255,0.07)" strokeDasharray="4 4" />
+                                <line x1="45" y1="57.5" x2="405" y2="57.5" stroke="rgba(255,255,255,0.07)" strokeDasharray="4 4" />
+                                <line x1="45" y1="90" x2="405" y2="90" stroke="rgba(255,255,255,0.07)" strokeDasharray="4 4" />
+                                <line x1="45" y1="122.5" x2="405" y2="122.5" stroke="rgba(255,255,255,0.07)" strokeDasharray="4 4" />
 
                                 {/* Dashed bottom baseline */}
-                                <line x1="50" y1="155" x2="440" y2="155" stroke="rgba(255,255,255,0.18)" strokeDasharray="4 4" />
+                                <line x1="45" y1="155" x2="405" y2="155" stroke="rgba(255,255,255,0.18)" strokeDasharray="4 4" />
 
-                                {/* Both Axis Text: ROSE PINK (#fb7185), BOLDER (700), LARGER (11.5px) */}
+                                {/* Left Y-Axis Scale Text (DATA 02 / V8 Heap Scale): ROSE PINK (#fb7185) */}
                                 <text x="5" y="29" fill="#fb7185" fontSize="11.5" fontWeight="700">250</text>
                                 <text x="5" y="61" fill="#fb7185" fontSize="11.5" fontWeight="700">200</text>
                                 <text x="5" y="94" fill="#fb7185" fontSize="11.5" fontWeight="700">150</text>
                                 <text x="5" y="126" fill="#fb7185" fontSize="11.5" fontWeight="700">100</text>
                                 <text x="5" y="159" fill="#fb7185" fontSize="11.5" fontWeight="700">50</text>
+
+                                {/* Right Y-Axis Scale Text (DATA 01 / Host RAM % Scale): ORANGE/AMBER (#f97316) */}
+                                <text x="412" y="29" fill="#f97316" fontSize="11" fontWeight="700">{formatPctTick(maxRamScale)}</text>
+                                <text x="412" y="61" fill="#f97316" fontSize="11" fontWeight="700">{formatPctTick(minRamScale + ramRng * 0.75)}</text>
+                                <text x="412" y="94" fill="#f97316" fontSize="11" fontWeight="700">{formatPctTick(minRamScale + ramRng * 0.5)}</text>
+                                <text x="412" y="126" fill="#f97316" fontSize="11" fontWeight="700">{formatPctTick(minRamScale + ramRng * 0.25)}</text>
+                                <text x="412" y="159" fill="#f97316" fontSize="11" fontWeight="700">{formatPctTick(minRamScale)}</text>
 
                                 {/* Translucent Glow Depth Fills */}
                                 {ramArea && <path d={ramArea} fill="url(#card3RamAreaGrad)" />}
@@ -2367,19 +2390,6 @@ export default function DashboardClient() {
                                     filter="url(#card3NeonGlow)"
                                   />
                                 )}
-
-                                {/* X-Axis baseline tick dots (Cyan dots along baseline like in target graph image) */}
-                                {coords.map((c, idx) => (
-                                  <circle
-                                    key={`dot-${idx}`}
-                                    cx={c.x}
-                                    cy="155"
-                                    r="3.5"
-                                    fill="#38bdf8"
-                                    stroke="#0f172a"
-                                    strokeWidth="1.5"
-                                  />
-                                ))}
 
                                 {/* X-Axis Labels: ROSE PINK (#fb7185), BOLDER (700), LARGER (11.5px) */}
                                 {coords.map((c, idx) => {
