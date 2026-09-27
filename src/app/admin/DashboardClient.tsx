@@ -2480,129 +2480,6 @@ export default function DashboardClient() {
                       </div>
                     </div>
 
-                    {/* Card 4: Analogue Signal Latency Ping (Digital Oscilloscope Waveform & Neon Beacon Head) */}
-                    <div className="graph-card analogue-graph-card">
-                      <div className="graph-card-header">
-                        <div className="header-title-chip">
-                          <span className="graph-card-title">⚡ ANALOGUE SIGNAL LATENCY</span>
-                          <span className="graph-badge badge-emerald">⚡ Refresh: Every 1 Min</span>
-                        </div>
-                        {renderCardTimePills("card4")}
-                      </div>
-                      <div className="graph-card-body analogue-chart-body">
-                        <svg
-                          viewBox="0 0 450 180"
-                          preserveAspectRatio="none"
-                          className="line-chart-svg interactive-svg"
-                          onMouseLeave={() => setGraphTooltip(null)}
-                        >
-                          <defs>
-                            <linearGradient id="emeraldSignalGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
-                              <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.0" />
-                            </linearGradient>
-                            <filter id="neonGlowEffect" x="-20%" y="-20%" width="140%" height="140%">
-                              <feGaussianBlur stdDeviation="1.5" result="blur" />
-                              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                            </filter>
-                          </defs>
-
-                          {(() => {
-                            const pts = getFilteredTelemetry(telemetryPoints, cardRanges.card4 || "1h");
-                            const pingVals = pts.map(p => p.ping);
-                            const minPingRaw = Math.min(...pingVals);
-                            const maxPingRaw = Math.max(...pingVals);
-
-                            // Auto-scale Y-axis to actual data range with padding
-                            // so even small ping variations (e.g. ±35ms around 192ms) are visible
-                            const rawSpan = Math.max(1, maxPingRaw - minPingRaw);
-                            const padding = rawSpan * 0.35; // 35% padding above and below
-                            let minVal = Math.max(0, Math.floor(minPingRaw - padding));
-                            let maxVal = Math.ceil(maxPingRaw + padding);
-                            // Ensure at least 30ms visible span so curve stays prominent
-                            if (maxVal - minVal < 30) {
-                              const mid = (minPingRaw + maxPingRaw) / 2;
-                              minVal = Math.max(0, Math.floor(mid - 15));
-                              maxVal = Math.ceil(mid + 15);
-                            }
-
-                            const effectiveRng = Math.max(1, maxVal - minVal);
-
-                            const coords = pts.map((p, i) => {
-                              const x = 55 + (i * 380) / Math.max(1, pts.length - 1);
-                              const y = 160 - ((p.ping - minVal) / effectiveRng) * 135;
-                              return { x, y, time: p.time, ping: p.ping };
-                            });
-
-                            const labelStep = Math.max(1, Math.ceil(pts.length / 6));
-                            const curvePath = getSmoothCurvePath(coords);
-                            const areaPath = coords.length >= 2 ? `${curvePath} L ${coords[coords.length - 1].x.toFixed(1)} 160 L ${coords[0].x.toFixed(1)} 160 Z` : "";
-                            const lastCoord = coords.length > 0 ? coords[coords.length - 1] : null;
-
-                            return (
-                              <>
-                                {/* Oscilloscope Grid Lines */}
-                                <line x1="50" y1="20" x2="440" y2="20" stroke="rgba(16,185,129,0.12)" strokeDasharray="4 4" />
-                                <line x1="50" y1="55" x2="440" y2="55" stroke="rgba(16,185,129,0.08)" strokeDasharray="4 4" />
-                                <line x1="50" y1="90" x2="440" y2="90" stroke="rgba(16,185,129,0.12)" strokeDasharray="4 4" />
-                                <line x1="50" y1="125" x2="440" y2="125" stroke="rgba(16,185,129,0.08)" strokeDasharray="4 4" />
-                                <line x1="50" y1="160" x2="440" y2="160" stroke="rgba(16,185,129,0.2)" />
-
-                                {/* Flexible Latency Y-Axis Labels */}
-                                <text x="5" y="24" fill="#10b981" fontSize="8.5" fontWeight="600">{maxVal} ms</text>
-                                <text x="5" y="59" fill="#9ca3af" fontSize="8">{Math.round(minVal + effectiveRng * 0.75)} ms</text>
-                                <text x="5" y="94" fill="#9ca3af" fontSize="8">{Math.round(minVal + effectiveRng * 0.5)} ms</text>
-                                <text x="5" y="129" fill="#9ca3af" fontSize="8">{Math.round(minVal + effectiveRng * 0.25)} ms</text>
-                                <text x="5" y="164" fill="#9ca3af" fontSize="8">{minVal} ms</text>
-
-                                {/* Sleek 1.6px Oscilloscope Line (NO INTERMEDIATE DOTS) */}
-                                {curvePath && <path d={curvePath} fill="none" stroke="#10b981" strokeWidth="1.6" strokeLinecap="round" filter="url(#neonGlowEffect)" />}
-
-                                {/* Single Pulsing Beacon Head Dot at real-time tip ONLY */}
-                                {lastCoord && (
-                                  <g>
-                                    <circle cx={lastCoord.x} cy={lastCoord.y} r="7" fill="rgba(16,185,129,0.25)" className="pulse-circle" />
-                                    <circle cx={lastCoord.x} cy={lastCoord.y} r="3.5" fill="#10b981" stroke="#ffffff" strokeWidth="1.5" />
-                                  </g>
-                                )}
-
-                                {/* Invisible Hover Hit Areas */}
-                                {coords.map((c, i) => {
-                                  const showLabel = i % labelStep === 0 || i === coords.length - 1;
-                                  return (
-                                    <g
-                                      key={i}
-                                      className="svg-hover-group"
-                                      onMouseMove={(e) => {
-                                        setGraphTooltip({
-                                          x: e.clientX,
-                                          y: e.clientY,
-                                          title: `⚡ Database Latency Ping (${c.time})`,
-                                          value: `${c.ping} ms Roundtrip Ping`,
-                                          detail: "Round-trip database query latency between Next.js application server and Atlas",
-                                          color: "#10b981",
-                                        });
-                                      }}
-                                    >
-                                      <circle cx={c.x} cy={c.y} r="16" fill="transparent" />
-                                      {showLabel && (
-                                        <text x={c.x} y="176" fill="#6b7280" fontSize="8.5" textAnchor="middle">
-                                          {c.time.slice(0, 5)}
-                                        </text>
-                                      )}
-                                    </g>
-                                  );
-                                })}
-                              </>
-                            );
-                          })()}
-                        </svg>
-                      </div>
-                      <div className="graph-info-footer info-emerald">
-                        💡 <i><strong>Meaning & Value:</strong> Digital Oscilloscope Signal Waveform. Smooth 20ms+ flexible auto-scaling monitors live round-trip Atlas database ping latency.</i>
-                      </div>
-                    </div>
-
                     {/* Card 5: Daily User Reachability & Traffic Analytics (Vertical Bar Chart) */}
                     <div className="graph-card traffic-bar-card">
                       <div className="graph-card-header">
@@ -3000,6 +2877,129 @@ export default function DashboardClient() {
                       </div>
                       <div className="graph-info-footer info-rose">
                         💡 <i><strong>Meaning & Value:</strong> Pie Slices break down Cloudflare R2 object bucket contents by media category. Monitors remaining quota towards the 10 GB Free Tier monthly limit.</i>
+                      </div>
+                    </div>
+
+                    {/* Card 4: Analogue Signal Latency Ping (Digital Oscilloscope Waveform & Neon Beacon Head) */}
+                    <div className="graph-card analogue-graph-card">
+                      <div className="graph-card-header">
+                        <div className="header-title-chip">
+                          <span className="graph-card-title">⚡ ANALOGUE SIGNAL LATENCY</span>
+                          <span className="graph-badge badge-emerald">⚡ Refresh: Every 1 Min</span>
+                        </div>
+                        {renderCardTimePills("card4")}
+                      </div>
+                      <div className="graph-card-body analogue-chart-body">
+                        <svg
+                          viewBox="0 0 450 180"
+                          preserveAspectRatio="none"
+                          className="line-chart-svg interactive-svg"
+                          onMouseLeave={() => setGraphTooltip(null)}
+                        >
+                          <defs>
+                            <linearGradient id="emeraldSignalGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+                              <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.0" />
+                            </linearGradient>
+                            <filter id="neonGlowEffect" x="-20%" y="-20%" width="140%" height="140%">
+                              <feGaussianBlur stdDeviation="1.5" result="blur" />
+                              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                          </defs>
+
+                          {(() => {
+                            const pts = getFilteredTelemetry(telemetryPoints, cardRanges.card4 || "1h");
+                            const pingVals = pts.map(p => p.ping);
+                            const minPingRaw = Math.min(...pingVals);
+                            const maxPingRaw = Math.max(...pingVals);
+
+                            // Auto-scale Y-axis to actual data range with padding
+                            // so even small ping variations (e.g. ±35ms around 192ms) are visible
+                            const rawSpan = Math.max(1, maxPingRaw - minPingRaw);
+                            const padding = rawSpan * 0.35; // 35% padding above and below
+                            let minVal = Math.max(0, Math.floor(minPingRaw - padding));
+                            let maxVal = Math.ceil(maxPingRaw + padding);
+                            // Ensure at least 30ms visible span so curve stays prominent
+                            if (maxVal - minVal < 30) {
+                              const mid = (minPingRaw + maxPingRaw) / 2;
+                              minVal = Math.max(0, Math.floor(mid - 15));
+                              maxVal = Math.ceil(mid + 15);
+                            }
+
+                            const effectiveRng = Math.max(1, maxVal - minVal);
+
+                            const coords = pts.map((p, i) => {
+                              const x = 55 + (i * 380) / Math.max(1, pts.length - 1);
+                              const y = 160 - ((p.ping - minVal) / effectiveRng) * 135;
+                              return { x, y, time: p.time, ping: p.ping };
+                            });
+
+                            const labelStep = Math.max(1, Math.ceil(pts.length / 6));
+                            const curvePath = getSmoothCurvePath(coords);
+                            const areaPath = coords.length >= 2 ? `${curvePath} L ${coords[coords.length - 1].x.toFixed(1)} 160 L ${coords[0].x.toFixed(1)} 160 Z` : "";
+                            const lastCoord = coords.length > 0 ? coords[coords.length - 1] : null;
+
+                            return (
+                              <>
+                                {/* Oscilloscope Grid Lines */}
+                                <line x1="50" y1="20" x2="440" y2="20" stroke="rgba(16,185,129,0.12)" strokeDasharray="4 4" />
+                                <line x1="50" y1="55" x2="440" y2="55" stroke="rgba(16,185,129,0.08)" strokeDasharray="4 4" />
+                                <line x1="50" y1="90" x2="440" y2="90" stroke="rgba(16,185,129,0.12)" strokeDasharray="4 4" />
+                                <line x1="50" y1="125" x2="440" y2="125" stroke="rgba(16,185,129,0.08)" strokeDasharray="4 4" />
+                                <line x1="50" y1="160" x2="440" y2="160" stroke="rgba(16,185,129,0.2)" />
+
+                                {/* Flexible Latency Y-Axis Labels */}
+                                <text x="5" y="24" fill="#10b981" fontSize="8.5" fontWeight="600">{maxVal} ms</text>
+                                <text x="5" y="59" fill="#9ca3af" fontSize="8">{Math.round(minVal + effectiveRng * 0.75)} ms</text>
+                                <text x="5" y="94" fill="#9ca3af" fontSize="8">{Math.round(minVal + effectiveRng * 0.5)} ms</text>
+                                <text x="5" y="129" fill="#9ca3af" fontSize="8">{Math.round(minVal + effectiveRng * 0.25)} ms</text>
+                                <text x="5" y="164" fill="#9ca3af" fontSize="8">{minVal} ms</text>
+
+                                {/* Sleek 1.6px Oscilloscope Line (NO INTERMEDIATE DOTS) */}
+                                {curvePath && <path d={curvePath} fill="none" stroke="#10b981" strokeWidth="1.6" strokeLinecap="round" filter="url(#neonGlowEffect)" />}
+
+                                {/* Single Pulsing Beacon Head Dot at real-time tip ONLY */}
+                                {lastCoord && (
+                                  <g>
+                                    <circle cx={lastCoord.x} cy={lastCoord.y} r="7" fill="rgba(16,185,129,0.25)" className="pulse-circle" />
+                                    <circle cx={lastCoord.x} cy={lastCoord.y} r="3.5" fill="#10b981" stroke="#ffffff" strokeWidth="1.5" />
+                                  </g>
+                                )}
+
+                                {/* Invisible Hover Hit Areas */}
+                                {coords.map((c, i) => {
+                                  const showLabel = i % labelStep === 0 || i === coords.length - 1;
+                                  return (
+                                    <g
+                                      key={i}
+                                      className="svg-hover-group"
+                                      onMouseMove={(e) => {
+                                        setGraphTooltip({
+                                          x: e.clientX,
+                                          y: e.clientY,
+                                          title: `⚡ Database Latency Ping (${c.time})`,
+                                          value: `${c.ping} ms Roundtrip Ping`,
+                                          detail: "Round-trip database query latency between Next.js application server and Atlas",
+                                          color: "#10b981",
+                                        });
+                                      }}
+                                    >
+                                      <circle cx={c.x} cy={c.y} r="16" fill="transparent" />
+                                      {showLabel && (
+                                        <text x={c.x} y="176" fill="#6b7280" fontSize="8.5" textAnchor="middle">
+                                          {c.time.slice(0, 5)}
+                                        </text>
+                                      )}
+                                    </g>
+                                  );
+                                })}
+                              </>
+                            );
+                          })()}
+                        </svg>
+                      </div>
+                      <div className="graph-info-footer info-emerald">
+                        💡 <i><strong>Meaning & Value:</strong> Digital Oscilloscope Signal Waveform. Smooth 20ms+ flexible auto-scaling monitors live round-trip Atlas database ping latency.</i>
                       </div>
                     </div>
                   </>
