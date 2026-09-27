@@ -343,11 +343,12 @@ export async function GET(request: Request) {
       await telemetryColl.deleteMany({ createdAt: { $lt: twentyFourHoursAgo } });
 
       const currentCpuPct = Math.max(5, Math.min(95, Math.round((systemHealth.cpuLoadAvg || 0.15) * 20 + 15)));
-      const timeLabel = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Kolkata' });
+      const nowObj = new Date();
+      const timeLabel = nowObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Kolkata', hour12: true });
 
       // Record snapshot in MongoDB
       await telemetryColl.insertOne({
-        timestamp: new Date(),
+        timestamp: nowObj,
         timeLabel,
         ping: systemHealth.dbPingTime || 15,
         cpu: currentCpuPct,
@@ -361,7 +362,7 @@ export async function GET(request: Request) {
         dbStorageMB: systemHealth.dbStorageSizeMB,
         views: totalViews,
         visitors: uniqueVisitors,
-        createdAt: new Date(),
+        createdAt: nowObj,
       });
 
       // Fetch 24-hour telemetry history from MongoDB
@@ -371,20 +372,24 @@ export async function GET(request: Request) {
         .limit(200)
         .toArray();
 
-      telemetry24h = rawTelemetry.map((t) => ({
-        id: t._id.toString(),
-        time: t.timeLabel || new Date(t.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }),
-        ping: t.ping,
-        cpu: t.cpu,
-        cpuLoadAvg: t.cpuLoadAvg || 0.15,
-        heap: t.heap,
-        heapTotal: t.heapTotal || systemHealth.memoryTotal,
-        freeRamGB: t.freeRamGB ?? systemHealth.systemFreeRamGB,
-        totalRamGB: t.totalRamGB ?? systemHealth.systemTotalRamGB,
-        views: t.views,
-        visitors: t.visitors,
-        timestamp: new Date(t.timestamp).toISOString(),
-      }));
+      telemetry24h = rawTelemetry.map((t) => {
+        const tDate = new Date(t.timestamp || t.createdAt || Date.now());
+        const istFormatted = tDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Kolkata', hour12: true });
+        return {
+          id: t._id.toString(),
+          time: t.timeLabel || istFormatted,
+          ping: t.ping,
+          cpu: t.cpu,
+          cpuLoadAvg: t.cpuLoadAvg || 0.15,
+          heap: t.heap,
+          heapTotal: t.heapTotal || systemHealth.memoryTotal,
+          freeRamGB: t.freeRamGB ?? systemHealth.systemFreeRamGB,
+          totalRamGB: t.totalRamGB ?? systemHealth.systemTotalRamGB,
+          views: t.views,
+          visitors: t.visitors,
+          timestamp: tDate.toISOString(),
+        };
+      });
     } catch (e) {
       console.error("Telemetry collection logging error:", e);
     }
