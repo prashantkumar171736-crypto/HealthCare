@@ -1,3 +1,4 @@
+import "@/lib/env"; // Ensure env vars are loaded on Vercel
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";

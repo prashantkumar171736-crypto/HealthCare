@@ -1,3 +1,4 @@
+import "@/lib/env"; // Ensure env vars are loaded on Vercel
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
@@ -391,9 +392,13 @@ export async function GET(request: Request) {
     });
   } catch (err: any) {
     console.error("Failed to compile admin stats:", err);
+    const errorMessage = err?.message || String(err) || "Unknown error";
     return NextResponse.json(
-      { error: `Failed to gather statistics: ${err.message || err}` },
-      { status: 500 }
+      { error: `Dashboard error: ${errorMessage}` },
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
     );
   }
 }
