@@ -2439,12 +2439,12 @@ export default function DashboardClient() {
                                 {/* Dashed bottom baseline */}
                                 <line x1="45" y1="155" x2="405" y2="155" stroke="rgba(255,255,255,0.18)" strokeDasharray="4 4" />
 
-                                {/* Left Y-Axis Scale Text (DATA 02 / V8 Heap Scale): ROSE PINK (#fb7185) */}
-                                <text x="5" y="29" fill="#fb7185" fontSize="11.5" fontWeight="700">250</text>
-                                <text x="5" y="61" fill="#fb7185" fontSize="11.5" fontWeight="700">200</text>
-                                <text x="5" y="94" fill="#fb7185" fontSize="11.5" fontWeight="700">150</text>
-                                <text x="5" y="126" fill="#fb7185" fontSize="11.5" fontWeight="700">100</text>
-                                <text x="5" y="159" fill="#fb7185" fontSize="11.5" fontWeight="700">50</text>
+                                {/* Left Y-Axis Scale Text (DATA 02 / V8 Heap Scale): CYAN (#38bdf8) */}
+                                <text x="5" y="29" fill="#38bdf8" fontSize="11.5" fontWeight="700">250</text>
+                                <text x="5" y="61" fill="#38bdf8" fontSize="11.5" fontWeight="700">200</text>
+                                <text x="5" y="94" fill="#38bdf8" fontSize="11.5" fontWeight="700">150</text>
+                                <text x="5" y="126" fill="#38bdf8" fontSize="11.5" fontWeight="700">100</text>
+                                <text x="5" y="159" fill="#38bdf8" fontSize="11.5" fontWeight="700">50</text>
 
                                 {/* Right Y-Axis Scale Text (DATA 01 / Host RAM % Scale): ORANGE/AMBER (#f97316) */}
                                 <text x="412" y="29" fill="#f97316" fontSize="11" fontWeight="700">{formatPctTick(maxRamScale)}</text>
@@ -2477,7 +2477,7 @@ export default function DashboardClient() {
                                   />
                                 )}
 
-                                {/* X-Axis Labels: ROSE PINK (#fb7185), BOLDER (700), OPTIMIZED SIZE (9.5px) */}
+                                {/* X-Axis Labels: CYAN (#38bdf8), BOLDER (700), OPTIMIZED SIZE (9.5px) */}
                                 {coords.map((c, idx) => {
                                   const isNearEnd = (coords.length - 1 - idx) < labelStep;
                                   const showLabel = (idx % labelStep === 0 && !isNearEnd) || idx === coords.length - 1;
@@ -2487,7 +2487,7 @@ export default function DashboardClient() {
                                       key={`xlabel-${idx}`}
                                       x={c.x}
                                       y="178"
-                                      fill="#fb7185"
+                                      fill="#38bdf8"
                                       fontSize="9.5"
                                       fontWeight="700"
                                       textAnchor="middle"
