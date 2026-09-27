@@ -362,14 +362,22 @@ export default function DashboardClient() {
         router.push("/admin/login");
         return;
       }
-      const contentType = res.headers.get("content-type") || "";
+
+      // Always try to get the response body as text first
+      const bodyText = await res.text();
       let json: any = null;
-      if (contentType.includes("application/json")) {
-        json = await res.json();
-      } else {
-        await res.text();
-        throw new Error(`Server returned ${res.status}: ${res.statusText || "Unexpected response"}`);
+
+      // Try to parse as JSON regardless of content-type header
+      try {
+        json = JSON.parse(bodyText);
+      } catch {
+        // Body is not JSON (HTML error page from Vercel/gateway)
+        const shortBody = bodyText.substring(0, 200).replace(/<[^>]+>/g, "").trim();
+        throw new Error(
+          `Server error (${res.status}): ${shortBody || res.statusText || "Unexpected response from server"}`
+        );
       }
+
       if (!res.ok) {
         throw new Error(json?.error || `Failed to load statistics (${res.status})`);
       }

@@ -5,6 +5,7 @@ import { getDb } from "@/lib/db";
 import { validateSession } from "../login/route";
 
 export const runtime = "nodejs";
+export const maxDuration = 30; // Extend Vercel function timeout
 
 async function isAuthenticated(): Promise<boolean> {
   try {
