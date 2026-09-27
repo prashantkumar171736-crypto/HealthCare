@@ -44,9 +44,18 @@ export async function GET(request: Request) {
     let buckets: TrafficDay[] = [];
 
     if (range === "daily") {
-      // Last 30 days — one bar per day
+      // Find earliest analytics record date to cover all records across 2+ months if present
+      const earliestDoc = await analytics.find({}).sort({ timestamp: 1 }).limit(1).toArray();
+      let daysCount = 60; // default 60 days (2 months)
+      if (earliestDoc.length > 0 && earliestDoc[0].timestamp) {
+        const earliestDate = new Date(earliestDoc[0].timestamp);
+        const diffTime = Math.abs(now.getTime() - earliestDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        daysCount = Math.max(30, Math.min(120, diffDays + 1));
+      }
+
       const start = new Date(now);
-      start.setDate(start.getDate() - 29);
+      start.setDate(start.getDate() - (daysCount - 1));
       start.setHours(0, 0, 0, 0);
 
       const raw = await analytics.aggregate([
@@ -58,7 +67,7 @@ export async function GET(request: Request) {
 
       const rawMap = new Map(raw.map(r => [r._id as string, r]));
 
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < daysCount; i++) {
         const d = new Date(start);
         d.setDate(d.getDate() + i);
         const iso = d.toISOString().split("T")[0];

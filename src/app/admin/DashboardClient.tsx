@@ -1607,23 +1607,35 @@ export default function DashboardClient() {
             </div>
 
             {/* Floating Glass Tooltip for Graphs */}
-            {graphTooltip && (
-              <div
-                className="graph-tooltip-floating"
-                style={{
-                  left: graphTooltip.x + 12,
-                  top: graphTooltip.y - 35,
-                  borderColor: graphTooltip.color,
-                  boxShadow: `0 8px 24px ${graphTooltip.color}40`,
-                }}
-              >
-                <div className="tooltip-title" style={{ color: graphTooltip.color }}>
-                  {graphTooltip.title}
+            {graphTooltip && (() => {
+              const tooltipW = 240;
+              const tooltipH = 120;
+              let left = graphTooltip.x + 12;
+              if (left + tooltipW > window.innerWidth - 10) {
+                left = Math.max(10, graphTooltip.x - tooltipW - 12);
+              }
+              let top = graphTooltip.y - 35;
+              if (top + tooltipH > window.innerHeight - 10) {
+                top = Math.max(10, graphTooltip.y - tooltipH + 10);
+              }
+              return (
+                <div
+                  className="graph-tooltip-floating"
+                  style={{
+                    left,
+                    top,
+                    borderColor: graphTooltip.color,
+                    boxShadow: `0 8px 24px ${graphTooltip.color}40`,
+                  }}
+                >
+                  <div className="tooltip-title" style={{ color: graphTooltip.color }}>
+                    {graphTooltip.title}
+                  </div>
+                  <div className="tooltip-val">{graphTooltip.value}</div>
+                  <div className="tooltip-sub">{graphTooltip.detail}</div>
                 </div>
-                <div className="tooltip-val">{graphTooltip.value}</div>
-                <div className="tooltip-sub">{graphTooltip.detail}</div>
-              </div>
-            )}
+              );
+            })()}
 
             <div className="live-graphs-grid">
               {/* Helper function to generate smooth cubic bezier SVG curves */}
@@ -2238,7 +2250,7 @@ export default function DashboardClient() {
                       <div className="graph-card-header">
                         <div className="header-title-chip">
                           <span className="graph-card-title">📊 Daily User Reachability & Traffic Analytics</span>
-                          <span className="graph-badge badge-indigo">📋 Source: Access Logs</span>
+                          <span className="graph-badge badge-amber">📋 Source: Access Logs</span>
                         </div>
                         {/* Inline traffic range selector */}
                         <div className="card-window-pills">
@@ -2259,7 +2271,7 @@ export default function DashboardClient() {
                       {trafficHovered && trafficTooltipPos && (
                         <div
                           className="traffic-hover-tooltip"
-                          style={{ left: Math.min(trafficTooltipPos.x, window.innerWidth - 260), top: trafficTooltipPos.y - 10 }}
+                          style={{ left: trafficTooltipPos.x, top: trafficTooltipPos.y }}
                         >
                           <div className="ttt-header">
                             <span className="ttt-date">{trafficHovered.date}</span>
@@ -2315,17 +2327,17 @@ export default function DashboardClient() {
                           </div>
                         ) : (() => {
                           const maxVisits = Math.max(1, ...trafficData.map(d => d.totalVisits));
-                          const svgW = 420;
-                          const svgH = 170;
-                          const padL = 36;
+                          const svgW = 440;
+                          const svgH = 210;
+                          const padL = 44;
                           const padR = 12;
-                          const padT = 14;
-                          const padB = 28;
+                          const padT = 16;
+                          const padB = 34;
                           const chartW = svgW - padL - padR;
                           const chartH = svgH - padT - padB;
                           const n = trafficData.length;
-                          const gap = 2;
-                          const barW = Math.max(2, Math.floor((chartW - (n - 1) * gap) / Math.max(1, n)));
+                          const gap = n > 40 ? 1.5 : 2;
+                          const barW = Math.max(2.5, Math.floor((chartW - (n - 1) * gap) / Math.max(1, n)));
                           const gridLines = 4;
                           const labelStep = Math.max(1, Math.ceil(n / 8));
 
@@ -2337,16 +2349,16 @@ export default function DashboardClient() {
                             >
                               <defs>
                                 <linearGradient id="trafficBarGradHigh" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="#818cf8" stopOpacity="1" />
-                                  <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.75" />
+                                  <stop offset="0%" stopColor="#f97316" stopOpacity="1" />
+                                  <stop offset="100%" stopColor="#ea580c" stopOpacity="0.8" />
                                 </linearGradient>
                                 <linearGradient id="trafficBarGradMid" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="#6366f1" stopOpacity="0.85" />
-                                  <stop offset="100%" stopColor="#4338ca" stopOpacity="0.55" />
+                                  <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.9" />
+                                  <stop offset="100%" stopColor="#d97706" stopOpacity="0.65" />
                                 </linearGradient>
                                 <linearGradient id="trafficBarGradLow" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.55" />
-                                  <stop offset="100%" stopColor="#3730a3" stopOpacity="0.3" />
+                                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.65" />
+                                  <stop offset="100%" stopColor="#b45309" stopOpacity="0.35" />
                                 </linearGradient>
                                 <filter id="trafficBarGlow">
                                   <feGaussianBlur stdDeviation="1.5" result="blur" />
@@ -2364,15 +2376,15 @@ export default function DashboardClient() {
                                 const val = Math.round(maxVisits * (1 - frac));
                                 return (
                                   <g key={`grid-${gi}`}>
-                                    <line x1={padL} y1={y} x2={svgW - padR} y2={y} stroke="rgba(255,255,255,0.06)" strokeDasharray={gi === gridLines ? "0" : "3,3"} />
-                                    <text x={padL - 3} y={y + 3.5} fill="#6b7280" fontSize="7.5" textAnchor="end">{val > 999 ? `${(val / 1000).toFixed(1)}k` : val}</text>
+                                    <line x1={padL} y1={y} x2={svgW - padR} y2={y} stroke="rgba(255,255,255,0.08)" strokeDasharray={gi === gridLines ? "0" : "3,3"} />
+                                    <text x={padL - 6} y={y + 3.5} fill="#22c55e" fontSize="10" fontWeight="700" textAnchor="end">{val > 999 ? `${(val / 1000).toFixed(1)}k` : val}</text>
                                   </g>
                                 );
                               })}
 
                               {/* Bars */}
                               {trafficData.map((d, i) => {
-                                const barH = Math.max(2, (d.totalVisits / maxVisits) * chartH);
+                                const barH = Math.max(3, (d.totalVisits / maxVisits) * chartH);
                                 const x = padL + i * (barW + gap);
                                 const y = padT + chartH - barH;
                                 const pct = d.totalVisits / maxVisits;
@@ -2386,7 +2398,17 @@ export default function DashboardClient() {
                                     className="traffic-bar-group"
                                     onMouseMove={(e) => {
                                       setTrafficHovered(d);
-                                      setTrafficTooltipPos({ x: e.clientX + 12, y: e.clientY - 60 });
+                                      const tooltipW = 270;
+                                      const tooltipH = 280;
+                                      let left = e.clientX + 15;
+                                      if (left + tooltipW > window.innerWidth - 10) {
+                                        left = Math.max(10, e.clientX - tooltipW - 15);
+                                      }
+                                      let top = e.clientY - 30;
+                                      if (top + tooltipH > window.innerHeight - 10) {
+                                        top = Math.max(10, e.clientY - tooltipH + 20);
+                                      }
+                                      setTrafficTooltipPos({ x: left, y: top });
                                     }}
                                     style={{ cursor: "pointer" }}
                                   >
@@ -2397,7 +2419,7 @@ export default function DashboardClient() {
                                         y={padT}
                                         width={barW + 2}
                                         height={chartH}
-                                        fill="rgba(129,140,248,0.1)"
+                                        fill="rgba(249, 115, 22, 0.18)"
                                         rx="2"
                                       />
                                     )}
@@ -2421,11 +2443,11 @@ export default function DashboardClient() {
                                     {showLabel && (
                                       <text
                                         x={x + barW / 2}
-                                        y={svgH - 4}
-                                        fill={isActive ? "#a5b4fc" : "#6b7280"}
-                                        fontSize="7"
+                                        y={svgH - 6}
+                                        fill="#22c55e"
+                                        fontSize="10"
                                         textAnchor="middle"
-                                        fontWeight={isActive ? "700" : "400"}
+                                        fontWeight="700"
                                       >
                                         {d.date.length > 7 ? d.date.slice(0, 6) : d.date}
                                       </text>
@@ -2440,18 +2462,18 @@ export default function DashboardClient() {
                         {/* Legend */}
                         {!trafficLoading && trafficData.length > 0 && (
                           <div className="traffic-bar-legend">
-                            <span className="tbl-dot" style={{ background: "#818cf8" }} />
+                            <span className="tbl-dot" style={{ background: "#f97316" }} />
                             <span className="tbl-label">Total Visits</span>
-                            <span className="tbl-dot" style={{ background: "rgba(129,140,248,0.35)" }} />
+                            <span className="tbl-dot" style={{ background: "rgba(249,115,22,0.4)" }} />
                             <span className="tbl-label">Low Activity</span>
                             <span className="tbl-summary">
-                              Total: <strong>{trafficData.reduce((s, d) => s + d.totalVisits, 0).toLocaleString()}</strong>
+                              Total: <strong className="tbl-total-val">{trafficData.reduce((s, d) => s + d.totalVisits, 0).toLocaleString()}</strong>
                             </span>
                           </div>
                         )}
                       </div>
 
-                      <div className="graph-info-footer info-indigo">
+                      <div className="graph-info-footer info-amber">
                         💡 <i><strong>Meaning & Value:</strong> Real access log analytics from MongoDB — shows daily user reachability, session count, country reach, and top pages. Hover any bar for detailed breakdown.</i>
                       </div>
                     </div>
@@ -4523,8 +4545,9 @@ export default function DashboardClient() {
         .graph-info-footer.info-rose { color: #f472b6; border-color: rgba(244, 114, 182, 0.25); background: rgba(244, 114, 182, 0.06); }
         .graph-info-footer.info-indigo { color: #a5b4fc; border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.07); }
 
-        /* Badge Indigo variant */
+        /* Badge Indigo & Amber variants */
         .badge-indigo { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.35); }
+        .badge-amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); }
 
         /* Traffic Bar Card */
         .traffic-bar-card { position: relative; }
@@ -4532,14 +4555,14 @@ export default function DashboardClient() {
         .traffic-bar-body {
           display: flex;
           flex-direction: column;
-          gap: 0.5rem;
-          min-height: 180px;
+          gap: 0.6rem;
+          min-height: 220px;
           position: relative;
         }
 
         .traffic-bar-svg {
           width: 100%;
-          height: 170px;
+          height: 210px;
           overflow: visible;
         }
 
@@ -4550,31 +4573,47 @@ export default function DashboardClient() {
         .traffic-bar-legend {
           display: flex;
           align-items: center;
-          gap: 0.45rem;
-          padding: 0.35rem 0.5rem;
-          background: rgba(0,0,0,0.2);
-          border-radius: 6px;
-          font-size: 0.7rem;
-          color: #9ca3af;
+          gap: 0.75rem;
+          padding: 0.5rem 0.75rem;
+          background: rgba(0, 0, 0, 0.35);
+          border: 1px solid rgba(249, 115, 22, 0.2);
+          border-radius: 8px;
+          font-size: 0.85rem;
+          color: #e2e8f0;
+          font-weight: 600;
           flex-wrap: wrap;
+          margin-top: 0.4rem;
         }
 
         .tbl-dot {
           display: inline-block;
-          width: 8px;
-          height: 8px;
-          border-radius: 2px;
+          width: 10px;
+          height: 10px;
+          border-radius: 3px;
           flex-shrink: 0;
         }
 
-        .tbl-label { color: #9ca3af; }
+        .tbl-label { color: #f3f4f6; font-weight: 600; font-size: 0.85rem; }
 
         .tbl-summary {
           margin-left: auto;
-          color: #a5b4fc;
-          font-size: 0.72rem;
+          color: #fed7aa;
+          font-size: 0.9rem;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
         }
-        .tbl-summary strong { color: #818cf8; }
+
+        .tbl-total-val {
+          color: #f97316;
+          font-size: 0.95rem;
+          font-weight: 800;
+          background: rgba(249, 115, 22, 0.18);
+          padding: 0.1rem 0.55rem;
+          border-radius: 6px;
+          border: 1px solid rgba(249, 115, 22, 0.35);
+        }
 
         /* Loading / Empty states */
         .traffic-loading,
@@ -4583,7 +4622,7 @@ export default function DashboardClient() {
           align-items: center;
           justify-content: center;
           gap: 0.6rem;
-          min-height: 150px;
+          min-height: 180px;
           color: #6b7280;
           font-size: 0.82rem;
         }
@@ -4591,8 +4630,8 @@ export default function DashboardClient() {
         .traffic-spinner {
           width: 20px;
           height: 20px;
-          border: 2px solid rgba(99,102,241,0.2);
-          border-top-color: #6366f1;
+          border: 2px solid rgba(249, 115, 22, 0.2);
+          border-top-color: #f97316;
           border-radius: 50%;
           animation: spin 0.8s linear infinite;
         }
@@ -4602,12 +4641,12 @@ export default function DashboardClient() {
           position: fixed;
           z-index: 9999;
           background: rgba(13, 14, 30, 0.97);
-          border: 1px solid rgba(99, 102, 241, 0.4);
+          border: 1px solid rgba(249, 115, 22, 0.45);
           border-radius: 12px;
           padding: 0.75rem 1rem;
-          min-width: 220px;
-          max-width: 260px;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(99,102,241,0.15);
+          min-width: 230px;
+          max-width: 270px;
+          box-shadow: 0 10px 35px rgba(0,0,0,0.7), 0 0 0 1px rgba(249,115,22,0.2);
           pointer-events: none;
           backdrop-filter: blur(12px);
           font-family: inherit;
@@ -4619,29 +4658,30 @@ export default function DashboardClient() {
           justify-content: space-between;
           margin-bottom: 0.5rem;
           padding-bottom: 0.45rem;
-          border-bottom: 1px solid rgba(99,102,241,0.2);
+          border-bottom: 1px solid rgba(249,115,22,0.25);
         }
 
         .ttt-date {
-          font-size: 0.8rem;
+          font-size: 0.82rem;
           font-weight: 700;
-          color: #a5b4fc;
+          color: #fed7aa;
         }
 
         .ttt-visits {
-          font-size: 0.82rem;
+          font-size: 0.85rem;
           font-weight: 800;
-          color: #818cf8;
-          background: rgba(99,102,241,0.15);
-          padding: 0.15rem 0.5rem;
+          color: #f97316;
+          background: rgba(249,115,22,0.18);
+          padding: 0.15rem 0.55rem;
           border-radius: 20px;
+          border: 1px solid rgba(249,115,22,0.3);
         }
 
         .ttt-row {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          font-size: 0.75rem;
+          font-size: 0.78rem;
           color: #9ca3af;
           margin-bottom: 0.45rem;
         }
@@ -4652,15 +4692,15 @@ export default function DashboardClient() {
         .ttt-section {
           margin-top: 0.4rem;
           padding-top: 0.4rem;
-          border-top: 1px solid rgba(255,255,255,0.06);
+          border-top: 1px solid rgba(255,255,255,0.08);
         }
 
         .ttt-section-title {
-          font-size: 0.68rem;
+          font-size: 0.7rem;
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.04em;
-          color: #6366f1;
+          color: #f97316;
           margin-bottom: 0.35rem;
         }
 
@@ -4689,15 +4729,15 @@ export default function DashboardClient() {
 
         .ttt-country-bar {
           height: 100%;
-          background: linear-gradient(90deg, #6366f1, #818cf8);
+          background: linear-gradient(90deg, #f97316, #fbbf24);
           border-radius: 3px;
           min-width: 2px;
           transition: width 0.3s ease;
         }
 
         .ttt-country-count {
-          font-size: 0.68rem;
-          color: #a5b4fc;
+          font-size: 0.7rem;
+          color: #fed7aa;
           text-align: right;
           font-weight: 600;
         }
@@ -4711,7 +4751,7 @@ export default function DashboardClient() {
         }
 
         .ttt-page-path {
-          font-size: 0.7rem;
+          font-size: 0.72rem;
           color: #94a3b8;
           font-family: ui-monospace, monospace;
           overflow: hidden;
@@ -4721,8 +4761,8 @@ export default function DashboardClient() {
         }
 
         .ttt-page-count {
-          font-size: 0.68rem;
-          color: #7c3aed;
+          font-size: 0.7rem;
+          color: #f97316;
           font-weight: 700;
           flex-shrink: 0;
         }
