@@ -2552,8 +2552,7 @@ export default function DashboardClient() {
                                 <text x="5" y="129" fill="#9ca3af" fontSize="8">{Math.round(minVal + effectiveRng * 0.25)} ms</text>
                                 <text x="5" y="164" fill="#9ca3af" fontSize="8">{minVal} ms</text>
 
-                                {/* Translucent Neon Gradient Area & Sleek 1.6px Oscilloscope Line (NO INTERMEDIATE DOTS) */}
-                                {areaPath && <path d={areaPath} fill="url(#emeraldSignalGrad)" />}
+                                {/* Sleek 1.6px Oscilloscope Line (NO INTERMEDIATE DOTS) */}
                                 {curvePath && <path d={curvePath} fill="none" stroke="#10b981" strokeWidth="1.6" strokeLinecap="round" filter="url(#neonGlowEffect)" />}
 
                                 {/* Single Pulsing Beacon Head Dot at real-time tip ONLY */}
