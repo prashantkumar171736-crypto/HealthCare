@@ -1,3 +1,4 @@
+import "@/lib/env"; // Ensures .env.local is loaded in all environments (dev, PM2, systemd)
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import crypto from "crypto";
