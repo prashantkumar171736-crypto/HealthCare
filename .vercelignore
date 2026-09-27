@@ -1,0 +1,13 @@
+# Vercel deployment ignore rules
+aws/
+awscliv2.zip
+*.zip
+*.tar.gz
+scratch/
+test-*.js
+check-storage.js
+migrate-to-r2.js
+*.md
+!README.md
+AGENTS.md
+CLAUDE.md

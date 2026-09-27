@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# large archives and build tools
+aws/
+awscliv2.zip
+*.zip
+*.tar.gz
+scratch/
+

@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  outputFileTracingExcludes: {
+    "*": [
+      "./aws/**",
+      "./awscliv2.zip",
+      "./scratch/**",
+      "./**/*.zip",
+      "./**/*.tar.gz",
+    ],
+  },
 };
 
 export default nextConfig;
