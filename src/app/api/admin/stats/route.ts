@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
 import { validateSession } from "../login/route";
-import { getR2Stats } from "@/lib/r2";
 import os from "os";
 
 export const runtime = "nodejs";
@@ -242,7 +241,7 @@ export async function GET(request: Request) {
 
       // R2 stats — fire and forget with 1.5s timeout (don't block main response)
       const r2Stats = await Promise.race([
-        getR2Stats().catch(() => null),
+        import("@/lib/r2").then(({ getR2Stats }) => getR2Stats()).catch(() => null),
         new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
       ]).then((s) =>
         s ?? {

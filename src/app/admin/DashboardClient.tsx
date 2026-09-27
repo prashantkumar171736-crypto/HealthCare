@@ -354,9 +354,14 @@ export default function DashboardClient() {
     try { localStorage.setItem(LS_THEME_KEY, JSON.stringify(t)); } catch { }
   }, []);
 
-  const fetchStats = async (period: string = chartPeriod, limit: string = logLimit) => {
+  const fetchStats = async (
+    period: string = chartPeriod,
+    limit: string = logLimit,
+    showLoading = false
+  ) => {
     try {
       setError("");
+      if (showLoading) setLoading(true);
       const res = await fetch(`/api/admin/stats?period=${period}&logLimit=${limit}`);
       if (res.status === 401) {
         router.push("/admin/login");
@@ -555,7 +560,7 @@ export default function DashboardClient() {
         <span className="error-icon">⚠️</span>
         <h2>Error Accessing Dashboard</h2>
         <p>{error || "No dashboard data received."}</p>
-        <button onClick={() => fetchStats()} className="btn-retry">Retry Connection</button>
+        <button onClick={() => fetchStats(chartPeriod, logLimit, true)} className="btn-retry">Retry Connection</button>
         <style jsx>{`
           .admin-error-container {
             min-height: 90vh;
