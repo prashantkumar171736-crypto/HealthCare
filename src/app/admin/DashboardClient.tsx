@@ -4785,8 +4785,8 @@ export default function DashboardClient() {
         .system-health-title {
           font-size: 1.75rem !important;
           font-weight: 800 !important;
-          color: #f472b6 !important;
-          text-shadow: 0 0 16px rgba(244, 114, 182, 0.35) !important;
+          color: #c084fc !important;
+          text-shadow: 0 0 16px rgba(192, 132, 252, 0.4) !important;
           text-align: center !important;
           margin: 0 !important;
           border-bottom: none !important;
