@@ -2402,31 +2402,26 @@ export default function DashboardClient() {
                                       const cardEl = e.currentTarget.closest(".traffic-bar-card") as HTMLElement | null;
                                       if (cardEl) {
                                         const cardRect = cardEl.getBoundingClientRect();
-                                        const tooltipW = 270;
-                                        const tooltipH = 240;
+                                        const relX = e.clientX - cardRect.left;
+                                        const relY = e.clientY - cardRect.top;
 
-                                        // Try placing tooltip ABOVE cursor
-                                        let top = e.clientY - tooltipH - 12;
-                                        if (top < cardRect.top + 45) {
-                                          top = e.clientY + 15;
+                                        const tooltipW = 260;
+                                        const tooltipH = 220;
+
+                                        // Position right beside/above cursor relative to card
+                                        let left = relX + 15;
+                                        if (left + tooltipW > cardRect.width - 10) {
+                                          left = relX - tooltipW - 15;
                                         }
+                                        left = Math.max(10, Math.min(left, cardRect.width - tooltipW - 10));
 
-                                        // Strictly clamp top between card header bottom and card bottom
-                                        const maxTop = cardRect.bottom - tooltipH - 10;
-                                        const minTop = cardRect.top + 45;
-                                        top = Math.max(minTop, Math.min(top, maxTop));
-
-                                        let left = e.clientX + 15;
-                                        if (left + tooltipW > cardRect.right - 10) {
-                                          left = e.clientX - tooltipW - 15;
+                                        let top = relY - tooltipH - 10;
+                                        if (top < 45) {
+                                          top = relY + 15;
                                         }
-                                        const maxLeft = cardRect.right - tooltipW - 10;
-                                        const minLeft = cardRect.left + 10;
-                                        left = Math.max(minLeft, Math.min(left, maxLeft));
+                                        top = Math.max(45, Math.min(top, cardRect.height - tooltipH - 10));
 
                                         setTrafficTooltipPos({ x: left, y: top });
-                                      } else {
-                                        setTrafficTooltipPos({ x: e.clientX + 15, y: e.clientY - 100 });
                                       }
                                     }}
                                     style={{ cursor: "pointer" }}
@@ -4657,8 +4652,8 @@ export default function DashboardClient() {
 
         /* Hover Tooltip Card */
         .traffic-hover-tooltip {
-          position: fixed;
-          z-index: 9999;
+          position: absolute;
+          z-index: 999;
           background: rgba(13, 14, 30, 0.97);
           border: 1px solid rgba(249, 115, 22, 0.45);
           border-radius: 12px;
