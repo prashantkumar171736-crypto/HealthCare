@@ -2877,7 +2877,7 @@ export default function DashboardClient() {
 
                           {/* Slice 4: Red (Free Tier Remaining: 30.6%) */}
                           <path
-                            d="M 120 120 L 149.9 210.2 A 95 95 0 1 1 25.0 117.0 Z" fill="#ef4444" stroke="#0f172a" strokeWidth="1.5"
+                            d="M 120 120 L 149.9 210.2 A 95 95 0 0 1 25.0 117.0 Z" fill="#ef4444" stroke="#0f172a" strokeWidth="1.5"
                             className="svg-hover-slice"
                             onMouseMove={(e) => {
                               setGraphTooltip({
@@ -4942,7 +4942,7 @@ export default function DashboardClient() {
           background: rgba(15, 23, 42, 0.55);
           border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: 12px;
-          padding: 0.6rem 0.85rem;
+          padding: 0.6rem 0.65rem;
           flex-shrink: 0;
         }
 
@@ -4957,7 +4957,7 @@ export default function DashboardClient() {
         .r2-vbars-row {
           display: flex;
           align-items: flex-end;
-          gap: 1.25rem;
+          gap: 0.5rem;
           height: 135px;
         }
 
