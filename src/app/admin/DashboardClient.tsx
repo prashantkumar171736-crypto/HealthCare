@@ -3173,7 +3173,7 @@ export default function DashboardClient() {
             </div>
 
             <div className="panel-header-row" style={{ marginTop: '2.5rem' }}>
-              <h2 className="panel-title system-health-title">
+              <h2 className="panel-title system-health-title storage-health-title">
                 🖥️ System Infrastructure & Storage Health
               </h2>
               <span className="live-status-chip">
@@ -4791,6 +4791,11 @@ export default function DashboardClient() {
           margin: 0 !important;
           border-bottom: none !important;
           padding-bottom: 0 !important;
+        }
+
+        .storage-health-title {
+          color: #f472b6 !important;
+          text-shadow: 0 0 16px rgba(244, 114, 182, 0.35) !important;
         }
 
         .panel-header-row .live-status-chip {
