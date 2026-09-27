@@ -662,24 +662,29 @@ export default function DashboardClient() {
 
   // Build CSS variable inline style from theme
   const bgRgb = hexToRgb(theme.bgColor);
+  const sidebarRgb = hexToRgb(theme.sidebarColor);
+  const cardRgb = hexToRgb(theme.cardColor);
   const bgLum = bgRgb ? luminance(...bgRgb) : 0;
   const isLight = bgLum > 0.4;
 
+  const sidebarGlass = sidebarRgb ? `rgba(${sidebarRgb[0]}, ${sidebarRgb[1]}, ${sidebarRgb[2]}, 0.82)` : theme.sidebarColor;
+  const cardGlass = cardRgb ? `rgba(${cardRgb[0]}, ${cardRgb[1]}, ${cardRgb[2]}, 0.78)` : theme.cardColor;
+
   const themeVars = {
     "--admin-bg": theme.bgColor,
-    "--admin-sidebar-bg": theme.sidebarColor,
-    "--admin-card-bg": theme.cardColor,
+    "--admin-sidebar-bg": sidebarGlass,
+    "--admin-card-bg": cardGlass,
     "--admin-accent": theme.accentColor,
     "--admin-text-primary": theme.textPrimary,
     "--admin-text-secondary": theme.textSecondary,
     "--admin-font-family": theme.fontFamily,
     "--admin-font-size": `${theme.fontSize}px`,
-    "--admin-border": isLight ? "rgba(0, 0, 0, 0.08)" : "rgba(255, 255, 255, 0.08)",
-    "--admin-border-strong": isLight ? "rgba(0, 0, 0, 0.16)" : "rgba(255, 255, 255, 0.16)",
-    "--admin-hover-bg": isLight ? "rgba(0, 0, 0, 0.04)" : "rgba(255, 255, 255, 0.05)",
-    "--admin-input-bg": isLight ? "#ffffff" : "rgba(0, 0, 0, 0.35)",
-    "--admin-input-border": isLight ? "rgba(0, 0, 0, 0.18)" : "rgba(255, 255, 255, 0.12)",
-    "--admin-card-shadow": isLight ? "0 4px 20px -2px rgba(0, 0, 0, 0.06)" : "0 4px 20px -2px rgba(0, 0, 0, 0.35)",
+    "--admin-border": isLight ? "rgba(0, 0, 0, 0.08)" : "rgba(0, 229, 255, 0.14)",
+    "--admin-border-strong": isLight ? "rgba(0, 0, 0, 0.16)" : "rgba(0, 229, 255, 0.25)",
+    "--admin-hover-bg": isLight ? "rgba(0, 0, 0, 0.04)" : "rgba(0, 229, 255, 0.06)",
+    "--admin-input-bg": isLight ? "#ffffff" : "rgba(5, 20, 30, 0.65)",
+    "--admin-input-border": isLight ? "rgba(0, 0, 0, 0.18)" : "rgba(0, 229, 255, 0.22)",
+    "--admin-card-shadow": isLight ? "0 4px 20px -2px rgba(0, 0, 0, 0.06)" : "0 4px 24px -2px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 229, 255, 0.04)",
   } as React.CSSProperties;
 
   return (
@@ -3438,16 +3443,31 @@ export default function DashboardClient() {
         .admin-dashboard-root {
           display: flex;
           min-height: 90vh;
-          background-color: var(--admin-bg, #030712);
-          color: var(--admin-text-primary, #f3f4f6);
+          background-color: var(--admin-bg, #071924);
+          background-image: 
+            linear-gradient(180deg, rgba(4, 15, 22, 0.65) 0%, rgba(3, 10, 16, 0.82) 100%),
+            url('/theme-bg.png');
+          background-size: cover, cover;
+          background-position: center, center;
+          background-attachment: fixed, fixed;
+          background-repeat: no-repeat;
+          color: var(--admin-text-primary, #f0fdff);
           font-family: var(--admin-font-family, system-ui, sans-serif);
           font-size: var(--admin-font-size, 15px);
+          position: relative;
+        }
+
+        .admin-dashboard-root > * {
+          position: relative;
+          z-index: 1;
         }
 
         .admin-sidebar {
           width: 260px;
-          background-color: var(--admin-sidebar-bg, #0b0f19);
-          border-right: 1px solid var(--admin-border, rgba(255, 255, 255, 0.05));
+          background-color: var(--admin-sidebar-bg, rgba(5, 17, 26, 0.82));
+          backdrop-filter: blur(20px) saturate(1.4);
+          -webkit-backdrop-filter: blur(20px) saturate(1.4);
+          border-right: 1px solid var(--admin-border, rgba(0, 229, 255, 0.12));
           display: flex;
           flex-direction: column;
           padding: 2rem 1.5rem;
@@ -3630,8 +3650,10 @@ export default function DashboardClient() {
         }
 
         .kpi-card {
-          background: linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(11, 15, 25, 0.98) 100%);
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: linear-gradient(135deg, rgba(8, 25, 36, 0.78) 0%, rgba(5, 18, 26, 0.85) 100%);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid rgba(0, 229, 255, 0.16);
           border-radius: 18px;
           padding: 1.35rem 1.5rem;
           display: flex;
@@ -3861,8 +3883,10 @@ export default function DashboardClient() {
         }
 
         .panel-card {
-          background-color: var(--admin-card-bg, #0b0f19);
-          border: 1px solid var(--admin-border, rgba(255, 255, 255, 0.05));
+          background-color: var(--admin-card-bg, rgba(8, 21, 32, 0.78));
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid var(--admin-border, rgba(0, 229, 255, 0.14));
           border-radius: 16px;
           padding: 1.75rem;
           box-shadow: var(--admin-card-shadow);

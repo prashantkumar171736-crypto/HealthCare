@@ -54,8 +54,8 @@ export default function AboutPage() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-      <div style={{ backgroundColor: "var(--background)", minHeight: "80vh", padding: "4rem 0" }}>
-      <div className="container text-page-content" style={{ backgroundColor: "var(--surface)", padding: "3rem", borderRadius: "var(--radius-2xl)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" }}>
+      <div style={{ backgroundColor: "transparent", minHeight: "80vh", padding: "4rem 0" }}>
+      <div className="container text-page-content" style={{ backgroundColor: "rgba(7, 24, 35, 0.78)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", padding: "3rem", borderRadius: "var(--radius-2xl)", border: "1px solid rgba(0, 229, 255, 0.18)", boxShadow: "var(--shadow-lg)" }}>
         
         <span className="disease-badge" style={{ marginBottom: "1rem" }}>Our Mission</span>
         <h1 style={{ marginBottom: "1.5rem" }}>About HealthEdu</h1>

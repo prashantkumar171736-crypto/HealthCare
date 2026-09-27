@@ -45,21 +45,22 @@ export default function AdminLogin() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "radial-gradient(circle at top, #111827 0%, #030712 100%)",
+        background: "transparent",
         padding: "2rem",
-        color: "#f3f4f6",
+        color: "#f0fdff",
       }}
     >
       <div
         style={{
           width: "100%",
           maxWidth: "420px",
-          backgroundColor: "rgba(17, 24, 39, 0.7)",
-          backdropFilter: "blur(12px)",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          borderRadius: "16px",
+          background: "rgba(5, 18, 27, 0.82)",
+          backdropFilter: "blur(24px) saturate(1.5)",
+          WebkitBackdropFilter: "blur(24px) saturate(1.5)",
+          border: "1px solid rgba(0, 229, 255, 0.28)",
+          borderRadius: "20px",
           padding: "2.5rem",
-          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 229, 255, 0.08), inset 0 1px 0 rgba(255,255,255,0.06)",
           animation: "fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
@@ -69,10 +70,11 @@ export default function AdminLogin() {
             style={{
               fontSize: "1.75rem",
               fontWeight: 700,
-              color: "#ffffff",
+              color: "#00e5ff",
               marginTop: "0.5rem",
               marginBottom: "0.25rem",
               letterSpacing: "-0.025em",
+              textShadow: "0 0 20px rgba(0, 229, 255, 0.4)",
             }}
           >
             Admin Access
@@ -122,10 +124,10 @@ export default function AdminLogin() {
               style={{
                 width: "100%",
                 padding: "0.75rem 1rem",
-                borderRadius: "8px",
-                backgroundColor: "rgba(31, 41, 55, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                color: "#ffffff",
+                borderRadius: "10px",
+                background: "rgba(5, 20, 30, 0.7)",
+                border: "1px solid rgba(0, 229, 255, 0.28)",
+                color: "#f0fdff",
                 fontSize: "0.95rem",
                 outline: "none",
                 transition: "border-color 0.2s, box-shadow 0.2s",
@@ -157,10 +159,10 @@ export default function AdminLogin() {
               style={{
                 width: "100%",
                 padding: "0.75rem 1rem",
-                borderRadius: "8px",
-                backgroundColor: "rgba(31, 41, 55, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                color: "#ffffff",
+                borderRadius: "10px",
+                background: "rgba(5, 20, 30, 0.7)",
+                border: "1px solid rgba(0, 229, 255, 0.28)",
+                color: "#f0fdff",
                 fontSize: "0.95rem",
                 outline: "none",
                 transition: "border-color 0.2s, box-shadow 0.2s",
@@ -221,8 +223,8 @@ export default function AdminLogin() {
           }
         }
         .login-input:focus {
-          border-color: var(--primary, #00c896) !important;
-          box-shadow: 0 0 0 3px rgba(0, 200, 150, 0.15) !important;
+          border-color: #00e5ff !important;
+          box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.2) !important;
         }
       `}</style>
     </div>

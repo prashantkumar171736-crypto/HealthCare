@@ -18,18 +18,28 @@ export interface AdminTheme {
 }
 
 export const DEFAULT_THEME: AdminTheme = {
-  bgColor: "#030712",
-  sidebarColor: "#0b0f19",
-  cardColor: "#0b0f19",
-  accentColor: "#00c896",
-  textPrimary: "#f3f4f6",
-  textSecondary: "#9ca3af",
+  bgColor: "#071924",
+  sidebarColor: "#05111a",
+  cardColor: "#081520",
+  accentColor: "#00e5ff",
+  textPrimary: "#f0fdff",
+  textSecondary: "#95c0d1",
   fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   fontSize: 15,
-  autoAdjust: true,
+  autoAdjust: false,
 };
 
 const PRESET_THEMES: { name: string; emoji: string; theme: Partial<AdminTheme> }[] = [
+  {
+    name: "Capsule Bioluminescent",
+    emoji: "🧬",
+    theme: {
+      bgColor: "#071924", sidebarColor: "#05111a", cardColor: "#081520",
+      accentColor: "#00e5ff",
+      textPrimary: "#f0fdff", textSecondary: "#95c0d1",
+      autoAdjust: false,
+    },
+  },
   {
     name: "Midnight (Default)",
     emoji: "🌑",
