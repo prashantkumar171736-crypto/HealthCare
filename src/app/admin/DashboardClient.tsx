@@ -2120,7 +2120,8 @@ export default function DashboardClient() {
                                   const cpuCores = data.systemHealth.cpuCores || 2;
                                   const load1m = ((rawCpuPct / 100) * cpuCores).toFixed(2);
                                   const load5m = (((rawCpuPct / 100) * cpuCores * 0.95) + 0.02).toFixed(2);
-                                  const showLabel = idx % labelStep === 0 || idx === coords.length - 1;
+                                  const isNearEnd = (coords.length - 1 - idx) < Math.floor(labelStep * 0.75);
+                                  const showLabel = (idx % labelStep === 0 && !isNearEnd) || idx === coords.length - 1;
 
                                   return (
                                     <g
@@ -2476,9 +2477,10 @@ export default function DashboardClient() {
                                   />
                                 )}
 
-                                {/* X-Axis Labels: ROSE PINK (#fb7185), BOLDER (700), LARGER (11.5px) */}
+                                {/* X-Axis Labels: ROSE PINK (#fb7185), BOLDER (700), OPTIMIZED SIZE (9.5px) */}
                                 {coords.map((c, idx) => {
-                                  const showLabel = idx % labelStep === 0 || idx === coords.length - 1;
+                                  const isNearEnd = (coords.length - 1 - idx) < Math.floor(labelStep * 0.75);
+                                  const showLabel = (idx % labelStep === 0 && !isNearEnd) || idx === coords.length - 1;
                                   if (!showLabel) return null;
                                   return (
                                     <text
@@ -2486,7 +2488,7 @@ export default function DashboardClient() {
                                       x={c.x}
                                       y="178"
                                       fill="#fb7185"
-                                      fontSize="11.5"
+                                      fontSize="9.5"
                                       fontWeight="700"
                                       textAnchor="middle"
                                     >
@@ -3063,7 +3065,8 @@ export default function DashboardClient() {
 
                                 {/* Invisible Hover Hit Areas */}
                                 {coords.map((c, i) => {
-                                  const showLabel = i % labelStep === 0 || i === coords.length - 1;
+                                  const isNearEnd = (coords.length - 1 - i) < Math.floor(labelStep * 0.75);
+                                  const showLabel = (i % labelStep === 0 && !isNearEnd) || i === coords.length - 1;
                                   return (
                                     <g
                                       key={i}
