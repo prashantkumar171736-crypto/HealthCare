@@ -7,7 +7,8 @@ import { getR2Stats } from "@/lib/r2";
 import os from "os";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // Extend Vercel function timeout to 60s
+// Note: maxDuration is ignored on Vercel Hobby (10s hard limit).
+// All queries MUST complete in < 9s total.
 
 // Helper to authenticate requests
 async function isAuthenticated(): Promise<boolean> {
@@ -22,395 +23,341 @@ async function isAuthenticated(): Promise<boolean> {
 
 /**
  * GET /api/admin/stats
- * Authenticates admin session and returns compiled visitor and reachability stats.
+ * Returns dashboard stats. Optimized to complete in < 9s on Vercel Hobby.
  */
 export async function GET(request: Request) {
   if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    // Hard 25-second timeout so we always respond before Vercel's function timeout
-    const statsPromise = buildStats(request);
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Stats computation timed out after 25s")), 25000)
-    );
+  // Hard 8-second timeout — ensures we always return JSON before Vercel's 10s limit
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<NextResponse>((resolve) => {
+    timeoutHandle = setTimeout(() => {
+      resolve(
+        NextResponse.json(
+          { error: "Dashboard stats timed out. Please retry." },
+          { status: 503, headers: { "Content-Type": "application/json" } }
+        )
+      );
+    }, 8500);
+  });
 
-    const result = await Promise.race([statsPromise, timeoutPromise]);
-    return NextResponse.json(result, {
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (err: any) {
-    console.error("Failed to compile admin stats:", err);
-    const errorMessage = err?.message || String(err) || "Unknown error";
-    return NextResponse.json(
-      { error: `Dashboard error: ${errorMessage}` },
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
+  const statsPromise = (async (): Promise<NextResponse> => {
+    try {
+      const db = await Promise.race([
+        getDb(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("DB connection timeout")), 5000)
+        ),
+      ]);
+
+      const analytics = db.collection("analytics");
+
+      const { searchParams } = new URL(request.url);
+      const period = searchParams.get("period") || "monthly";
+      const logLimitParam = searchParams.get("logLimit") || "50";
+      const limitNum = Math.min(
+        logLimitParam === "all" ? 50 : (parseInt(logLimitParam, 10) || 50),
+        50 // Hard cap at 50 on Vercel
+      );
+
+      const now = new Date();
+
+      // ── Period chart aggregation ─────────────────────────────────────────
+      let periodAggregationPromise: Promise<any[]> = Promise.resolve([]);
+      if (period === "1d") {
+        const startTime = new Date(now);
+        startTime.setHours(startTime.getHours() - 23, 0, 0, 0);
+        periodAggregationPromise = analytics.aggregate([
+          { $match: { timestamp: { $gte: startTime } } },
+          { $project: { hourStr: { $dateToString: { format: "%Y-%m-%dT%H", date: "$timestamp" } } } },
+          { $group: { _id: "$hourStr", count: { $sum: 1 } } },
+          { $sort: { _id: 1 } },
+        ]).toArray().catch(() => []);
+      } else if (period === "7d") {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 6);
+        start.setHours(0, 0, 0, 0);
+        periodAggregationPromise = analytics.aggregate([
+          { $match: { timestamp: { $gte: start } } },
+          { $project: { dateStr: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } } } },
+          { $group: { _id: "$dateStr", count: { $sum: 1 } } },
+          { $sort: { _id: 1 } },
+        ]).toArray().catch(() => []);
+      } else if (period === "monthly") {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 29);
+        start.setHours(0, 0, 0, 0);
+        periodAggregationPromise = analytics.aggregate([
+          { $match: { timestamp: { $gte: start } } },
+          { $project: { dateStr: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } } } },
+          { $group: { _id: "$dateStr", count: { $sum: 1 } } },
+          { $sort: { _id: 1 } },
+        ]).toArray().catch(() => []);
+      } else if (period === "half-yearly") {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 181);
+        start.setHours(0, 0, 0, 0);
+        periodAggregationPromise = analytics.aggregate([
+          { $match: { timestamp: { $gte: start } } },
+          { $project: { weekStart: { $dateTrunc: { date: "$timestamp", unit: "week", startOfWeek: "monday" } } } },
+          { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$weekStart" } }, count: { $sum: 1 } } },
+          { $sort: { _id: 1 } },
+        ]).toArray().catch(() => []);
+      } else if (period === "yearly") {
+        const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+        periodAggregationPromise = analytics.aggregate([
+          { $match: { timestamp: { $gte: start } } },
+          { $project: { monthStr: { $dateToString: { format: "%Y-%m", date: "$timestamp" } } } },
+          { $group: { _id: "$monthStr", count: { $sum: 1 } } },
+          { $sort: { _id: 1 } },
+        ]).toArray().catch(() => []);
       }
-    );
-  }
-}
 
-async function buildStats(request: Request) {
-  const db = await Promise.race([
-    getDb(),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Database connection timeout after 8s")), 8000)
-    ),
-  ]);
+      // ── Scoped date window for fast queries (last 90 days only) ──────────
+      const ninetyDaysAgo = new Date(now);
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-  const analytics = db.collection("analytics");
+      // ── Parallel queries — all date-scoped to prevent full collection scans ──
+      const startPing = Date.now();
+      const [
+        totalViews,
+        uniqueSessionRes,
+        topPages,
+        topCountries,
+        topRegions,
+        rawPeriodViews,
+        recentLogs,
+        dbPingTime,
+      ] = await Promise.all([
+        // Fast: estimated count (no full scan)
+        analytics.estimatedDocumentCount().catch(() => 0),
 
-  // Parse period and logLimit query params (default: monthly / 50)
-  const { searchParams } = new URL(request.url);
-  const period = searchParams.get("period") || "monthly";
-  const logLimitParam = searchParams.get("logLimit") || "50";
+        // Fast: unique sessions in last 90 days only (not all-time)
+        analytics.aggregate([
+          { $match: { timestamp: { $gte: ninetyDaysAgo } } },
+          { $group: { _id: "$sessionId" } },
+          { $count: "count" },
+        ]).toArray().catch(() => []),
 
-  // Cap logLimit — never allow "all" on Vercel (too slow); max 100
-  let limitNum = 50;
-  if (logLimitParam !== "all") {
-    const parsed = parseInt(logLimitParam, 10);
-    if (!isNaN(parsed) && parsed > 0) {
-      limitNum = Math.min(parsed, 100); // Hard cap at 100
-    }
-  }
+        // Fast: top pages in last 90 days
+        analytics.aggregate([
+          { $match: { timestamp: { $gte: ninetyDaysAgo } } },
+          { $group: { _id: "$path", count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 10 },
+        ]).toArray().catch(() => []),
 
-  const now = new Date();
+        // Fast: top countries in last 90 days
+        analytics.aggregate([
+          { $match: { timestamp: { $gte: ninetyDaysAgo } } },
+          { $group: { _id: "$country", count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 8 },
+        ]).toArray().catch(() => []),
 
-  // Prepare period aggregation pipeline
-  let periodAggregationPromise: Promise<any[]> = Promise.resolve([]);
-  if (period === "1d") {
-    const startTime = new Date(now);
-    startTime.setHours(startTime.getHours() - 23, 0, 0, 0);
-    periodAggregationPromise = analytics.aggregate([
-      { $match: { timestamp: { $gte: startTime } } },
-      { $project: { hourStr: { $dateToString: { format: "%Y-%m-%dT%H", date: "$timestamp" } } } },
-      { $group: { _id: "$hourStr", count: { $sum: 1 } } },
-      { $sort: { _id: 1 } },
-    ]).toArray().catch(() => []);
-  } else if (period === "7d") {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 6);
-    start.setHours(0, 0, 0, 0);
-    periodAggregationPromise = analytics.aggregate([
-      { $match: { timestamp: { $gte: start } } },
-      { $project: { dateStr: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } } } },
-      { $group: { _id: "$dateStr", count: { $sum: 1 } } },
-      { $sort: { _id: 1 } },
-    ]).toArray().catch(() => []);
-  } else if (period === "monthly") {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 29);
-    start.setHours(0, 0, 0, 0);
-    periodAggregationPromise = analytics.aggregate([
-      { $match: { timestamp: { $gte: start } } },
-      { $project: { dateStr: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } } } },
-      { $group: { _id: "$dateStr", count: { $sum: 1 } } },
-      { $sort: { _id: 1 } },
-    ]).toArray().catch(() => []);
-  } else if (period === "half-yearly") {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 181);
-    start.setHours(0, 0, 0, 0);
-    periodAggregationPromise = analytics.aggregate([
-      { $match: { timestamp: { $gte: start } } },
-      {
-        $project: {
-          weekStart: {
-            $dateTrunc: { date: "$timestamp", unit: "week", startOfWeek: "monday" }
-          }
+        // Fast: top regions in last 90 days
+        analytics.aggregate([
+          { $match: { timestamp: { $gte: ninetyDaysAgo } } },
+          { $group: { _id: { country: "$country", region: "$region" }, count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 8 },
+        ]).toArray().catch(() => []),
+
+        // Period aggregation (already date-filtered above)
+        periodAggregationPromise,
+
+        // Recent logs — capped at 50
+        analytics.find({}).sort({ timestamp: -1 }).limit(limitNum).toArray().catch(() => []),
+
+        // DB ping
+        db.command({ ping: 1 }).then(() => Date.now() - startPing).catch(() => 0),
+      ]);
+
+      const uniqueVisitors = (uniqueSessionRes as any[])[0]?.count || 0;
+
+      // ── Build daily views chart ───────────────────────────────────────────
+      let dailyViews: any[] = [];
+      if (period === "1d") {
+        const hourMap = new Map((rawPeriodViews as any[]).map((h: any) => [h._id, h.count]));
+        for (let i = 23; i >= 0; i--) {
+          const d = new Date(now);
+          d.setHours(d.getHours() - i, 0, 0, 0);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}`;
+          dailyViews.push({ date: `${String(d.getHours()).padStart(2, "0")}:00`, views: hourMap.get(key) || 0 });
         }
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$weekStart" } },
-          count: { $sum: 1 }
+      } else if (period === "7d") {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 6);
+        start.setHours(0, 0, 0, 0);
+        const map = new Map((rawPeriodViews as any[]).map((r: any) => [r._id, r.count]));
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(start);
+          d.setDate(d.getDate() + i);
+          const dateStr = d.toISOString().split("T")[0];
+          dailyViews.push({ date: dateStr.substring(5), views: map.get(dateStr) || 0 });
         }
-      },
-      { $sort: { _id: 1 } },
-    ]).toArray().catch(() => []);
-  } else if (period === "yearly") {
-    const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    periodAggregationPromise = analytics.aggregate([
-      { $match: { timestamp: { $gte: start } } },
-      { $project: { monthStr: { $dateToString: { format: "%Y-%m", date: "$timestamp" } } } },
-      { $group: { _id: "$monthStr", count: { $sum: 1 } } },
-      { $sort: { _id: 1 } },
-    ]).toArray().catch(() => []);
-  }
+      } else if (period === "monthly") {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 29);
+        start.setHours(0, 0, 0, 0);
+        const map = new Map((rawPeriodViews as any[]).map((r: any) => [r._id, r.count]));
+        for (let i = 0; i < 30; i++) {
+          const d = new Date(start);
+          d.setDate(d.getDate() + i);
+          const dateStr = d.toISOString().split("T")[0];
+          dailyViews.push({ date: dateStr.substring(5), views: map.get(dateStr) || 0 });
+        }
+      } else if (period === "half-yearly") {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 181);
+        start.setHours(0, 0, 0, 0);
+        const weekStart = new Date(start);
+        const dow = weekStart.getDay();
+        weekStart.setDate(weekStart.getDate() + (dow === 0 ? -6 : 1 - dow));
+        const map = new Map((rawPeriodViews as any[]).map((r: any) => [r._id, r.count]));
+        for (let i = 0; i < 26; i++) {
+          const d = new Date(weekStart);
+          d.setDate(d.getDate() + i * 7);
+          const dateStr = d.toISOString().split("T")[0];
+          dailyViews.push({ date: dateStr.substring(5), views: map.get(dateStr) || 0 });
+        }
+      } else if (period === "yearly") {
+        const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+        const map = new Map((rawPeriodViews as any[]).map((r: any) => [r._id, r.count]));
+        for (let i = 0; i < 12; i++) {
+          const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+          const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          dailyViews.push({ date: monthStr, views: map.get(monthStr) || 0 });
+        }
+      }
 
-  // Detail breakdown pipeline
-  let detailStart: Date | null = null;
-  let detailBucket: Record<string, unknown> | null = null;
-  if (period === "1d") {
-    detailStart = new Date(now);
-    detailStart.setHours(detailStart.getHours() - 23, 0, 0, 0);
-    detailBucket = { $dateToString: { format: "%H:00", date: "$timestamp" } };
-  } else if (period === "7d" || period === "monthly") {
-    detailStart = new Date(now);
-    detailStart.setDate(detailStart.getDate() - (period === "7d" ? 6 : 29));
-    detailStart.setHours(0, 0, 0, 0);
-    detailBucket = { $dateToString: { format: "%m-%d", date: "$timestamp" } };
-  } else if (period === "half-yearly") {
-    detailStart = new Date(now);
-    detailStart.setDate(detailStart.getDate() - 181);
-    detailStart.setHours(0, 0, 0, 0);
-    detailBucket = { $dateToString: { format: "%m-%d", date: { $dateTrunc: { date: "$timestamp", unit: "week", startOfWeek: "monday" } } } };
-  } else if (period === "yearly") {
-    detailStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    detailBucket = { $dateToString: { format: "%Y-%m", date: "$timestamp" } };
-  }
+      // ── System health (synchronous — no extra DB calls) ──────────────────
+      const cpus = os.cpus() || [];
+      const loadAvg = os.loadavg() || [0, 0, 0];
+      const totalMem = os.totalmem() || 0;
+      const freeMem = os.freemem() || 0;
+      const memory = process.memoryUsage();
 
-  const detailPromise: Promise<any[]> = (detailStart && detailBucket)
-    ? analytics.aggregate([
-        { $match: { timestamp: { $gte: detailStart } } },
-        { $project: { bucket: detailBucket, country: 1, page: "$path" } },
-        { $group: { _id: { bucket: "$bucket", country: "$country", page: "$page" }, visits: { $sum: 1 } } },
-        { $sort: { "_id.bucket": 1, visits: -1 } },
-        { $limit: 500 }, // Cap detail rows
-      ]).toArray().catch(() => [])
-    : Promise.resolve([]);
+      // R2 stats — fire and forget with 1.5s timeout (don't block main response)
+      const r2Stats = await Promise.race([
+        getR2Stats().catch(() => null),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+      ]).then((s) =>
+        s ?? {
+          status: "Offline" as const,
+          pingTimeMs: 0,
+          bucketName: "healthcare-uploads",
+          publicUrl: "",
+          totalObjects: 0,
+          totalSizeBytes: 0,
+          totalSizeMB: 0,
+          totalSizeGB: 0,
+          freeTierLimitGB: 10,
+          freeTierUsedPct: 0,
+          freeTierRemainingGB: 10,
+        }
+      );
 
-  // Ping & dbStats helpers
-  const startPing = Date.now();
-  const pingPromise = db.command({ ping: 1 }).then(() => Date.now() - startPing).catch(() => 0);
-  const dbStatsPromise = db.command({ dbStats: 1 }).catch(() => ({}));
-
-  // Fetch all aggregations and metrics in PARALLEL
-  const [
-    totalViews,
-    uniqueSessionRes,
-    topPages,
-    topCountries,
-    topRegions,
-    rawPeriodViews,
-    detailRows,
-    recentLogs,
-    dbPingTime,
-    dbStatsRaw,
-    r2Stats,
-  ] = await Promise.all([
-    // Use estimated count for speed instead of countDocuments which scans the collection
-    analytics.estimatedDocumentCount().catch(() => 0),
-    analytics.aggregate([
-      { $group: { _id: "$sessionId" } },
-      { $count: "count" }
-    ]).toArray().catch(() => []),
-    analytics.aggregate([
-      { $group: { _id: "$path", count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 10 }
-    ]).toArray().catch(() => []),
-    analytics.aggregate([
-      { $group: { _id: "$country", count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 8 }
-    ]).toArray().catch(() => []),
-    analytics.aggregate([
-      { $group: { _id: { country: "$country", region: "$region" }, count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 8 }
-    ]).toArray().catch(() => []),
-    periodAggregationPromise,
-    detailPromise,
-    // Always cap recent logs at 100 on Vercel
-    analytics.find({}).sort({ timestamp: -1 }).limit(Math.min(limitNum, 100)).toArray().catch(() => []),
-    pingPromise,
-    dbStatsPromise,
-    // R2 stats with its own timeout already built-in (2.5s)
-    getR2Stats().catch(() => ({
-      status: "Offline" as const,
-      pingTimeMs: 0,
-      bucketName: "healthcare-uploads",
-      publicUrl: "",
-      totalObjects: 0,
-      totalSizeBytes: 0,
-      totalSizeMB: 0,
-      totalSizeGB: 0,
-      freeTierLimitGB: 10,
-      freeTierUsedPct: 0,
-      freeTierRemainingGB: 10,
-    })),
-  ]);
-
-  const uniqueVisitors = (uniqueSessionRes as any[])[0]?.count || 0;
-
-  // Process daily/period chart views
-  let dailyViews: { date: string; views: number }[] = [];
-  if (period === "1d") {
-    const hourMap = new Map((rawPeriodViews as any[]).map((h: any) => [h._id, h.count]));
-    for (let i = 23; i >= 0; i--) {
-      const d = new Date(now);
-      d.setHours(d.getHours() - i, 0, 0, 0);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}`;
-      const label = `${String(d.getHours()).padStart(2, "0")}:00`;
-      dailyViews.push({ date: label, views: hourMap.get(key) || 0 });
-    }
-  } else if (period === "7d") {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 6);
-    start.setHours(0, 0, 0, 0);
-    const map = new Map((rawPeriodViews as any[]).map((r: any) => [r._id, r.count]));
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split("T")[0];
-      dailyViews.push({ date: dateStr.substring(5), views: map.get(dateStr) || 0 });
-    }
-  } else if (period === "monthly") {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 29);
-    start.setHours(0, 0, 0, 0);
-    const map = new Map((rawPeriodViews as any[]).map((r: any) => [r._id, r.count]));
-    for (let i = 0; i < 30; i++) {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split("T")[0];
-      dailyViews.push({ date: dateStr.substring(5), views: map.get(dateStr) || 0 });
-    }
-  } else if (period === "half-yearly") {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 181);
-    start.setHours(0, 0, 0, 0);
-    const weekStart = new Date(start);
-    const dayOfWeek = weekStart.getDay();
-    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    weekStart.setDate(weekStart.getDate() + diff);
-
-    const map = new Map((rawPeriodViews as any[]).map((r: any) => [r._id, r.count]));
-    for (let i = 0; i < 26; i++) {
-      const d = new Date(weekStart);
-      d.setDate(d.getDate() + i * 7);
-      const dateStr = d.toISOString().split("T")[0];
-      dailyViews.push({ date: dateStr.substring(5), views: map.get(dateStr) || 0 });
-    }
-  } else if (period === "yearly") {
-    const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    const map = new Map((rawPeriodViews as any[]).map((r: any) => [r._id, r.count]));
-    for (let i = 0; i < 12; i++) {
-      const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
-      const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      dailyViews.push({ date: monthStr, views: map.get(monthStr) || 0 });
-    }
-  }
-
-  // Process details breakdown
-  const detailMap = new Map<string, { country: string; page: string; visits: number }[]>();
-  for (const row of (detailRows as any[])) {
-    const bucket = row._id.bucket as string;
-    const details = detailMap.get(bucket) || [];
-    if (details.length < 8) {
-      details.push({ country: row._id.country || "Unknown", page: row._id.page || "/", visits: row.visits });
-      detailMap.set(bucket, details);
-    }
-  }
-  dailyViews = dailyViews.map((view) => ({ ...view, details: detailMap.get(view.date) || [] }));
-
-  // System Reachability & Health
-  const dbStatsAny = dbStatsRaw as any;
-  const dbDataSizeMB = parseFloat(((dbStatsAny.dataSize || 0) / (1024 * 1024)).toFixed(2));
-  const dbStorageSizeMB = parseFloat(((dbStatsAny.storageSize || 0) / (1024 * 1024)).toFixed(2));
-  const dbIndexSizeMB = parseFloat(((dbStatsAny.indexSize || 0) / (1024 * 1024)).toFixed(2));
-  const dbTotalCollections = dbStatsAny.collections || 0;
-
-  const cpus = os.cpus() || [];
-  const loadAvg = os.loadavg() || [0, 0, 0];
-  const totalMem = os.totalmem() || 0;
-  const freeMem = os.freemem() || 0;
-  const memory = process.memoryUsage();
-
-  const systemHealth = {
-    dbStatus: (dbPingTime as number) > 0 ? "Connected" : "Connected",
-    dbPingTime: (dbPingTime as number) || 15,
-    dbDataSizeMB,
-    dbStorageSizeMB,
-    dbIndexSizeMB,
-    dbTotalCollections,
-    r2: r2Stats,
-    serverUptime: process.uptime(),
-    memoryUsed: Math.round(memory.heapUsed / 1024 / 1024),
-    memoryTotal: Math.round(memory.heapTotal / 1024 / 1024),
-    systemTotalRamGB: parseFloat((totalMem / (1024 * 1024 * 1024)).toFixed(2)),
-    systemFreeRamGB: parseFloat((freeMem / (1024 * 1024 * 1024)).toFixed(2)),
-    cpuCores: cpus.length,
-    cpuModel: cpus[0]?.model || "Standard Processor",
-    cpuLoadAvg: parseFloat((loadAvg[0] || 0).toFixed(2)),
-    nodeVersion: process.version,
-    platform: process.platform,
-  };
-
-  // 24-Hour Telemetry Snapshots
-  let telemetry24h: any[] = [];
-  try {
-    const telemetryColl = db.collection("system_telemetry");
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-    const rawTelemetry = await telemetryColl
-      .find({ createdAt: { $gte: twentyFourHoursAgo } })
-      .sort({ createdAt: 1 })
-      .limit(100) // Cap at 100 telemetry points
-      .toArray()
-      .catch(() => []);
-
-    telemetry24h = rawTelemetry.map((t: any) => {
-      const tDate = new Date(t.timestamp || t.createdAt || Date.now());
-      const istFormatted = tDate.toLocaleTimeString('en-IN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        timeZone: 'Asia/Kolkata',
-        hour12: true,
-      });
-      return {
-        id: t._id.toString(),
-        time: t.timeLabel || istFormatted,
-        ping: t.ping,
-        cpu: t.cpu,
-        cpuLoadAvg: t.cpuLoadAvg || 0.15,
-        heap: t.heap,
-        heapTotal: t.heapTotal || systemHealth.memoryTotal,
-        freeRamGB: t.freeRamGB ?? systemHealth.systemFreeRamGB,
-        totalRamGB: t.totalRamGB ?? systemHealth.systemTotalRamGB,
-        views: t.views,
-        visitors: t.visitors,
-        timestamp: tDate.toISOString(),
+      const systemHealth = {
+        dbStatus: "Connected",
+        dbPingTime: (dbPingTime as number) || 15,
+        dbDataSizeMB: 0,
+        dbStorageSizeMB: 0,
+        dbIndexSizeMB: 0,
+        dbTotalCollections: 0,
+        r2: r2Stats,
+        serverUptime: process.uptime(),
+        memoryUsed: Math.round(memory.heapUsed / 1024 / 1024),
+        memoryTotal: Math.round(memory.heapTotal / 1024 / 1024),
+        systemTotalRamGB: parseFloat((totalMem / (1024 * 1024 * 1024)).toFixed(2)),
+        systemFreeRamGB: parseFloat((freeMem / (1024 * 1024 * 1024)).toFixed(2)),
+        cpuCores: cpus.length,
+        cpuModel: cpus[0]?.model || "Standard Processor",
+        cpuLoadAvg: parseFloat((loadAvg[0] || 0).toFixed(2)),
+        nodeVersion: process.version,
+        platform: process.platform,
       };
-    });
-  } catch (e) {
-    console.error("Telemetry fetch error:", e);
-  }
 
-  return {
-    summary: {
-      totalViews,
-      uniqueVisitors,
-    },
-    charts: {
-      dailyViews,
-      topPages: (topPages as any[]).map((p: any) => ({ path: p._id, count: p.count })),
-      topCountries: (topCountries as any[]).map((c: any) => ({ name: c._id, count: c.count })),
-      topRegions: (topRegions as any[]).map((r: any) => ({
-        country: r._id.country,
-        region: r._id.region,
-        count: r.count,
-      })),
-    },
-    logs: (recentLogs as any[]).map((log: any) => ({
-      id: log._id.toString(),
-      path: log.path,
-      referrer: log.referrer,
-      ip: log.ip,
-      userAgent: log.userAgent,
-      country: log.country,
-      region: log.region,
-      city: log.city,
-      timestamp: log.timestamp,
-    })),
-    systemHealth,
-    telemetry24h,
-  };
+      // ── Telemetry (quick query, capped at 50) ────────────────────────────
+      let telemetry24h: any[] = [];
+      try {
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const rawTelemetry = await db
+          .collection("system_telemetry")
+          .find({ createdAt: { $gte: twentyFourHoursAgo } })
+          .sort({ createdAt: 1 })
+          .limit(50)
+          .toArray()
+          .catch(() => []);
+
+        telemetry24h = rawTelemetry.map((t: any) => {
+          const tDate = new Date(t.timestamp || t.createdAt || Date.now());
+          return {
+            id: t._id.toString(),
+            time: t.timeLabel || tDate.toLocaleTimeString("en-IN", {
+              hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata", hour12: true,
+            }),
+            ping: t.ping,
+            cpu: t.cpu,
+            cpuLoadAvg: t.cpuLoadAvg || 0.15,
+            heap: t.heap,
+            heapTotal: t.heapTotal || systemHealth.memoryTotal,
+            freeRamGB: t.freeRamGB ?? systemHealth.systemFreeRamGB,
+            totalRamGB: t.totalRamGB ?? systemHealth.systemTotalRamGB,
+            views: t.views,
+            visitors: t.visitors,
+            timestamp: tDate.toISOString(),
+          };
+        });
+      } catch {
+        // Non-fatal
+      }
+
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+
+      return NextResponse.json(
+        {
+          summary: { totalViews, uniqueVisitors },
+          charts: {
+            dailyViews,
+            topPages: (topPages as any[]).map((p: any) => ({ path: p._id, count: p.count })),
+            topCountries: (topCountries as any[]).map((c: any) => ({ name: c._id, count: c.count })),
+            topRegions: (topRegions as any[]).map((r: any) => ({
+              country: r._id.country,
+              region: r._id.region,
+              count: r.count,
+            })),
+          },
+          logs: (recentLogs as any[]).map((log: any) => ({
+            id: log._id.toString(),
+            path: log.path,
+            referrer: log.referrer,
+            ip: log.ip,
+            userAgent: log.userAgent,
+            country: log.country,
+            region: log.region,
+            city: log.city,
+            timestamp: log.timestamp,
+          })),
+          systemHealth,
+          telemetry24h,
+        },
+        { headers: { "Content-Type": "application/json" } }
+      );
+    } catch (err: any) {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+      console.error("Admin stats error:", err);
+      return NextResponse.json(
+        { error: `Dashboard error: ${err?.message || String(err)}` },
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  })();
+
+  // Race: whichever resolves first — our stats or the 8.5s safety timeout
+  return Promise.race([statsPromise, timeoutPromise]);
 }
 
 /**
@@ -421,7 +368,6 @@ export async function DELETE() {
   if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
   try {
     const db = await getDb();
     await db.collection("analytics").deleteMany({});
