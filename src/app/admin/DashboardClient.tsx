@@ -334,7 +334,17 @@ export default function DashboardClient() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(LS_THEME_KEY);
-      if (saved) setTheme({ ...DEFAULT_THEME, ...JSON.parse(saved) });
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.bgColor === "#071924") {
+          setTheme(DEFAULT_THEME);
+          localStorage.setItem(LS_THEME_KEY, JSON.stringify(DEFAULT_THEME));
+        } else {
+          setTheme({ ...DEFAULT_THEME, ...parsed });
+        }
+      } else {
+        setTheme(DEFAULT_THEME);
+      }
     } catch { }
   }, []);
 
@@ -672,19 +682,19 @@ export default function DashboardClient() {
 
   const themeVars = {
     "--admin-bg": theme.bgColor,
-    "--admin-sidebar-bg": sidebarGlass,
-    "--admin-card-bg": cardGlass,
+    "--admin-sidebar-bg": isLight ? theme.sidebarColor : sidebarGlass,
+    "--admin-card-bg": isLight ? theme.cardColor : cardGlass,
     "--admin-accent": theme.accentColor,
     "--admin-text-primary": theme.textPrimary,
     "--admin-text-secondary": theme.textSecondary,
     "--admin-font-family": theme.fontFamily,
     "--admin-font-size": `${theme.fontSize}px`,
-    "--admin-border": isLight ? "rgba(0, 0, 0, 0.08)" : "rgba(0, 229, 255, 0.14)",
-    "--admin-border-strong": isLight ? "rgba(0, 0, 0, 0.16)" : "rgba(0, 229, 255, 0.25)",
-    "--admin-hover-bg": isLight ? "rgba(0, 0, 0, 0.04)" : "rgba(0, 229, 255, 0.06)",
+    "--admin-border": isLight ? "#e2e8f0" : "rgba(0, 229, 255, 0.14)",
+    "--admin-border-strong": isLight ? "#cbd5e1" : "rgba(0, 229, 255, 0.25)",
+    "--admin-hover-bg": isLight ? "#f1f5f9" : "rgba(0, 229, 255, 0.06)",
     "--admin-input-bg": isLight ? "#ffffff" : "rgba(5, 20, 30, 0.65)",
-    "--admin-input-border": isLight ? "rgba(0, 0, 0, 0.18)" : "rgba(0, 229, 255, 0.22)",
-    "--admin-card-shadow": isLight ? "0 4px 20px -2px rgba(0, 0, 0, 0.06)" : "0 4px 24px -2px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 229, 255, 0.04)",
+    "--admin-input-border": isLight ? "#cbd5e1" : "rgba(0, 229, 255, 0.22)",
+    "--admin-card-shadow": isLight ? "0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)" : "0 4px 24px -2px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 229, 255, 0.04)",
   } as React.CSSProperties;
 
   return (
@@ -3443,15 +3453,9 @@ export default function DashboardClient() {
         .admin-dashboard-root {
           display: flex;
           min-height: 90vh;
-          background-color: var(--admin-bg, #071924);
-          background-image: 
-            linear-gradient(180deg, rgba(4, 15, 22, 0.65) 0%, rgba(3, 10, 16, 0.82) 100%),
-            url('/theme-bg.png');
-          background-size: cover, cover;
-          background-position: center, center;
-          background-attachment: fixed, fixed;
-          background-repeat: no-repeat;
-          color: var(--admin-text-primary, #f0fdff);
+          background-color: var(--admin-bg, #f8fafc);
+          background-image: none;
+          color: var(--admin-text-primary, #0f172a);
           font-family: var(--admin-font-family, system-ui, sans-serif);
           font-size: var(--admin-font-size, 15px);
           position: relative;
@@ -3464,10 +3468,8 @@ export default function DashboardClient() {
 
         .admin-sidebar {
           width: 260px;
-          background-color: var(--admin-sidebar-bg, rgba(5, 17, 26, 0.82));
-          backdrop-filter: blur(20px) saturate(1.4);
-          -webkit-backdrop-filter: blur(20px) saturate(1.4);
-          border-right: 1px solid var(--admin-border, rgba(0, 229, 255, 0.12));
+          background-color: var(--admin-sidebar-bg, #ffffff);
+          border-right: 1px solid var(--admin-border, #e2e8f0);
           display: flex;
           flex-direction: column;
           padding: 2rem 1.5rem;

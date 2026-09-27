@@ -63,22 +63,20 @@ export default function AdminLogin() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "transparent",
+        background: "var(--background, #f8fafc)",
         padding: "2rem",
-        color: "#f0fdff",
+        color: "var(--text-main, #0f172a)",
       }}
     >
       <div
         style={{
           width: "100%",
           maxWidth: "420px",
-          background: "rgba(5, 18, 27, 0.82)",
-          backdropFilter: "blur(24px) saturate(1.5)",
-          WebkitBackdropFilter: "blur(24px) saturate(1.5)",
-          border: "1px solid rgba(0, 229, 255, 0.28)",
+          backgroundColor: "var(--surface, #ffffff)",
+          border: "1px solid var(--border, #e2e8f0)",
           borderRadius: "20px",
           padding: "2.5rem",
-          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 229, 255, 0.08), inset 0 1px 0 rgba(255,255,255,0.06)",
+          boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
           animation: "fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
@@ -88,16 +86,15 @@ export default function AdminLogin() {
             style={{
               fontSize: "1.75rem",
               fontWeight: 700,
-              color: "#00e5ff",
+              color: "var(--text-main, #0f172a)",
               marginTop: "0.5rem",
               marginBottom: "0.25rem",
               letterSpacing: "-0.025em",
-              textShadow: "0 0 20px rgba(0, 229, 255, 0.4)",
             }}
           >
             Admin Access
           </h1>
-          <p style={{ color: "#9ca3af", fontSize: "0.9rem" }}>
+          <p style={{ color: "var(--text-muted, #475569)", fontSize: "0.9rem" }}>
             HealthEdu GUI Control Panel
           </p>
         </div>
@@ -105,9 +102,9 @@ export default function AdminLogin() {
         {error && (
           <div
             style={{
-              backgroundColor: "rgba(239, 68, 68, 0.15)",
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
               border: "1px solid rgba(239, 68, 68, 0.3)",
-              color: "#f87171",
+              color: "#dc2626",
               borderRadius: "8px",
               padding: "0.75rem 1rem",
               fontSize: "0.85rem",
@@ -127,7 +124,7 @@ export default function AdminLogin() {
                 display: "block",
                 fontSize: "0.85rem",
                 fontWeight: 600,
-                color: "#d1d5db",
+                color: "var(--text-main, #334155)",
                 marginBottom: "0.5rem",
               }}
             >
@@ -143,9 +140,9 @@ export default function AdminLogin() {
                 width: "100%",
                 padding: "0.75rem 1rem",
                 borderRadius: "10px",
-                background: "rgba(5, 20, 30, 0.7)",
-                border: "1px solid rgba(0, 229, 255, 0.28)",
-                color: "#f0fdff",
+                background: "#ffffff",
+                border: "1.5px solid #cbd5e1",
+                color: "#0f172a",
                 fontSize: "0.95rem",
                 outline: "none",
                 transition: "border-color 0.2s, box-shadow 0.2s",
@@ -162,7 +159,7 @@ export default function AdminLogin() {
                 display: "block",
                 fontSize: "0.85rem",
                 fontWeight: 600,
-                color: "#d1d5db",
+                color: "var(--text-main, #334155)",
                 marginBottom: "0.5rem",
               }}
             >
@@ -178,9 +175,9 @@ export default function AdminLogin() {
                 width: "100%",
                 padding: "0.75rem 1rem",
                 borderRadius: "10px",
-                background: "rgba(5, 20, 30, 0.7)",
-                border: "1px solid rgba(0, 229, 255, 0.28)",
-                color: "#f0fdff",
+                background: "#ffffff",
+                border: "1.5px solid #cbd5e1",
+                color: "#0f172a",
                 fontSize: "0.95rem",
                 outline: "none",
                 transition: "border-color 0.2s, box-shadow 0.2s",
@@ -197,14 +194,14 @@ export default function AdminLogin() {
               width: "100%",
               padding: "0.85rem",
               borderRadius: "8px",
-              backgroundColor: locked ? "#6b7280" : "var(--primary, #00c896)",
+              backgroundColor: locked ? "#6b7280" : "var(--primary, #0d9488)",
               color: "#ffffff",
               fontWeight: 700,
               fontSize: "0.95rem",
               border: "none",
               cursor: loading || locked ? "not-allowed" : "pointer",
               transition: "transform 0.15s, opacity 0.2s",
-              boxShadow: locked ? "none" : "0 4px 12px rgba(0, 200, 150, 0.3)",
+              boxShadow: locked ? "none" : "0 4px 12px rgba(13, 148, 136, 0.25)",
               opacity: loading || locked ? 0.7 : 1,
             }}
           >
@@ -217,12 +214,12 @@ export default function AdminLogin() {
             href="/"
             style={{
               fontSize: "0.85rem",
-              color: "#9ca3af",
+              color: "var(--text-muted, #64748b)",
               textDecoration: "none",
               transition: "color 0.2s",
             }}
-            onMouseOver={(e) => (e.currentTarget.style.color = "#ffffff")}
-            onMouseOut={(e) => (e.currentTarget.style.color = "#9ca3af")}
+            onMouseOver={(e) => (e.currentTarget.style.color = "var(--primary, #0d9488)")}
+            onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-muted, #64748b)")}
           >
             ← Back to website
           </Link>
@@ -241,8 +238,8 @@ export default function AdminLogin() {
           }
         }
         .login-input:focus {
-          border-color: #00e5ff !important;
-          box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.2) !important;
+          border-color: var(--primary, #0d9488) !important;
+          box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.18) !important;
         }
       `}</style>
     </div>

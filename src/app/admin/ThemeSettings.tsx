@@ -18,18 +18,31 @@ export interface AdminTheme {
 }
 
 export const DEFAULT_THEME: AdminTheme = {
-  bgColor: "#071924",
-  sidebarColor: "#05111a",
-  cardColor: "#081520",
-  accentColor: "#00e5ff",
-  textPrimary: "#f0fdff",
-  textSecondary: "#95c0d1",
+  bgColor: "#f8fafc",
+  sidebarColor: "#ffffff",
+  cardColor: "#ffffff",
+  accentColor: "#0d9488",
+  textPrimary: "#0f172a",
+  textSecondary: "#475569",
   fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   fontSize: 15,
-  autoAdjust: false,
+  autoAdjust: true,
 };
 
 const PRESET_THEMES: { name: string; emoji: string; theme: Partial<AdminTheme> }[] = [
+  {
+    name: "Classic HealthEdu White (Original)",
+    emoji: "🏥",
+    theme: {
+      bgColor: "#f8fafc",
+      sidebarColor: "#ffffff",
+      cardColor: "#ffffff",
+      accentColor: "#0d9488",
+      textPrimary: "#0f172a",
+      textSecondary: "#475569",
+      autoAdjust: true,
+    },
+  },
   {
     name: "Capsule Bioluminescent",
     emoji: "🧬",
@@ -223,7 +236,12 @@ export default function ThemeSettings({ theme, onChange }: Props) {
     }
   };
 
-  const resetToDefault = () => onChange(DEFAULT_THEME);
+  const resetToDefault = () => {
+    try {
+      localStorage.removeItem("admin_panel_theme");
+    } catch { }
+    onChange(DEFAULT_THEME);
+  };
 
   // When autoAdjust is toggled ON, re-derive text colors immediately
   const toggleAutoAdjust = (val: boolean) => {
@@ -251,9 +269,15 @@ export default function ThemeSettings({ theme, onChange }: Props) {
       <div className="ts-header">
         <div>
           <h2 className="ts-title">🎨 Appearance & Theme</h2>
-          <p className="ts-subtitle">Customize the look of your admin panel. Changes are saved automatically.</p>
+          <p className="ts-subtitle">Customize the look of your platform and admin panel. Changes are saved automatically.</p>
         </div>
-        <button className="ts-reset-btn" onClick={resetToDefault}>↺ Reset to Default</button>
+        <button
+          className="ts-reset-btn"
+          onClick={resetToDefault}
+          title="Restore the original clean white background and theme across all pages"
+        >
+          ↺ Reset theme and background
+        </button>
       </div>
 
       {/* ── Preset Themes ── */}

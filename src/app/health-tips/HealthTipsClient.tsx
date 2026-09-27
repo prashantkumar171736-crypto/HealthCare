@@ -31,14 +31,14 @@ export default function HealthTipsClient({ tips = [] }: { tips: Tip[] }) {
       : tips.filter((t) => t.category === activeCategory);
 
   return (
-    <div style={{ backgroundColor: "transparent", minHeight: "80vh" }}>
+    <div style={{ backgroundColor: "var(--background)", minHeight: "80vh" }}>
       {/* Hero Banner */}
       <section
         style={{
           background:
-            "radial-gradient(ellipse at 50% 0%, rgba(0, 229, 255, 0.12) 0%, transparent 65%)",
+            "linear-gradient(135deg, var(--primary-light) 0%, transparent 60%)",
           padding: "4rem 0 3rem",
-          borderBottom: "1px solid rgba(0, 229, 255, 0.15)",
+          borderBottom: "1px solid var(--border)",
         }}
       >
         <div className="container text-center">
@@ -66,11 +66,9 @@ export default function HealthTipsClient({ tips = [] }: { tips: Tip[] }) {
       {/* Category Filter Tabs */}
       <section
         style={{
-          padding: "2rem 0",
-          backgroundColor: "rgba(5, 20, 30, 0.72)",
-          backdropFilter: "blur(16px)",
-          WebkitBackdropFilter: "blur(16px)",
-          borderBottom: "1px solid rgba(0, 229, 255, 0.15)",
+          padding: "2.5rem 0",
+          backgroundColor: "var(--surface)",
+          borderBottom: "1px solid var(--border)",
           position: "sticky",
           top: "70px",
           zIndex: 10,
@@ -138,13 +136,11 @@ export default function HealthTipsClient({ tips = [] }: { tips: Tip[] }) {
               <div
                 key={tip.id}
                 style={{
-                  backgroundColor: "rgba(7, 24, 35, 0.74)",
-                  backdropFilter: "blur(14px)",
-                  WebkitBackdropFilter: "blur(14px)",
-                  border: "1px solid rgba(0, 229, 255, 0.18)",
+                  backgroundColor: "var(--surface)",
+                  border: "1px solid var(--border)",
                   borderRadius: "var(--radius-xl)",
                   padding: "2rem",
-                  boxShadow: "var(--shadow-sm), inset 0 1px 0 rgba(255,255,255,0.04)",
+                  boxShadow: "var(--shadow-sm)",
                   transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
                   cursor: "default",
                   display: "flex",
@@ -213,10 +209,8 @@ export default function HealthTipsClient({ tips = [] }: { tips: Tip[] }) {
       <section
         style={{
           padding: "5rem 0",
-          backgroundColor: "rgba(5, 18, 27, 0.65)",
-          backdropFilter: "blur(14px)",
-          WebkitBackdropFilter: "blur(14px)",
-          borderTop: "1px solid rgba(0, 229, 255, 0.15)",
+          backgroundColor: "var(--surface)",
+          borderTop: "1px solid var(--border)",
         }}
       >
         <div className="container text-center" style={{ maxWidth: "700px" }}>

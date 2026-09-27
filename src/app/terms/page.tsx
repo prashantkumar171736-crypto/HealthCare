@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <div style={{ backgroundColor: "transparent", minHeight: "80vh", padding: "4rem 0" }}>
-      <div className="container text-page-content" style={{ backgroundColor: "rgba(7, 24, 35, 0.78)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", padding: "3rem", borderRadius: "var(--radius-2xl)", border: "1px solid rgba(0, 229, 255, 0.18)", boxShadow: "var(--shadow-lg)" }}>
+    <div style={{ backgroundColor: "var(--background)", minHeight: "80vh", padding: "4rem 0" }}>
+      <div className="container text-page-content" style={{ backgroundColor: "var(--surface)", padding: "3rem", borderRadius: "var(--radius-2xl)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" }}>
         <span className="disease-badge">Legal</span>
         <h1>Terms & Conditions</h1>
         <p className="text-light" style={{ fontSize: "0.85rem", marginBottom: "2rem" }}>Last Updated: June 17, 2026</p>
