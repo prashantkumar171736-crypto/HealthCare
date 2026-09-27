@@ -1683,10 +1683,11 @@ export default function DashboardClient() {
                     const p2 = pts[i + 1];
                     const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
 
-                    const cp1x = p1.x + (p2.x - p0.x) / 6;
-                    const cp1y = p1.y + (p2.y - p0.y) / 6;
-                    const cp2x = p2.x - (p3.x - p1.x) / 6;
-                    const cp2y = p2.y - (p3.y - p1.y) / 6;
+                    // Tension factor /3 = more pronounced, natural curves (was /6 = too subtle)
+                    const cp1x = p1.x + (p2.x - p0.x) / 3;
+                    const cp1y = p1.y + (p2.y - p0.y) / 3;
+                    const cp2x = p2.x - (p3.x - p1.x) / 3;
+                    const cp2y = p2.y - (p3.y - p1.y) / 3;
 
                     path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
                   }
@@ -2512,11 +2513,18 @@ export default function DashboardClient() {
                             const minPingRaw = Math.min(...pingVals);
                             const maxPingRaw = Math.max(...pingVals);
 
-                            // Y-Axis starts from 0 so the line rises from the bottom of the graph
-                            const minVal = 0;
-                            let maxVal = Math.ceil(maxPingRaw + 5);
-                            // Ensure at least 20ms visible span for smooth display
-                            if (maxVal < 20) maxVal = 20;
+                            // Auto-scale Y-axis to actual data range with padding
+                            // so even small ping variations (e.g. ±35ms around 192ms) are visible
+                            const rawSpan = Math.max(1, maxPingRaw - minPingRaw);
+                            const padding = rawSpan * 0.35; // 35% padding above and below
+                            let minVal = Math.max(0, Math.floor(minPingRaw - padding));
+                            let maxVal = Math.ceil(maxPingRaw + padding);
+                            // Ensure at least 30ms visible span so curve stays prominent
+                            if (maxVal - minVal < 30) {
+                              const mid = (minPingRaw + maxPingRaw) / 2;
+                              minVal = Math.max(0, Math.floor(mid - 15));
+                              maxVal = Math.ceil(mid + 15);
+                            }
 
                             const effectiveRng = Math.max(1, maxVal - minVal);
 
