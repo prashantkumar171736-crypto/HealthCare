@@ -241,7 +241,7 @@ export async function GET(request: Request) {
 
       // R2 stats — fire and forget with 5s timeout (don't block main response)
       const r2Stats = await Promise.race([
-        import("@/lib/r2").then(({ getR2Stats }) => getR2Stats()).catch(() => null),
+        import("@/lib/r2").then(({ getR2Stats }) => getR2Stats()).catch((e) => { console.error("getR2Stats failed:", e?.name, e?.message); return null; }),
         new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
       ]).then((s) =>
         s ?? {
