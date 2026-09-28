@@ -239,13 +239,14 @@ export async function GET(request: Request) {
       const freeMem = os.freemem() || 0;
       const memory = process.memoryUsage();
 
-      // R2 stats — fire and forget with 5s timeout (don't block main response)
+      // Bound the R2 check without racing its per-request timeout.
       const r2Stats = await Promise.race([
         import("@/lib/r2").then(({ getR2Stats }) => getR2Stats()).catch((e) => { console.error("getR2Stats failed:", e?.name, e?.message); return null; }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000)),
       ]).then((s) =>
         s ?? {
           status: "Offline" as const,
+          error: "R2 health check exceeded 6 seconds or failed to load.",
           pingTimeMs: 0,
           bucketName: "healthcare-uploads",
           publicUrl: "",

@@ -58,6 +58,7 @@ interface VisitorLog {
 
 export interface R2Stats {
   status: string;
+  error?: string;
   pingTimeMs: number;
   bucketName: string;
   publicUrl: string;
@@ -958,7 +959,11 @@ export default function DashboardClient() {
             </div>
             <div className="kpi-card-bottom">
               <div className="kpi-footer-row text-center-row">
-                <span>📦 {data.systemHealth.r2 ? `${data.systemHealth.r2.totalObjects} files stored (${data.systemHealth.r2.freeTierUsedPct}% free tier used)` : "0 files stored"}</span>
+                <span>
+                  {data.systemHealth.r2?.status === "Offline"
+                    ? data.systemHealth.r2.error || "R2 connection failed; check server logs."
+                    : `📦 ${data.systemHealth.r2 ? `${data.systemHealth.r2.totalObjects} files stored (${data.systemHealth.r2.freeTierUsedPct}% free tier used)` : "0 files stored"}`}
+                </span>
               </div>
             </div>
           </div>
@@ -3409,6 +3414,12 @@ export default function DashboardClient() {
                 <div className="card-body">
                   {data.systemHealth.r2 ? (
                     <>
+                      {data.systemHealth.r2.error && (
+                        <div className="health-row">
+                          <span className="row-label">R2 details</span>
+                          <span className="row-val text-red">{data.systemHealth.r2.error}</span>
+                        </div>
+                      )}
                       <div className="health-row">
                         <span className="row-label">R2 Response Ping</span>
                         <span className="row-val font-mono">{data.systemHealth.r2.pingTimeMs} ms</span>
@@ -3434,7 +3445,7 @@ export default function DashboardClient() {
                     </>
                   ) : (
                     <div className="r2-offline-notice">
-                      <p className="text-red font-bold">Cloudflare R2 Credentials Missing</p>
+                      <p className="text-red font-bold">Cloudflare R2 Status Unavailable</p>
                       <p className="subtext">
                         Please configure R2 environment variables (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`) in your Vercel project settings to view live R2 storage metrics.
                       </p>
