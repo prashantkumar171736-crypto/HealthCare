@@ -26,6 +26,9 @@ function getSafeFailureReason(error: unknown): string {
   if (code === "AccessDenied" || status === 403) {
     return "R2 denied the request. Check the token's bucket permissions.";
   }
+  if (status === 401 || code === "InvalidAccessKeyId" || code === "SignatureDoesNotMatch") {
+    return "R2 rejected the configured credentials (HTTP 401). Check that the access key ID and secret are a matching R2 S3 API token pair.";
+  }
   if (code === "NoSuchBucket" || status === 404) {
     return "R2 bucket was not found. Check R2_BUCKET_NAME.";
   }
@@ -39,6 +42,14 @@ function getSafeFailureReason(error: unknown): string {
     return "R2 SDK failed to load in the deployment. Check the Vercel function logs.";
   }
 
+  if (error instanceof Error && error.message) {
+    let detail = error.message;
+    for (const secret of [process.env.R2_SECRET_ACCESS_KEY, process.env.R2_ACCESS_KEY_ID]) {
+      if (secret) detail = detail.replaceAll(secret, "[redacted]");
+    }
+    detail = detail.replace(/https?:\/\/\S+/g, "[endpoint]").replace(/\s+/g, " ").slice(0, 180);
+    return `R2 server error (${code}${status ? `, HTTP ${status}` : ""}): ${detail}`;
+  }
   return `R2 server error (${code}${status ? `, HTTP ${status}` : ""}). Check Vercel function logs.`;
 }
 

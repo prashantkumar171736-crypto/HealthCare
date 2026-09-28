@@ -127,7 +127,9 @@ function describeR2Error(error: unknown): string {
 
   if (code === "AccessDenied" || status === 403) return "Access denied; check R2 token permissions.";
   if (code === "NoSuchBucket" || status === 404) return "Bucket not found; check R2_BUCKET_NAME.";
-  if (code === "InvalidAccessKeyId" || code === "SignatureDoesNotMatch") return "R2 credentials were rejected.";
+  if (code === "InvalidAccessKeyId" || code === "SignatureDoesNotMatch" || status === 401) {
+    return "R2 rejected the credentials (HTTP 401). Check that the access key ID and secret are a matching R2 S3 API token pair.";
+  }
   if (/timeout|timedout|abort/i.test(code)) return "R2 request timed out.";
   if (code === "Error" && /must be configured/i.test((error as Error).message || "")) {
     return "R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, or R2_SECRET_ACCESS_KEY is missing.";
