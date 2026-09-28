@@ -404,7 +404,22 @@ export default function DashboardClient() {
         router.push("/admin/login");
         return;
       }
-      const result = await res.json();
+      const bodyText = await res.text();
+      let result: any;
+      try {
+        result = JSON.parse(bodyText);
+      } catch {
+        const shortBody = bodyText
+          .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+          .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 180);
+        throw new Error(
+          `R2 API returned non-JSON (HTTP ${res.status}): ${shortBody || res.statusText || "empty response"}`
+        );
+      }
       if (!res.ok) throw new Error(result.error || "R2 stats request failed.");
       setR2Stats(result);
       setR2Error("");
