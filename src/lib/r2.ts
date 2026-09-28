@@ -93,7 +93,7 @@ export interface R2Stats {
 
 /**
  * Queries Cloudflare R2 bucket to compile real-time storage monitoring metrics.
- * Wrapped with a 3-second timeout to prevent stalling the dashboard response.
+ * Wrapped with a 4.5-second timeout to prevent stalling the dashboard response.
  */
 export async function getR2Stats(): Promise<R2Stats> {
   const start = Date.now();
