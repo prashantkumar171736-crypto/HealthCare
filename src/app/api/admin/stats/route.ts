@@ -239,10 +239,10 @@ export async function GET(request: Request) {
       const freeMem = os.freemem() || 0;
       const memory = process.memoryUsage();
 
-      // R2 stats — fire and forget with 1.5s timeout (don't block main response)
+      // R2 stats — fire and forget with 5s timeout (don't block main response)
       const r2Stats = await Promise.race([
         import("@/lib/r2").then(({ getR2Stats }) => getR2Stats()).catch(() => null),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
       ]).then((s) =>
         s ?? {
           status: "Offline" as const,
