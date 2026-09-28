@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTranslation } from "@/hooks/useTranslation";
 
 const FOOTER_STRINGS = {
@@ -26,7 +27,10 @@ const FOOTER_STRINGS = {
 };
 
 export default function Footer() {
+  const pathname = usePathname();
   const { t } = useTranslation(FOOTER_STRINGS);
+
+  if (pathname.startsWith("/admin")) return null;
 
   return (
     <footer className="footer-wrapper">

@@ -24,6 +24,8 @@ export default function Navbar() {
   const { lang, setLangByCode, resetToEnglish, isTranslating } = useLanguage();
   const { t } = useTranslation(NAV_STRINGS);
 
+  if (pathname.startsWith("/admin")) return null;
+
   const toggleMenu = () => setIsOpen(!isOpen);
   const closeMenu = () => setIsOpen(false);
 
