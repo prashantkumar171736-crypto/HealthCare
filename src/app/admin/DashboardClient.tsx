@@ -86,6 +86,7 @@ interface SystemHealth {
   dbStatus: string;
   dbPingTime: number;
   dbDataSizeMB: number;
+  dbUsedSizeMB: number;
   dbStorageSizeMB: number;
   dbIndexSizeMB: number;
   dbTotalCollections: number;
@@ -1864,7 +1865,7 @@ export default function DashboardClient() {
                 const dbIndexMB = data.systemHealth.dbIndexSizeMB || 0;
                 const dbStorageMB = data.systemHealth.dbStorageSizeMB || 0;
                 const atlasLimitMB = 512;
-                const dbUsedTotalMB = parseFloat((dbDataMB + dbIndexMB + dbStorageMB).toFixed(2));
+                const dbUsedTotalMB = data.systemHealth.dbUsedSizeMB ?? parseFloat((dbDataMB + dbIndexMB).toFixed(2));
                 const dbFreeMB = Math.max(0, parseFloat((atlasLimitMB - dbUsedTotalMB).toFixed(2)));
 
                 const dbDataPct = ((dbDataMB / atlasLimitMB) * 100).toFixed(1);
@@ -1875,13 +1876,11 @@ export default function DashboardClient() {
                 const circ1 = 440; // 2 * PI * 70
                 const len1 = Math.max(4, (dbDataMB / atlasLimitMB) * circ1);
                 const len2 = Math.max(4, (dbIndexMB / atlasLimitMB) * circ1);
-                const len3 = Math.max(4, (dbStorageMB / atlasLimitMB) * circ1);
                 const len4 = (dbFreeMB / atlasLimitMB) * circ1;
 
                 const rot1 = -90;
                 const rot2 = rot1 + (dbDataMB / atlasLimitMB) * 360;
-                const rot3 = rot2 + (dbIndexMB / atlasLimitMB) * 360;
-                const rot4 = rot3 + (dbStorageMB / atlasLimitMB) * 360;
+                const rot4 = rot2 + (dbIndexMB / atlasLimitMB) * 360;
 
                 // Helper calculations for Card 3: Host RAM & V8 Heap
                 const sysFreeRam = data.systemHealth.systemFreeRamGB || 0;
@@ -1979,25 +1978,7 @@ export default function DashboardClient() {
                             }}
                           />
 
-                          {/* Slice 3: Allocated Storage (Blue) */}
-                          <circle
-                            cx="100" cy="100" r="70" fill="transparent" stroke="#60a5fa" strokeWidth="26"
-                            strokeDasharray={`${Math.max(2, len3)} ${Math.max(0, circ1 - len3)}`}
-                            transform={`rotate(${rot3} 100 100)`}
-                            className="svg-hover-slice"
-                            onMouseMove={(e) => {
-                              setGraphTooltip({
-                                x: e.clientX,
-                                y: e.clientY,
-                                title: "💙 Allocated Storage Overhead",
-                                value: `${dbStorageMB} MB allocated (${dbStoragePct}% of 512 MB)`,
-                                detail: `Pre-allocated disk space reserved by WiredTiger — Data: ${dbDataMB} MB | Index: ${dbIndexMB} MB`,
-                                color: "#60a5fa",
-                              });
-                            }}
-                          />
-
-                          {/* Slice 4: Atlas Free Tier (Amber) */}
+                          {/* Remaining quota uses data plus indexes; allocated storage is informational. */}
                           <circle
                             cx="100" cy="100" r="70" fill="transparent" stroke="#fbbf24" strokeWidth="26"
                             strokeDasharray={`${Math.max(2, len4)} ${Math.max(0, circ1 - len4)}`}
@@ -2009,7 +1990,7 @@ export default function DashboardClient() {
                                 y: e.clientY,
                                 title: "🟡 Atlas Free Tier Remaining",
                                 value: `${dbFreeMB} MB free (${dbFreePct}% of 512 MB limit)`,
-                                detail: `Used: Data ${dbDataMB} MB + Index ${dbIndexMB} MB + Overhead ${dbStorageMB} MB`,
+                                detail: `Used: Data ${dbDataMB} MB + Index ${dbIndexMB} MB. Allocated storage is shown separately.`,
                                 color: "#fbbf24",
                               });
                             }}
@@ -2105,7 +2086,7 @@ export default function DashboardClient() {
                         </div>
                       </div>
                       <div className="graph-info-footer info-emerald">
-                        💡 <i><strong>Meaning & Value:</strong> Updated every 5 minutes from MongoDB statistics. Displays live distribution of Atlas BSON Data ({dbDataPct}%), Collection Indexes ({dbIndexPct}%), and Allocated Storage ({dbStoragePct}%). Helps prevent exceeding the 512 MB Free Tier limit.</i>
+                        💡 <i><strong>Meaning & Value:</strong> Live healthcare database metrics. Atlas usage is BSON data plus indexes ({dbUsedTotalMB} MB); allocated storage ({dbStorageMB} MB) is shown separately and is not added again to the quota total.</i>
                       </div>
                     </div>
 
@@ -3288,6 +3269,10 @@ export default function DashboardClient() {
                   <div className="health-row">
                     <span className="row-label">Actual Data Size</span>
                     <span className="row-val font-bold text-green">{data.systemHealth.dbDataSizeMB} MB</span>
+                  </div>
+                  <div className="health-row">
+                    <span className="row-label">Atlas Used (Data + Indexes)</span>
+                    <span className="row-val font-bold">{data.systemHealth.dbUsedSizeMB} MB</span>
                   </div>
                   <div className="health-row">
                     <span className="row-label">Allocated Storage</span>

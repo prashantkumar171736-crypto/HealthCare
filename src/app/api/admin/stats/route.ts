@@ -129,6 +129,7 @@ export async function GET(request: Request) {
         rawPeriodViews,
         recentLogs,
         dbPingTime,
+        mongoDbStats,
       ] = await Promise.all([
         // Fast: estimated count (no full scan)
         analytics.estimatedDocumentCount().catch(() => 0),
@@ -172,6 +173,13 @@ export async function GET(request: Request) {
 
         // DB ping
         db.command({ ping: 1 }).then(() => Date.now() - startPing).catch(() => 0),
+
+        // Database size metrics are returned in bytes; keep the full command independent
+        // from analytics queries so a stats failure does not break dashboard loading.
+        db.command({ dbStats: 1 }).catch((error) => {
+          console.error("MongoDB dbStats failed:", error);
+          return null;
+        }),
       ]);
 
       const uniqueVisitors = (uniqueSessionRes as any[])[0]?.count || 0;
@@ -238,14 +246,17 @@ export async function GET(request: Request) {
       const totalMem = os.totalmem() || 0;
       const freeMem = os.freemem() || 0;
       const memory = process.memoryUsage();
+      const dbDataSizeMB = Number(((mongoDbStats?.dataSize || 0) / (1024 * 1024)).toFixed(2));
+      const dbIndexSizeMB = Number(((mongoDbStats?.indexSize || 0) / (1024 * 1024)).toFixed(2));
 
       const systemHealth = {
         dbStatus: "Connected",
         dbPingTime: (dbPingTime as number) || 15,
-        dbDataSizeMB: 0,
-        dbStorageSizeMB: 0,
-        dbIndexSizeMB: 0,
-        dbTotalCollections: 0,
+        dbDataSizeMB,
+        dbUsedSizeMB: Number((dbDataSizeMB + dbIndexSizeMB).toFixed(2)),
+        dbStorageSizeMB: Number(((mongoDbStats?.storageSize || 0) / (1024 * 1024)).toFixed(2)),
+        dbIndexSizeMB,
+        dbTotalCollections: mongoDbStats?.collections || 0,
         serverUptime: process.uptime(),
         memoryUsed: Math.round(memory.heapUsed / 1024 / 1024),
         memoryTotal: Math.round(memory.heapTotal / 1024 / 1024),
