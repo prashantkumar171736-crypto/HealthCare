@@ -1,5 +1,11 @@
 import "@/lib/env";
-import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  ListObjectsV2Command,
+  HeadBucketCommand,
+} from "@aws-sdk/client-s3";
 import crypto from "crypto";
 
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
@@ -54,6 +60,9 @@ export async function uploadToR2(
     })
   );
 
+  // New upload changes the stats, so drop the cache
+  r2StatsCache = null;
+
   return `${R2_PUBLIC_URL}/${key}`;
 }
 
@@ -72,6 +81,9 @@ export async function deleteFromR2(publicUrl: string): Promise<void> {
         Key: key,
       })
     );
+
+    // Deleted file changes the stats, so drop the cache
+    r2StatsCache = null;
   } catch (err) {
     console.error("deleteFromR2: failed to delete", publicUrl, err);
   }
@@ -91,9 +103,18 @@ export interface R2Stats {
   freeTierRemainingGB: number;
 }
 
+// In-memory cache (per serverless instance; resets on cold start)
+let r2StatsCache: { at: number; data: R2Stats } | null = null;
+const R2_STATS_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const R2_LISTING_DEADLINE_MS = 4000; // stay below stats route's 5s R2 timeout
+
 /**
- * Queries Cloudflare R2 bucket to compile real-time storage monitoring metrics.
- * Wrapped with a 4.5-second timeout to prevent stalling the dashboard response.
+ * Compiles R2 storage monitoring metrics.
+ *
+ * - Status comes from a lightweight HeadBucket call (fast), so the card shows
+ *   "Connected" even when the full object listing is slow.
+ * - Object count / size come from a ListObjectsV2 scan, cached for 10 minutes.
+ * - If anything fails, the last cached stats are returned when available.
  */
 export async function getR2Stats(): Promise<R2Stats> {
   const start = Date.now();
@@ -101,11 +122,42 @@ export async function getR2Stats(): Promise<R2Stats> {
   const publicUrl = R2_PUBLIC_URL;
   const freeTierLimitGB = 10;
 
-  const fetchPromise = (async (): Promise<R2Stats> => {
+  const emptyStats = (status: R2Stats["status"], pingTimeMs: number): R2Stats => ({
+    status,
+    pingTimeMs,
+    bucketName,
+    publicUrl,
+    totalObjects: 0,
+    totalSizeBytes: 0,
+    totalSizeMB: 0,
+    totalSizeGB: 0,
+    freeTierLimitGB,
+    freeTierUsedPct: 0,
+    freeTierRemainingGB: freeTierLimitGB,
+  });
+
+  // Fresh cache: return immediately
+  if (r2StatsCache && Date.now() - r2StatsCache.at < R2_STATS_TTL_MS) {
+    return r2StatsCache.data;
+  }
+
+  // 1) Lightweight connectivity check
+  let pingTimeMs = 0;
+  try {
+    await getR2Client().send(new HeadBucketCommand({ Bucket: bucketName }));
+    pingTimeMs = Date.now() - start;
+  } catch (err) {
+    console.error("getR2Stats HeadBucket failed:", err);
+    return r2StatsCache?.data ?? emptyStats("Offline", 0);
+  }
+
+  // 2) Object listing (slow), limited by a deadline
+  try {
     let totalObjects = 0;
     let totalSizeBytes = 0;
     let continuationToken: string | undefined = undefined;
     let iterations = 0;
+    const deadline = start + R2_LISTING_DEADLINE_MS;
 
     do {
       const command: ListObjectsV2Command = new ListObjectsV2Command({
@@ -123,16 +175,15 @@ export async function getR2Stats(): Promise<R2Stats> {
       }
       continuationToken = response.NextContinuationToken;
       iterations++;
-    } while (continuationToken && iterations < 5); // Cap iterations to prevent long runtimes
+    } while (continuationToken && iterations < 5 && Date.now() < deadline);
 
-    const pingTimeMs = Date.now() - start;
     const totalSizeMB = parseFloat((totalSizeBytes / (1024 * 1024)).toFixed(2));
     const totalSizeGB = parseFloat((totalSizeBytes / (1024 * 1024 * 1024)).toFixed(3));
     const freeTierBytes = freeTierLimitGB * 1024 * 1024 * 1024;
     const freeTierUsedPct = parseFloat(((totalSizeBytes / freeTierBytes) * 100).toFixed(2));
     const freeTierRemainingGB = parseFloat((freeTierLimitGB - totalSizeGB).toFixed(3));
 
-    return {
+    const data: R2Stats = {
       status: "Connected",
       pingTimeMs,
       bucketName,
@@ -145,44 +196,12 @@ export async function getR2Stats(): Promise<R2Stats> {
       freeTierUsedPct,
       freeTierRemainingGB,
     };
-  })();
 
-  const timeoutPromise = new Promise<R2Stats>((resolve) =>
-    setTimeout(
-      () =>
-        resolve({
-          status: "Offline",
-          pingTimeMs: 0,
-          bucketName,
-          publicUrl,
-          totalObjects: 0,
-          totalSizeBytes: 0,
-          totalSizeMB: 0,
-          totalSizeGB: 0,
-          freeTierLimitGB: 10,
-          freeTierUsedPct: 0,
-          freeTierRemainingGB: 10,
-        }),
-      2500
-    )
-  );
-
-  try {
-    return await Promise.race([fetchPromise, timeoutPromise]);
+    r2StatsCache = { at: Date.now(), data };
+    return data;
   } catch (err) {
-    console.error("getR2Stats failed:", err);
-    return {
-      status: "Offline",
-      pingTimeMs: Date.now() - start,
-      bucketName,
-      publicUrl,
-      totalObjects: 0,
-      totalSizeBytes: 0,
-      totalSizeMB: 0,
-      totalSizeGB: 0,
-      freeTierLimitGB: 10,
-      freeTierUsedPct: 0,
-      freeTierRemainingGB: 10,
-    };
+    console.error("getR2Stats listing failed:", err);
+    // HeadBucket passed, so R2 is reachable; only the numbers are unavailable
+    return r2StatsCache?.data ?? emptyStats("Connected", pingTimeMs);
   }
 }
