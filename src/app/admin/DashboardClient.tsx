@@ -89,7 +89,6 @@ interface SystemHealth {
   dbStorageSizeMB: number;
   dbIndexSizeMB: number;
   dbTotalCollections: number;
-  r2?: R2Stats;
   serverUptime: number;
   memoryUsed: number;
   memoryTotal: number;
@@ -138,6 +137,9 @@ const PERIOD_OPTIONS = [
 
 export default function DashboardClient() {
   const [data, setData] = useState<StatsResponse | null>(null);
+  const [r2Stats, setR2Stats] = useState<R2Stats | null>(null);
+  const [r2Loading, setR2Loading] = useState(true);
+  const [r2Error, setR2Error] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [clearing, setClearing] = useState(false);
@@ -395,6 +397,24 @@ export default function DashboardClient() {
     }
   };
 
+  const fetchR2Stats = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/r2-stats", { cache: "no-store" });
+      if (res.status === 401) {
+        router.push("/admin/login");
+        return;
+      }
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "R2 stats request failed.");
+      setR2Stats(result);
+      setR2Error("");
+    } catch (err) {
+      setR2Error(err instanceof Error ? err.message : "R2 stats request failed.");
+    } finally {
+      setR2Loading(false);
+    }
+  }, [router]);
+
   // Fetch traffic analytics data for Card 5
   const fetchTrafficData = useCallback(async (range: TrafficRange) => {
     setTrafficLoading(true);
@@ -421,6 +441,12 @@ export default function DashboardClient() {
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartPeriod, logLimit]);
+
+  useEffect(() => {
+    void fetchR2Stats();
+    const interval = setInterval(() => void fetchR2Stats(), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchR2Stats]);
 
   // Fetch traffic data on mount and whenever trafficRange changes
   useEffect(() => {
@@ -944,14 +970,14 @@ export default function DashboardClient() {
                 <span className="kpi-title title-amber">CLOUDFLARE R2 CDN</span>
                 <span className="kpi-subtitle">Object Storage</span>
               </div>
-              <span className={`kpi-status-badge ${data.systemHealth.r2?.status === "Connected" ? "online" : "offline"}`}>
-                <span className="pulse-dot"></span> {data.systemHealth.r2?.status === "Connected" ? "CONNECTED" : "OFFLINE"}
+              <span className={`kpi-status-badge ${r2Stats?.status === "Connected" ? "online" : "offline"}`}>
+                <span className="pulse-dot"></span> {r2Loading && !r2Stats ? "CHECKING" : r2Stats?.status === "Connected" ? "CONNECTED" : "OFFLINE"}
               </span>
             </div>
             <div className="kpi-card-middle text-center">
               <div className="kpi-value text-amber">
-                {data.systemHealth.r2 ? (
-                  <>{data.systemHealth.r2.totalSizeMB} <span className="unit">MB</span></>
+                {r2Stats ? (
+                  <>{r2Stats.totalSizeMB} <span className="unit">MB</span></>
                 ) : (
                   <>0 <span className="unit">MB</span></>
                 )}
@@ -960,9 +986,11 @@ export default function DashboardClient() {
             <div className="kpi-card-bottom">
               <div className="kpi-footer-row text-center-row">
                 <span>
-                  {data.systemHealth.r2?.status === "Offline"
-                    ? data.systemHealth.r2.error || "R2 connection failed; check server logs."
-                    : `📦 ${data.systemHealth.r2 ? `${data.systemHealth.r2.totalObjects} files stored (${data.systemHealth.r2.freeTierUsedPct}% free tier used)` : "0 files stored"}`}
+                  {r2Loading && !r2Stats
+                    ? "Checking Cloudflare R2..."
+                    : r2Stats?.status === "Offline"
+                      ? r2Stats.error || r2Error || "R2 connection failed; check server logs."
+                      : `📦 ${r2Stats ? `${r2Stats.totalObjects} files stored (${r2Stats.freeTierUsedPct}% free tier used)` : r2Error || "R2 stats unavailable"}`}
                 </span>
               </div>
             </div>
@@ -1858,8 +1886,8 @@ export default function DashboardClient() {
                 const innerLen = (parseFloat(heapUsedPct) / 100) * innerCirc;
 
                 // Helper calculations for Card 6: Cloudflare R2
-                const r2TotalMB = data.systemHealth.r2?.totalSizeMB || 171.59;
-                const r2FreeGB = data.systemHealth.r2?.freeTierRemainingGB || 9.83;
+                const r2TotalMB = r2Stats?.totalSizeMB ?? 0;
+                const r2FreeGB = r2Stats?.freeTierRemainingGB ?? 10;
 
                 // Per-card time window pill renderer helper (card5 has its own trafficRange selector)
                 const renderCardTimePills = (cardId: string) => {
@@ -3401,53 +3429,57 @@ export default function DashboardClient() {
                     <h3>Cloudflare R2 Storage</h3>
                     <span className="card-subtitle">Global CDN Bucket</span>
                   </div>
-                  {data.systemHealth.r2 ? (
-                    <span className={`status-pill ${data.systemHealth.r2.status === "Connected" ? "green" : "red"}`}>
-                      <span className="pulse-dot"></span> {data.systemHealth.r2.status.toUpperCase()}
+                  {r2Stats ? (
+                    <span className={`status-pill ${r2Stats.status === "Connected" ? "green" : "red"}`}>
+                      <span className="pulse-dot"></span> {r2Stats.status.toUpperCase()}
                     </span>
                   ) : (
                     <span className="status-pill red">
-                      <span className="pulse-dot"></span> OFFLINE
+                      <span className="pulse-dot"></span> {r2Loading ? "CHECKING" : "OFFLINE"}
                     </span>
                   )}
                 </div>
                 <div className="card-body">
-                  {data.systemHealth.r2 ? (
+                  {r2Stats ? (
                     <>
-                      {data.systemHealth.r2.error && (
+                      {(r2Stats.error || r2Error) && (
                         <div className="health-row">
                           <span className="row-label">R2 details</span>
-                          <span className="row-val text-red">{data.systemHealth.r2.error}</span>
+                          <span className="row-val text-red">{r2Stats.error || r2Error}</span>
                         </div>
                       )}
                       <div className="health-row">
                         <span className="row-label">R2 Response Ping</span>
-                        <span className="row-val font-mono">{data.systemHealth.r2.pingTimeMs} ms</span>
+                        <span className="row-val font-mono">{r2Stats.pingTimeMs} ms</span>
                       </div>
                       <div className="health-row">
                         <span className="row-label">Bucket Name</span>
-                        <span className="row-val font-mono text-amber">{data.systemHealth.r2.bucketName}</span>
+                        <span className="row-val font-mono text-amber">{r2Stats.bucketName}</span>
                       </div>
                       <div className="health-row">
                         <span className="row-label">Uploaded Files</span>
-                        <span className="row-val font-bold">{data.systemHealth.r2.totalObjects} files</span>
+                        <span className="row-val font-bold">{r2Stats.totalObjects} files</span>
                       </div>
                       <div className="health-row">
                         <span className="row-label">R2 Storage Used</span>
                         <span className="row-val font-bold text-amber">
-                          {data.systemHealth.r2.totalSizeMB} MB ({data.systemHealth.r2.totalSizeGB} GB)
+                          {r2Stats.totalSizeMB} MB ({r2Stats.totalSizeGB} GB)
                         </span>
                       </div>
                       <div className="health-row">
                         <span className="row-label">Free Monthly Storage</span>
-                        <span className="row-val text-green">{data.systemHealth.r2.freeTierRemainingGB} GB Free Left</span>
+                        <span className="row-val text-green">{r2Stats.freeTierRemainingGB} GB Free Left</span>
                       </div>
                     </>
+                  ) : r2Loading ? (
+                    <div className="r2-offline-notice">
+                      <p className="text-amber font-bold">Checking Cloudflare R2...</p>
+                    </div>
                   ) : (
                     <div className="r2-offline-notice">
                       <p className="text-red font-bold">Cloudflare R2 Status Unavailable</p>
                       <p className="subtext">
-                        Please configure R2 environment variables (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`) in your Vercel project settings to view live R2 storage metrics.
+                        {r2Error || "R2 stats could not be loaded. Check the server logs."}
                       </p>
                     </div>
                   )}

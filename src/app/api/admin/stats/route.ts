@@ -239,27 +239,6 @@ export async function GET(request: Request) {
       const freeMem = os.freemem() || 0;
       const memory = process.memoryUsage();
 
-      // Bound the R2 check without racing its per-request timeout.
-      const r2Stats = await Promise.race([
-        import("@/lib/r2").then(({ getR2Stats }) => getR2Stats()).catch((e) => { console.error("getR2Stats failed:", e?.name, e?.message); return null; }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000)),
-      ]).then((s) =>
-        s ?? {
-          status: "Offline" as const,
-          error: "R2 health check exceeded 6 seconds or failed to load.",
-          pingTimeMs: 0,
-          bucketName: "healthcare-uploads",
-          publicUrl: "",
-          totalObjects: 0,
-          totalSizeBytes: 0,
-          totalSizeMB: 0,
-          totalSizeGB: 0,
-          freeTierLimitGB: 10,
-          freeTierUsedPct: 0,
-          freeTierRemainingGB: 10,
-        }
-      );
-
       const systemHealth = {
         dbStatus: "Connected",
         dbPingTime: (dbPingTime as number) || 15,
@@ -267,7 +246,6 @@ export async function GET(request: Request) {
         dbStorageSizeMB: 0,
         dbIndexSizeMB: 0,
         dbTotalCollections: 0,
-        r2: r2Stats,
         serverUptime: process.uptime(),
         memoryUsed: Math.round(memory.heapUsed / 1024 / 1024),
         memoryTotal: Math.round(memory.heapTotal / 1024 / 1024),
