@@ -9,6 +9,7 @@ import {
   ensureAdminSecurityIndexes,
   findActiveIpBlock,
   findActiveLoginLock,
+  getAdminSmtpErrorMessage,
   getAdminSecuritySettings,
   getIpKey,
   getOtpConfiguration,
@@ -190,8 +191,11 @@ export async function POST(request: Request) {
               { challengeHash: hashChallengeId(challengeId), status: "pending" },
               { $set: { status: "invalidated", invalidatedAt: new Date() } }
             );
-            console.error("Admin OTP email delivery failed:", mailError);
-            return NextResponse.json({ error: "Could not send the verification email. No admin session was created." }, { status: 503 });
+            const smtpError = mailError as { code?: string; responseCode?: number };
+            console.error("Admin OTP email delivery failed:", { code: smtpError?.code, responseCode: smtpError?.responseCode });
+            return NextResponse.json({
+              error: `Could not send the verification email. No admin session was created. ${getAdminSmtpErrorMessage(mailError)}`,
+            }, { status: 503 });
           }
 
           return NextResponse.json({

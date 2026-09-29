@@ -44,6 +44,61 @@ export function getOtpConfiguration() {
   };
 }
 
+function createAdminSmtpTransporter() {
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = process.env.SMTP_USER;
+  const password = process.env.SMTP_PASSWORD;
+  const from = process.env.SMTP_FROM;
+
+  if (!host || !Number.isInteger(port) || port < 1 || port > 65535 || !user || !password || !from) {
+    throw new Error("SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM must be configured.");
+  }
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    requireTLS: port !== 465,
+    tls: { minVersion: "TLSv1.2" },
+    auth: { user, pass: password },
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 8000,
+  });
+}
+
+export function getAdminSmtpErrorMessage(error: unknown): string {
+  const smtpError = error as { code?: string; responseCode?: number };
+  const code = smtpError?.code || "";
+  const responseCode = smtpError?.responseCode;
+
+  if (code === "EAUTH" || responseCode === 535) {
+    return "SMTP authentication failed. Check SMTP_USER and SMTP_PASSWORD in the deployment environment; your provider may require an app password or SMTP API key.";
+  }
+  if (code === "ETLS" || code === "EPROTOCOL") {
+    return "SMTP TLS negotiation failed. Check SMTP_PORT and the provider's required TLS mode (465 for implicit TLS, usually 587 for STARTTLS).";
+  }
+  if (["ECONNECTION", "ETIMEDOUT", "ESOCKET", "EDNS", "ECONNREFUSED", "ENOTFOUND"].includes(code)) {
+    return "Could not connect to the SMTP server. Check SMTP_HOST and SMTP_PORT, and confirm the provider allows connections from the deployment.";
+  }
+  if ([550, 553, 554].includes(responseCode || 0) || code === "EENVELOPE") {
+    return "The SMTP provider rejected the sender or recipient. Check that SMTP_FROM and ADMIN_OTP_EMAIL are valid and allowed by your provider.";
+  }
+  return "Check the SMTP host, port, credentials, sender address, and provider logs.";
+}
+
+export async function sendAdminSmtpTest(): Promise<void> {
+  const recipient = process.env.ADMIN_OTP_EMAIL;
+  if (!recipient) throw new Error("ADMIN_OTP_EMAIL must be configured.");
+  await createAdminSmtpTransporter().sendMail({
+    from: process.env.SMTP_FROM,
+    to: recipient,
+    subject: "Admin email delivery test",
+    text: "This test confirms that the configured admin SMTP account accepted an email for delivery. It does not contain a verification code.",
+  });
+}
+
 export function ensureAdminSecurityIndexes(db: Db): Promise<void> {
   if (!securityIndexesPromise) {
     securityIndexesPromise = Promise.all([
@@ -153,30 +208,8 @@ export async function recordFailedLogin(
 }
 
 export async function sendAdminOtp(email: string, code: string): Promise<void> {
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
-  const user = process.env.SMTP_USER;
-  const password = process.env.SMTP_PASSWORD;
-  const from = process.env.SMTP_FROM;
-
-  if (!host || !Number.isInteger(port) || !user || !password || !from) {
-    throw new Error("SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM must be configured.");
-  }
-
-  const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    requireTLS: port !== 465,
-    tls: { minVersion: "TLSv1.2" },
-    auth: { user, pass: password },
-    connectionTimeout: 5000,
-    greetingTimeout: 5000,
-    socketTimeout: 8000,
-  });
-
-  await transporter.sendMail({
-    from,
+  await createAdminSmtpTransporter().sendMail({
+    from: process.env.SMTP_FROM,
     to: email,
     subject: "Your admin sign-in verification code",
     text: `Your admin verification code is ${code}. It expires in 2 minutes. If you did not request this code, you can ignore this email.`,

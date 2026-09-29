@@ -4,8 +4,10 @@ import { getDb } from "@/lib/db";
 import { validateSession } from "@/lib/admin-auth";
 import {
   ensureAdminSecurityIndexes,
+  getAdminSmtpErrorMessage,
   getAdminSecuritySettings,
   getOtpConfiguration,
+  sendAdminSmtpTest,
 } from "@/lib/admin-security";
 
 export const runtime = "nodejs";
@@ -46,12 +48,27 @@ export async function POST(request: Request) {
   if (!(await isAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isSameOrigin(request)) return NextResponse.json({ error: "Invalid origin." }, { status: 403 });
 
-  let body: { otpEnabled?: unknown };
+  let body: { otpEnabled?: unknown; testEmail?: unknown };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
+
+  if (body.testEmail === true) {
+    if (!getOtpConfiguration().configured) {
+      return NextResponse.json({ error: "Configure all email OTP environment variables before testing email delivery." }, { status: 400 });
+    }
+    try {
+      await sendAdminSmtpTest();
+      return NextResponse.json({ success: true, message: "Test email accepted by the SMTP server. Check the admin inbox and spam folder." });
+    } catch (error) {
+      const smtpError = error as { code?: string; responseCode?: number };
+      console.error("Admin SMTP test failed:", { code: smtpError?.code, responseCode: smtpError?.responseCode });
+      return NextResponse.json({ error: `Test email failed. ${getAdminSmtpErrorMessage(error)}` }, { status: 502 });
+    }
+  }
+
   if (typeof body.otpEnabled !== "boolean") {
     return NextResponse.json({ error: "otpEnabled must be a boolean." }, { status: 400 });
   }

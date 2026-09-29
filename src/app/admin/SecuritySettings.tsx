@@ -22,6 +22,7 @@ export default function SecuritySettings() {
   const [blocks, setBlocks] = useState<IpBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -73,6 +74,26 @@ export default function SecuritySettings() {
     }
   }
 
+  async function testAdminEmail() {
+    setTestingEmail(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/security/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ testEmail: true }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Test email failed.");
+      setMessage(data.message || "Test email accepted by the SMTP server.");
+    } catch (testError) {
+      setError(testError instanceof Error ? testError.message : "Test email failed.");
+    } finally {
+      setTestingEmail(false);
+    }
+  }
+
   async function unblock(id: string) {
     if (!window.confirm("Unblock this network and reset its failed-login counter?")) return;
     setError("");
@@ -98,11 +119,18 @@ export default function SecuritySettings() {
         <h3>Admin email verification</h3>
         <p>Email OTP is {security?.emailOtpConfigured ? `configured for ${security.maskedDestination}` : "not configured"}.</p>
         <p>SMTP credentials and the admin destination are read from server environment variables.</p>
+        <button
+          type="button"
+          onClick={() => void testAdminEmail()}
+          disabled={testingEmail || saving || !security?.emailOtpConfigured}
+        >
+          {testingEmail ? "Sending test email..." : "Send test email"}
+        </button>
         <label style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 600 }}>
           <input
             type="checkbox"
             checked={security?.otpEnabled || false}
-            disabled={saving || (!security?.otpEnabled && (!security?.emailOtpConfigured || !security?.ipRateLimitConfigured))}
+            disabled={saving || testingEmail || (!security?.otpEnabled && (!security?.emailOtpConfigured || !security?.ipRateLimitConfigured))}
             onChange={(event) => void saveOtpSetting(event.target.checked)}
           />
           Require email OTP after password verification
