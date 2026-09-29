@@ -61,7 +61,14 @@ export default function AboutPage() {
       <div style={{ backgroundColor: "var(--background)", minHeight: "80vh", padding: "4rem 0" }}>
       <div className="container text-page-content" style={{ backgroundColor: "var(--surface)", padding: "3rem", borderRadius: "var(--radius-2xl)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" }}>
         
-        <span className="disease-badge" style={{ marginBottom: "1rem" }}>Our Mission</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+          <span className="disease-badge">Our Mission</span>
+          {adminLoginPath && (
+            <Link href={adminLoginPath} rel="nofollow" className="btn btn-primary">
+              🛡️ Admin Portal
+            </Link>
+          )}
+        </div>
         <h1 style={{ marginBottom: "1.5rem" }}>About HealthEdu</h1>
         
         <p style={{ fontSize: "1.15rem", color: "var(--text-main)", lineHeight: "1.7", marginBottom: "2rem" }}>
@@ -94,13 +101,6 @@ export default function AboutPage() {
           Every donation received through our platform helps cover web database hosting, research compiling, and site optimizations. If you find our resources valuable, please consider supporting us.
         </p>
 
-        {adminLoginPath && (
-          <p style={{ marginTop: "2rem" }}>
-            <Link href={adminLoginPath} rel="nofollow" className="btn btn-primary">
-              🛡️ Admin Portal
-            </Link>
-          </p>
-        )}
       </div>
       </div>
     </>
