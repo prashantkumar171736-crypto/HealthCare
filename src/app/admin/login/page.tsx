@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -10,7 +10,27 @@ export default function AdminLogin() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [locked, setLocked] = useState(false);
+  const [challengeId, setChallengeId] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpDestination, setOtpDestination] = useState("");
+  const [otpExpiresAt, setOtpExpiresAt] = useState<number | null>(null);
+  const [otpSecondsLeft, setOtpSecondsLeft] = useState(0);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!otpExpiresAt) return;
+    const updateCountdown = () => {
+      const remaining = Math.max(0, Math.ceil((otpExpiresAt - Date.now()) / 1000));
+      setOtpSecondsLeft(remaining);
+      if (remaining === 0) {
+        setChallengeId("");
+        setOtpExpiresAt(null);
+      }
+    };
+    updateCountdown();
+    const timer = window.setInterval(updateCountdown, 1000);
+    return () => window.clearInterval(timer);
+  }, [otpExpiresAt]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +62,13 @@ export default function AdminLogin() {
         return;
       }
 
-      if (res.ok && data.success) {
+      if (res.ok && data.otpRequired && typeof data.challengeId === "string") {
+        setChallengeId(data.challengeId);
+        setOtpDestination(data.maskedDestination || "your admin email");
+        setOtpExpiresAt(new Date(data.expiresAt).getTime());
+        setOtpCode("");
+        setPassword("");
+      } else if (res.ok && data.success) {
         router.push("/admin");
         router.refresh();
       } else {
@@ -50,6 +76,31 @@ export default function AdminLogin() {
       }
     } catch {
       setError("An unexpected error occurred. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!challengeId || otpSecondsLeft === 0) return;
+    setError("");
+    setLoading(true);
+    try {
+      const response = await fetch("/api/admin/login/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challengeId, code: otpCode }),
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        router.push("/admin");
+        router.refresh();
+      } else {
+        setError(data.error || "Invalid verification code.");
+      }
+    } catch {
+      setError("Verification service is temporarily unavailable.");
     } finally {
       setLoading(false);
     }
@@ -116,6 +167,31 @@ export default function AdminLogin() {
           </div>
         )}
 
+        {challengeId ? (
+        <form onSubmit={handleVerifyOtp}>
+          <p role="status" style={{ color: "var(--text-muted, #475569)", marginBottom: "1.25rem" }}>
+            Enter the six-digit code sent to {otpDestination}. Expires in {Math.floor(otpSecondsLeft / 60)}:{String(otpSecondsLeft % 60).padStart(2, "0")}.
+          </p>
+          <label htmlFor="otp-code" style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem" }}>Verification code</label>
+          <input
+            autoComplete="one-time-code"
+            inputMode="numeric"
+            pattern="[0-9]{6}"
+            maxLength={6}
+            required
+            id="otp-code"
+            value={otpCode}
+            onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "1.1rem", marginBottom: "1.25rem" }}
+          />
+          <button type="submit" disabled={loading || otpSecondsLeft === 0 || otpCode.length !== 6} style={{ width: "100%", padding: "0.85rem", borderRadius: 8, border: 0, background: "var(--primary, #0d9488)", color: "white", fontWeight: 700, cursor: loading ? "wait" : "pointer" }}>
+            {loading ? "Verifying..." : "Verify and Sign In"}
+          </button>
+          <button type="button" onClick={() => { setChallengeId(""); setOtpExpiresAt(null); setError(""); }} style={{ width: "100%", padding: "0.75rem", marginTop: 8, border: 0, background: "transparent", color: "var(--text-muted, #475569)", cursor: "pointer" }}>
+            Return to sign in
+          </button>
+        </form>
+        ) : (
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: "1.25rem" }}>
             <label
@@ -208,6 +284,7 @@ export default function AdminLogin() {
             {locked ? "🔒 Account Temporarily Locked" : loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
+        )}
 
         <div style={{ textAlign: "center", marginTop: "1.5rem" }}>
           <Link

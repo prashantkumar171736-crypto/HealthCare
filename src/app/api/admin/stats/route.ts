@@ -2,7 +2,7 @@ import "@/lib/env"; // Ensure env vars are loaded on Vercel
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
-import { validateSession } from "../login/route";
+import { validateSession } from "@/lib/admin-auth";
 import os from "os";
 
 export const runtime = "nodejs";
@@ -323,7 +323,9 @@ export async function GET(request: Request) {
             id: log._id.toString(),
             path: log.path,
             referrer: log.referrer,
-            ip: log.ip,
+            visitorId: typeof log.sessionId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(log.sessionId)
+              ? log.sessionId.slice(0, 12)
+              : "",
             userAgent: log.userAgent,
             country: log.country,
             region: log.region,

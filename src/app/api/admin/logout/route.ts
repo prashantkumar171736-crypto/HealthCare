@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { revokeSession } from "../login/route";
+import { revokeSession } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 

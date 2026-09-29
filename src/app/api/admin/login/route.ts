@@ -3,120 +3,36 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import crypto from "crypto";
 import { getDb } from "@/lib/db";
+import { createAdminSession, SESSION_TTL_SECONDS } from "@/lib/admin-auth";
+import {
+  createOtpCode,
+  ensureAdminSecurityIndexes,
+  findActiveIpBlock,
+  findActiveLoginLock,
+  getAdminSecuritySettings,
+  getIpKey,
+  getOtpConfiguration,
+  getTrustedClientIp,
+  hashChallengeId,
+  hashOtp,
+  otpExpiry,
+  recordFailedLogin,
+  sendAdminOtp,
+} from "@/lib/admin-security";
+
+export { revokeSession, validateSession } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 
 // ---------------------------------------------------------------------------
-// Rate Limiter (per IP)
-// ---------------------------------------------------------------------------
-interface RateLimitEntry {
-  attempts: number;
-  firstAttemptAt: number;
-  lockedUntil: number | null;
-}
-
-const rateLimitMap = new Map<string, RateLimitEntry>();
-const MAX_ATTEMPTS = 10;           // max failed attempts before lockout
-const WINDOW_MS = 15 * 60 * 1000;  // 15-minute rolling window
-const LOCKOUT_MS = 15 * 60 * 1000; // 15-minute lockout
-
-function getClientIP(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
-}
-
-function checkRateLimit(ip: string): { allowed: boolean; retryAfterMs: number } {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry) return { allowed: true, retryAfterMs: 0 };
-
-  if (entry.lockedUntil !== null) {
-    if (now < entry.lockedUntil) {
-      return { allowed: false, retryAfterMs: entry.lockedUntil - now };
-    }
-    rateLimitMap.delete(ip);
-    return { allowed: true, retryAfterMs: 0 };
-  }
-
-  if (now - entry.firstAttemptAt > WINDOW_MS) {
-    rateLimitMap.delete(ip);
-    return { allowed: true, retryAfterMs: 0 };
-  }
-
-  if (entry.attempts >= MAX_ATTEMPTS) {
-    entry.lockedUntil = now + LOCKOUT_MS;
-    return { allowed: false, retryAfterMs: LOCKOUT_MS };
-  }
-
-  return { allowed: true, retryAfterMs: 0 };
-}
-
-function recordFailedAttempt(ip: string): void {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry) {
-    rateLimitMap.set(ip, { attempts: 1, firstAttemptAt: now, lockedUntil: null });
-    return;
-  }
-  if (now - entry.firstAttemptAt > WINDOW_MS && entry.lockedUntil === null) {
-    rateLimitMap.set(ip, { attempts: 1, firstAttemptAt: now, lockedUntil: null });
-    return;
-  }
-  entry.attempts += 1;
-  if (entry.attempts >= MAX_ATTEMPTS && entry.lockedUntil === null) {
-    entry.lockedUntil = now + LOCKOUT_MS;
-  }
-}
-
-function clearRateLimit(ip: string): void {
-  rateLimitMap.delete(ip);
-}
-
-// ---------------------------------------------------------------------------
-// Secret Key Handling
-// ---------------------------------------------------------------------------
-const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
-const SESSION_TTL_SECONDS = SESSION_TTL_MS / 1000;
-
-function hashSessionToken(token: string): string {
-  return crypto.createHash("sha256").update(token).digest("hex");
-}
-
-export async function validateSession(
-  sessionToken: string | undefined
-): Promise<boolean> {
-  if (!sessionToken || !/^[a-f0-9]{64}$/i.test(sessionToken)) return false;
-  try {
-    const db = await Promise.race([
-      getDb(),
-      new Promise<null>((_, reject) =>
-        setTimeout(() => reject(new Error("DB timeout")), 10000)
-      ),
-    ]);
-
-    if (!db) return false;
-    const session = await db.collection("admin_sessions").findOne({
-      tokenHash: hashSessionToken(sessionToken),
-      expiresAt: { $gt: new Date() },
-    });
-    if (!session?.username || session.username.toLowerCase() === "admin") return false;
-
-    const admin = await db.collection("admins").findOne(
-      { username: session.username },
-      { projection: { _id: 1 } }
-    );
-    return Boolean(admin);
-  } catch (err) {
-    console.error("validateSession DB lookup error:", err);
-    return false;
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Helper: Verify Password Against MongoDB Admin Document
 // ---------------------------------------------------------------------------
-function verifyAdminPassword(password: string, admin: any): boolean {
+interface AdminPasswordRecord {
+  passwordHash?: unknown;
+  salt?: unknown;
+}
+
+function verifyAdminPassword(password: string, admin: AdminPasswordRecord): boolean {
   if (typeof admin.passwordHash !== "string" || typeof admin.salt !== "string") return false;
   try {
     const computed = crypto
@@ -134,27 +50,6 @@ function verifyAdminPassword(password: string, admin: any): boolean {
 // POST /api/admin/login
 // ---------------------------------------------------------------------------
 export async function POST(request: Request) {
-  const ip = getClientIP(request);
-
-  // --- Rate limit check ---
-  const { allowed, retryAfterMs } = checkRateLimit(ip);
-  if (!allowed) {
-    const retryAfterSecs = Math.ceil(retryAfterMs / 1000);
-    return NextResponse.json(
-      {
-        error: `Too many failed attempts. Please try again in ${Math.ceil(retryAfterSecs / 60)} minutes.`,
-      },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": String(retryAfterSecs),
-          "X-RateLimit-Limit": String(MAX_ATTEMPTS),
-        },
-      }
-    );
-  }
-
-  // --- Parse input ---
   let username = "";
   let password = "";
 
@@ -173,18 +68,15 @@ export async function POST(request: Request) {
     );
   }
 
-  if (username.length > 254 || password.length > 1024) {
-    recordFailedAttempt(ip);
-    return NextResponse.json(
-      { error: "Invalid username or password." },
-      { status: 401 }
-    );
+  const trustedIp = getTrustedClientIp(request) || (process.env.NODE_ENV === "development" ? "127.0.0.1" : null);
+  if (!trustedIp) {
+    return NextResponse.json({ error: "Unable to verify the client network. Please retry." }, { status: 503 });
   }
 
   // --- Authenticate credentials against MongoDB ---
   let isValid = false;
   let authenticatedUsername = username;
-  let sessionToken = "";
+  let authenticatedDb: Awaited<ReturnType<typeof getDb>> | null = null;
 
   try {
     const db = await Promise.race([
@@ -201,6 +93,37 @@ export async function POST(request: Request) {
         { status: 503 }
       );
     }
+    authenticatedDb = db;
+
+    await ensureAdminSecurityIndexes(db);
+    if (!process.env.IP_RATE_LIMIT_SECRET) {
+      return NextResponse.json({ error: "IP_RATE_LIMIT_SECRET must be configured." }, { status: 503 });
+    }
+    const ipKey = getIpKey(trustedIp);
+    const [activeBlock, activeLock] = await Promise.all([
+      findActiveIpBlock(db, ipKey),
+      findActiveLoginLock(db, ipKey),
+    ]);
+    const lockedUntil = activeBlock?.expiresAt || activeLock?.lockedUntil;
+    if (lockedUntil instanceof Date && lockedUntil > new Date()) {
+      const retryAfter = Math.max(1, Math.ceil((lockedUntil.getTime() - Date.now()) / 1000));
+      return NextResponse.json(
+        { error: "This network is temporarily blocked from admin sign-in." },
+        { status: 429, headers: { "Retry-After": String(retryAfter), "X-RateLimit-Limit": "5" } }
+      );
+    }
+
+    const country = request.headers.get("x-vercel-ip-country") || "Unknown";
+    if (username.length > 254 || password.length > 1024) {
+      await recordFailedLogin(db, ipKey, country, true);
+      return NextResponse.json({ error: "Invalid username or password." }, { status: 401 });
+    }
+
+    const securitySettings = await getAdminSecuritySettings(db);
+    const otpConfiguration = getOtpConfiguration();
+    if (securitySettings.otpEnabled && !otpConfiguration.configured) {
+      return NextResponse.json({ error: "Email OTP is enabled but its SMTP or admin-email configuration is incomplete." }, { status: 503 });
+    }
 
     const escapedUsername = username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -214,18 +137,70 @@ export async function POST(request: Request) {
 
     if (admin && admin.username?.trim().toLowerCase() !== "admin") {
       authenticatedUsername = admin.username || username;
-      isValid = verifyAdminPassword(password, admin);
+      isValid = verifyAdminPassword(password, {
+        passwordHash: admin.passwordHash,
+        salt: admin.salt,
+      });
       if (isValid) {
-        sessionToken = crypto.randomBytes(32).toString("hex");
-        const now = new Date();
-        const sessions = db.collection("admin_sessions");
-        await sessions.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-        await sessions.insertOne({
-          tokenHash: hashSessionToken(sessionToken),
-          username: authenticatedUsername,
-          createdAt: now,
-          expiresAt: new Date(now.getTime() + SESSION_TTL_MS),
-        });
+        if (securitySettings.otpEnabled) {
+          const now = new Date();
+          const challenges = db.collection("admin_otp_challenges");
+          const recentChallenge = await challenges.findOne({
+            adminId: admin._id,
+            createdAt: { $gt: new Date(now.getTime() - 60_000) },
+          });
+          if (recentChallenge) {
+            return NextResponse.json(
+              { error: "A verification code was requested recently. Please wait before trying again." },
+              { status: 429, headers: { "Retry-After": "60" } }
+            );
+          }
+
+          const challengeId = crypto.randomBytes(32).toString("hex");
+          const code = createOtpCode();
+          await challenges.updateMany(
+            { adminId: admin._id, status: "pending" },
+            { $set: { status: "invalidated", invalidatedAt: now } }
+          );
+          try {
+            await challenges.insertOne({
+              challengeHash: hashChallengeId(challengeId),
+              adminId: admin._id,
+              username: authenticatedUsername,
+              otpHash: hashOtp(challengeId, code),
+              createdAt: now,
+              expiresAt: otpExpiry(now),
+              attemptCount: 0,
+              status: "pending",
+            });
+          } catch (error) {
+            if ((error as { code?: number }).code === 11000) {
+              return NextResponse.json(
+                { error: "A verification code was requested recently. Please wait before trying again." },
+                { status: 429, headers: { "Retry-After": "60" } }
+              );
+            }
+            throw error;
+          }
+
+          try {
+            await sendAdminOtp(process.env.ADMIN_OTP_EMAIL!, code);
+          } catch (mailError) {
+            await challenges.updateOne(
+              { challengeHash: hashChallengeId(challengeId), status: "pending" },
+              { $set: { status: "invalidated", invalidatedAt: new Date() } }
+            );
+            console.error("Admin OTP email delivery failed:", mailError);
+            return NextResponse.json({ error: "Could not send the verification email. No admin session was created." }, { status: 503 });
+          }
+
+          return NextResponse.json({
+            otpRequired: true,
+            challengeId,
+            maskedDestination: otpConfiguration.maskedDestination,
+            expiresAt: otpExpiry(now).toISOString(),
+          });
+        }
       }
     }
   } catch (dbErr) {
@@ -236,9 +211,12 @@ export async function POST(request: Request) {
     );
   }
 
-  // --- Success: Set session cookie ---
+  const ipKey = getIpKey(trustedIp);
+  const db = authenticatedDb;
+  if (!db) return NextResponse.json({ error: "Authentication service is temporarily unavailable." }, { status: 503 });
+
   if (isValid) {
-    clearRateLimit(ip);
+    const sessionToken = await createAdminSession(authenticatedUsername);
 
     const cookieStore = await cookies();
 
@@ -253,26 +231,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, username: authenticatedUsername });
   }
 
-  // Failed login: record the attempt
-  recordFailedAttempt(ip);
+  const now = new Date();
+  const country = request.headers.get("x-vercel-ip-country") || "Unknown";
+  await recordFailedLogin(db, ipKey, country, true, now);
 
-  // Small random delay to mitigate timing side-channels
-  await new Promise((r) => setTimeout(r, 50 + Math.random() * 100));
+  await new Promise((resolve) => setTimeout(resolve, crypto.randomInt(50, 151)));
 
   return NextResponse.json(
     { error: "Invalid username or password." },
     { status: 401 }
   );
-}
-
-export async function revokeSession(sessionToken: string | undefined): Promise<void> {
-  if (!sessionToken || !/^[a-f0-9]{64}$/i.test(sessionToken)) return;
-  try {
-    const db = await getDb();
-    await db.collection("admin_sessions").deleteOne({
-      tokenHash: hashSessionToken(sessionToken),
-    });
-  } catch (err) {
-    console.error("Failed to revoke admin session:", err);
-  }
 }

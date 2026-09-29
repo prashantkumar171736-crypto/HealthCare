@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { validateSession } from "../login/route";
+import { validateSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { ObjectId } from "mongodb";
 

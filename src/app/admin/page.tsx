@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { validateSession } from "../api/admin/login/route";
+import { validateSession } from "@/lib/admin-auth";
 import DashboardClient from "./DashboardClient";
 
 export const runtime = "nodejs";

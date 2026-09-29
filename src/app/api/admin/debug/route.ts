@@ -1,7 +1,7 @@
 import "@/lib/env";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { validateSession } from "../login/route";
+import { validateSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import os from "os";
 

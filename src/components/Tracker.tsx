@@ -22,6 +22,18 @@ export default function Tracker() {
 
     const trackView = async () => {
       try {
+        const storageKey = "healthcare_analytics_session";
+        let visitorSessionId = "";
+        try {
+          visitorSessionId = sessionStorage.getItem(storageKey) || "";
+          if (!visitorSessionId) {
+            visitorSessionId = window.crypto.randomUUID();
+            sessionStorage.setItem(storageKey, visitorSessionId);
+          }
+        } catch {
+          visitorSessionId = window.crypto.randomUUID();
+        }
+
         await fetch("/api/track", {
           method: "POST",
           headers: {
@@ -30,6 +42,7 @@ export default function Tracker() {
           body: JSON.stringify({
             path: pathname,
             referrer: typeof document !== "undefined" ? document.referrer : "",
+            visitorSessionId,
           }),
         });
       } catch (err) {

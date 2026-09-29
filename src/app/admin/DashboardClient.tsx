@@ -6,6 +6,7 @@ import PostEditor from "./PostEditor";
 import DonationSettings from "./DonationSettings";
 import CommentsManager from "./CommentsManager";
 import ThemeSettings, { AdminTheme, DEFAULT_THEME, hexToRgb, luminance } from "./ThemeSettings";
+import SecuritySettings from "./SecuritySettings";
 import { useLanguage } from "@/context/LanguageContext";
 import { LANG_MAP } from "@/lib/detectLanguage";
 
@@ -48,7 +49,7 @@ interface VisitorLog {
   id: string;
   path: string;
   referrer: string;
-  ip: string;
+  visitorId: string;
   userAgent: string;
   country: string;
   region: string;
@@ -147,18 +148,18 @@ export default function DashboardClient() {
   const [chartPeriod, setChartPeriod] = useState("monthly");
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation" | "comments" | "appearance">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation" | "comments" | "appearance" | "security">("overview");
   const [theme, setTheme] = useState<AdminTheme>(DEFAULT_THEME);
 
   // Live Server Request Log filters & controls
   const [logLimit, setLogLimit] = useState<string>("50");
-  const [sortField, setSortField] = useState<"timestamp" | "ip" | "country" | "state" | "geo" | "path" | "referrer" | "userAgent">("timestamp");
+  const [sortField, setSortField] = useState<"timestamp" | "visitorId" | "country" | "state" | "geo" | "path" | "referrer" | "userAgent">("timestamp");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [quickSearchOpen, setQuickSearchOpen] = useState(false);
   const [quickSearchText, setQuickSearchText] = useState("");
   const [advSearchOpen, setAdvSearchOpen] = useState(false);
   const [advFilters, setAdvFilters] = useState({
-    ip: "",
+    visitorId: "",
     country: "",
     state: "",
     geo: "",
@@ -815,6 +816,12 @@ export default function DashboardClient() {
           >
             🎨 Appearance
           </button>
+          <button
+            className={`nav-item ${activeTab === "security" ? "active" : ""}`}
+            onClick={() => setActiveTab("security")}
+          >
+            🛡️ Security
+          </button>
         </nav>
 
         {/* Language Settings */}
@@ -1432,7 +1439,7 @@ export default function DashboardClient() {
 
         {activeTab === "logs" && (() => {
           const hasAdvFilters = Boolean(
-            advFilters.ip.trim() ||
+            advFilters.visitorId.trim() ||
             advFilters.country.trim() ||
             advFilters.state.trim() ||
             advFilters.geo.trim() ||
@@ -1445,7 +1452,7 @@ export default function DashboardClient() {
 
           const resetAdvFilters = () => {
             setAdvFilters({
-              ip: "",
+              visitorId: "",
               country: "",
               state: "",
               geo: "",
@@ -1457,7 +1464,7 @@ export default function DashboardClient() {
             });
           };
 
-          const handleSort = (field: "timestamp" | "ip" | "country" | "state" | "geo" | "path" | "referrer" | "userAgent") => {
+          const handleSort = (field: "timestamp" | "visitorId" | "country" | "state" | "geo" | "path" | "referrer" | "userAgent") => {
             if (sortField === field) {
               setSortOrder(sortOrder === "asc" ? "desc" : "asc");
             } else {
@@ -1466,7 +1473,7 @@ export default function DashboardClient() {
             }
           };
 
-          const renderSortIndicator = (field: "timestamp" | "ip" | "country" | "state" | "geo" | "path" | "referrer" | "userAgent") => {
+          const renderSortIndicator = (field: "timestamp" | "visitorId" | "country" | "state" | "geo" | "path" | "referrer" | "userAgent") => {
             if (sortField !== field) return <span className="sort-icon inactive">↕</span>;
             return <span className="sort-icon active">{sortOrder === "asc" ? "▲" : "▼"}</span>;
           };
@@ -1474,12 +1481,12 @@ export default function DashboardClient() {
           const filteredLogs = (data.logs || []).filter((log) => {
             if (quickSearchText.trim()) {
               const qTokens = quickSearchText.trim().toLowerCase().split(/\s+/);
-              const combinedText = `${log.timestamp} ${new Date(log.timestamp).toLocaleTimeString()} ${new Date(log.timestamp).toLocaleDateString()} ${log.ip} ${log.country} ${log.region} ${log.city} ${log.path} ${log.referrer} ${log.userAgent}`.toLowerCase();
+              const combinedText = `${log.timestamp} ${new Date(log.timestamp).toLocaleTimeString()} ${new Date(log.timestamp).toLocaleDateString()} ${log.visitorId} ${log.country} ${log.region} ${log.city} ${log.path} ${log.referrer} ${log.userAgent}`.toLowerCase();
               const matchesQuick = qTokens.every((token) => combinedText.includes(token));
               if (!matchesQuick) return false;
             }
 
-            if (advFilters.ip.trim() && !log.ip.toLowerCase().includes(advFilters.ip.trim().toLowerCase())) {
+            if (advFilters.visitorId.trim() && !log.visitorId.toLowerCase().includes(advFilters.visitorId.trim().toLowerCase())) {
               return false;
             }
             if (advFilters.country.trim() && !(log.country || "").toLowerCase().includes(advFilters.country.trim().toLowerCase())) {
@@ -1521,8 +1528,8 @@ export default function DashboardClient() {
             let comparison = 0;
             if (sortField === "timestamp") {
               comparison = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
-            } else if (sortField === "ip") {
-              comparison = a.ip.localeCompare(b.ip);
+            } else if (sortField === "visitorId") {
+              comparison = a.visitorId.localeCompare(b.visitorId);
             } else if (sortField === "country") {
               comparison = (a.country || "").localeCompare(b.country || "");
             } else if (sortField === "state") {
@@ -1612,7 +1619,7 @@ export default function DashboardClient() {
                     rows={2}
                   />
                   <div className="quick-search-hint">
-                    💡 Tip: Enter multi-word keywords separated by space or new line to search across IP, Country, State, Path, Referrer, and User Agent simultaneously.
+                    💡 Tip: Enter multi-word keywords separated by space or new line to search across visitor key, Country, State, Path, Referrer, and User Agent simultaneously.
                   </div>
                 </div>
               )}
@@ -1630,12 +1637,12 @@ export default function DashboardClient() {
                   </div>
                   <div className="adv-filter-grid">
                     <div className="adv-field">
-                      <label>IP Address</label>
+                      <label>Visitor Key</label>
                       <input
                         type="text"
-                        placeholder="e.g. 106.219"
-                        value={advFilters.ip}
-                        onChange={(e) => setAdvFilters({ ...advFilters, ip: e.target.value })}
+                        placeholder="Visitor key prefix"
+                        value={advFilters.visitorId}
+                        onChange={(e) => setAdvFilters({ ...advFilters, visitorId: e.target.value })}
                       />
                     </div>
                     <div className="adv-field">
@@ -1724,8 +1731,8 @@ export default function DashboardClient() {
                       <th onClick={() => handleSort("timestamp")} className="sortable-th">
                         Timestamp {renderSortIndicator("timestamp")}
                       </th>
-                      <th onClick={() => handleSort("ip")} className="sortable-th">
-                        IP Address {renderSortIndicator("ip")}
+                      <th onClick={() => handleSort("visitorId")} className="sortable-th">
+                        Visitor Key {renderSortIndicator("visitorId")}
                       </th>
                       <th onClick={() => handleSort("country")} className="sortable-th">
                         Country {renderSortIndicator("country")}
@@ -1752,7 +1759,7 @@ export default function DashboardClient() {
                             {new Date(log.timestamp).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}<br />
                             <span className="date-sub">{new Date(log.timestamp).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>
                           </td>
-                          <td className="ip-col font-mono">{log.ip}</td>
+                          <td className="ip-col font-mono">{log.visitorId || "—"}</td>
                           <td className="country-col">
                             <strong>{log.country || "Unknown"}</strong>
                           </td>
@@ -3512,6 +3519,7 @@ export default function DashboardClient() {
             <ThemeSettings theme={theme} onChange={handleThemeChange} />
           </div>
         )}
+        {activeTab === "security" && <SecuritySettings />}
       </main>
 
       <style jsx global>{`

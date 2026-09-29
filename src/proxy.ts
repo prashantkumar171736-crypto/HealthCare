@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { revokeSession, validateSession } from "./app/api/admin/login/route";
+import { revokeSession, validateSession } from "@/lib/admin-auth";
 
 function isAdminPath(pathname: string): boolean {
   return pathname === "/admin" || pathname.startsWith("/admin/");

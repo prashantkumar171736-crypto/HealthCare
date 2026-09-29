@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { ObjectId } from "mongodb";
 import { cookies } from "next/headers";
-import { validateSession } from "@/app/api/admin/login/route";
+import { validateSession } from "@/lib/admin-auth";
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";

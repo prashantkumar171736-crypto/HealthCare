@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { validateSession } from "../login/route";
+import { validateSession } from "@/lib/admin-auth";
 import { uploadToR2 } from "@/lib/r2";
 
 export const runtime = "nodejs";
