@@ -37,22 +37,21 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Admin Security
 
-Email OTP is disabled by default. Configure these server-only variables in Vercel before enabling it from the Admin Dashboard's Security tab:
+Email OTP is disabled by default. Configure one email provider and the common variables in Vercel before enabling it from the Admin Dashboard's Security tab. On Vercel, use the HTTPS Resend API rather than SMTP if outbound SMTP connections are blocked:
 
 ```text
-SMTP_HOST
-SMTP_PORT
-SMTP_USER
-SMTP_PASSWORD
-SMTP_FROM
+RESEND_API_KEY
+RESEND_FROM
 ADMIN_OTP_EMAIL
 OTP_HMAC_SECRET
 IP_RATE_LIMIT_SECRET
 ```
 
+Verify the sending domain with Resend, set `RESEND_FROM` to an address on that verified domain, and set `ADMIN_OTP_EMAIL` to the destination inbox. `RESEND_API_KEY` and `RESEND_FROM` take precedence when both Resend and SMTP are configured. For local/non-Vercel deployments, SMTP remains supported with `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM` instead.
+
 `ADMIN_OTP_EMAIL` is the operator-managed destination for admin verification codes. SMS delivery is not enabled. Login protection uses five failed password attempts in a 15-minute window, followed by a 30-minute block. Active counters and blocks are stored in MongoDB using keyed IP fingerprints; raw visitor IPs are no longer written to new analytics records or returned in admin logs.
 
-Use **Send test email** in the Admin Dashboard's Security settings to confirm SMTP accepts a message to `ADMIN_OTP_EMAIL` before enabling OTP. If login email delivery fails, the login form reports a safe diagnostic for common SMTP authentication, TLS, connectivity, or sender/recipient errors. Update the corresponding environment variables in Vercel and redeploy; changing local `.env.local` does not update the deployed app.
+Use **Send test email** in the Admin Dashboard's Security settings to confirm the configured provider accepts a message to `ADMIN_OTP_EMAIL` before enabling OTP. If login email delivery fails, the login form reports a safe diagnostic for common authentication, connectivity, or sender/recipient errors. Update the corresponding environment variables in Vercel and redeploy; changing local `.env.local` does not update the deployed app.
 
 IP archiving is optional and uses a separate private R2 bucket, not the public uploads bucket. Configure `R2_SECURITY_ACCOUNT_ID`, `R2_SECURITY_ACCESS_KEY_ID`, `R2_SECURITY_SECRET_ACCESS_KEY`, `R2_SECURITY_BUCKET_NAME`, and `R2_SECURITY_ENCRYPTION_KEY` to enable it. The R2 token should be scoped to that bucket; configure bucket lifecycle expiration to match your retention policy. The encryption key must be 32 random bytes encoded as 64 hex characters (generate with `openssl rand -hex 32`) and stored separately from R2. Losing the key makes archived data unrecoverable.
 

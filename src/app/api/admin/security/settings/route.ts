@@ -4,10 +4,10 @@ import { getDb } from "@/lib/db";
 import { validateSession } from "@/lib/admin-auth";
 import {
   ensureAdminSecurityIndexes,
-  getAdminSmtpErrorMessage,
+  getAdminEmailErrorMessage,
   getAdminSecuritySettings,
   getOtpConfiguration,
-  sendAdminSmtpTest,
+  sendAdminEmailTest,
 } from "@/lib/admin-security";
 
 export const runtime = "nodejs";
@@ -36,6 +36,7 @@ export async function GET() {
     return NextResponse.json({
       ...settings,
       emailOtpConfigured: otp.configured,
+      emailProvider: otp.provider,
       maskedDestination: otp.maskedDestination,
       ipRateLimitConfigured: Boolean(process.env.IP_RATE_LIMIT_SECRET),
     }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
@@ -60,12 +61,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Configure all email OTP environment variables before testing email delivery." }, { status: 400 });
     }
     try {
-      await sendAdminSmtpTest();
-      return NextResponse.json({ success: true, message: "Test email accepted by the SMTP server. Check the admin inbox and spam folder." });
+      await sendAdminEmailTest();
+      return NextResponse.json({ success: true, message: "Test email accepted by the configured email provider. Check the admin inbox and spam folder." });
     } catch (error) {
       const smtpError = error as { code?: string; responseCode?: number };
-      console.error("Admin SMTP test failed:", { code: smtpError?.code, responseCode: smtpError?.responseCode });
-      return NextResponse.json({ error: `Test email failed. ${getAdminSmtpErrorMessage(error)}` }, { status: 502 });
+      console.error("Admin email test failed:", { code: smtpError?.code, responseCode: smtpError?.responseCode });
+      return NextResponse.json({ error: `Test email failed. ${getAdminEmailErrorMessage(error)}` }, { status: 502 });
     }
   }
 
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "otpEnabled must be a boolean." }, { status: 400 });
   }
   if (body.otpEnabled && !getOtpConfiguration().configured) {
-    return NextResponse.json({ error: "Configure SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, ADMIN_OTP_EMAIL, and OTP_HMAC_SECRET before enabling email OTP." }, { status: 400 });
+    return NextResponse.json({ error: "Configure RESEND_API_KEY and RESEND_FROM, or SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM, along with ADMIN_OTP_EMAIL and OTP_HMAC_SECRET before enabling email OTP." }, { status: 400 });
   }
   if (body.otpEnabled && !process.env.IP_RATE_LIMIT_SECRET) {
     return NextResponse.json({ error: "Configure IP_RATE_LIMIT_SECRET before enabling login security." }, { status: 400 });

@@ -9,7 +9,7 @@ import {
   ensureAdminSecurityIndexes,
   findActiveIpBlock,
   findActiveLoginLock,
-  getAdminSmtpErrorMessage,
+  getAdminEmailErrorMessage,
   getAdminSecuritySettings,
   getIpKey,
   getOtpConfiguration,
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     const securitySettings = await getAdminSecuritySettings(db);
     const otpConfiguration = getOtpConfiguration();
     if (securitySettings.otpEnabled && !otpConfiguration.configured) {
-      return NextResponse.json({ error: "Email OTP is enabled but its SMTP or admin-email configuration is incomplete." }, { status: 503 });
+      return NextResponse.json({ error: "Email OTP is enabled but its email-provider or admin-email configuration is incomplete." }, { status: 503 });
     }
 
     const escapedUsername = username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -194,7 +194,7 @@ export async function POST(request: Request) {
             const smtpError = mailError as { code?: string; responseCode?: number };
             console.error("Admin OTP email delivery failed:", { code: smtpError?.code, responseCode: smtpError?.responseCode });
             return NextResponse.json({
-              error: `Could not send the verification email. No admin session was created. ${getAdminSmtpErrorMessage(mailError)}`,
+              error: `Could not send the verification email. No admin session was created. ${getAdminEmailErrorMessage(mailError)}`,
             }, { status: 503 });
           }
 

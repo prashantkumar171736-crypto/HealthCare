@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 interface SecurityState {
   otpEnabled: boolean;
   emailOtpConfigured: boolean;
+  emailProvider: string;
   maskedDestination: string;
   ipRateLimitConfigured: boolean;
 }
@@ -86,7 +87,7 @@ export default function SecuritySettings() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Test email failed.");
-      setMessage(data.message || "Test email accepted by the SMTP server.");
+      setMessage(data.message || "Test email accepted by the configured provider.");
     } catch (testError) {
       setError(testError instanceof Error ? testError.message : "Test email failed.");
     } finally {
@@ -117,8 +118,8 @@ export default function SecuritySettings() {
 
       <section style={{ borderBottom: "1px solid var(--admin-input-border)", padding: "12px 0 24px" }}>
         <h3>Admin email verification</h3>
-        <p>Email OTP is {security?.emailOtpConfigured ? `configured for ${security.maskedDestination}` : "not configured"}.</p>
-        <p>SMTP credentials and the admin destination are read from server environment variables.</p>
+        <p>Email OTP is {security?.emailOtpConfigured ? `configured via ${security.emailProvider} for ${security.maskedDestination}` : "not configured"}.</p>
+        <p>Email provider credentials and the admin destination are read from server environment variables.</p>
         <button
           type="button"
           onClick={() => void testAdminEmail()}

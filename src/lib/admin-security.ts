@@ -29,49 +29,70 @@ export function getIpKey(value: string): string {
 }
 
 export function getOtpConfiguration() {
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
-  const user = process.env.SMTP_USER;
-  const password = process.env.SMTP_PASSWORD;
-  const from = process.env.SMTP_FROM;
+  const provider = getEmailProvider();
   const recipient = process.env.ADMIN_OTP_EMAIL;
   const otpSecret = process.env.OTP_HMAC_SECRET;
-  const configured = Boolean(host && process.env.SMTP_PORT && Number.isInteger(port) && port > 0 && user && password && from && recipient && otpSecret);
+  const configured = Boolean(provider && recipient && otpSecret);
 
   return {
     configured,
+    provider: provider?.name || "",
     maskedDestination: recipient ? recipient.replace(/^(.).+(@.*)$/, "$1***$2") : "",
   };
 }
 
-function createAdminSmtpTransporter() {
+type EmailProvider =
+  | { name: "Resend HTTPS API"; apiKey: string; from: string }
+  | { name: "SMTP"; host: string; port: number; user: string; password: string; from: string };
+
+function getEmailProvider(): EmailProvider | null {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const resendFrom = process.env.RESEND_FROM?.trim() || process.env.SMTP_FROM?.trim();
+  if (apiKey && resendFrom) {
+    return { name: "Resend HTTPS API", apiKey, from: resendFrom };
+  }
+
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER;
   const password = process.env.SMTP_PASSWORD;
-  const from = process.env.SMTP_FROM;
+  const from = process.env.SMTP_FROM?.trim();
 
-  if (!host || !Number.isInteger(port) || port < 1 || port > 65535 || !user || !password || !from) {
-    throw new Error("SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM must be configured.");
+  if (host && process.env.SMTP_PORT && Number.isInteger(port) && port > 0 && port <= 65535 && user && password && from) {
+    return { name: "SMTP", host, port, user, password, from };
   }
+  return null;
+}
 
+function createAdminSmtpTransporter(provider: Extract<EmailProvider, { name: "SMTP" }>) {
   return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    requireTLS: port !== 465,
+    host: provider.host,
+    port: provider.port,
+    secure: provider.port === 465,
+    requireTLS: provider.port !== 465,
     tls: { minVersion: "TLSv1.2" },
-    auth: { user, pass: password },
+    auth: { user: provider.user, pass: provider.password },
     connectionTimeout: 5000,
     greetingTimeout: 5000,
     socketTimeout: 8000,
   });
 }
 
-export function getAdminSmtpErrorMessage(error: unknown): string {
-  const smtpError = error as { code?: string; responseCode?: number };
-  const code = smtpError?.code || "";
-  const responseCode = smtpError?.responseCode;
+export function getAdminEmailErrorMessage(error: unknown): string {
+  const emailError = error as { code?: string; responseCode?: number };
+  const code = emailError?.code || "";
+  const responseCode = emailError?.responseCode;
+
+  if (code === "ERESEND") {
+    if (responseCode === 401) return "Resend rejected the API key. Check RESEND_API_KEY in the deployment environment.";
+    if (responseCode === 403) return "Resend rejected this sender. Verify the sending domain and check RESEND_FROM in the deployment environment.";
+    if (responseCode === 400 || responseCode === 422) return "Resend rejected the email. Verify the sending domain and confirm RESEND_FROM and ADMIN_OTP_EMAIL are valid addresses.";
+    if (responseCode === 429) return "Resend rate limit reached. Wait briefly and try again.";
+    return "Resend could not accept the email. Check the API key, verified sending domain, and Resend account logs.";
+  }
+  if (code === "ERESEND_NETWORK") {
+    return "Could not connect to Resend over HTTPS. Check that RESEND_API_KEY is valid and outbound HTTPS requests are allowed from the deployment.";
+  }
 
   if (code === "EAUTH" || responseCode === 535) {
     return "SMTP authentication failed. Check SMTP_USER and SMTP_PASSWORD in the deployment environment; your provider may require an app password or SMTP API key.";
@@ -88,15 +109,47 @@ export function getAdminSmtpErrorMessage(error: unknown): string {
   return "Check the SMTP host, port, credentials, sender address, and provider logs.";
 }
 
-export async function sendAdminSmtpTest(): Promise<void> {
+async function sendAdminEmail(to: string, subject: string, text: string): Promise<void> {
+  const provider = getEmailProvider();
+  if (!provider) {
+    throw new Error("Configure RESEND_API_KEY and RESEND_FROM, or SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM.");
+  }
+
+  if (provider.name === "Resend HTTPS API") {
+    let response: Response;
+    try {
+      response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${provider.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ from: provider.from, to: [to], subject, text }),
+        signal: AbortSignal.timeout(8000),
+      });
+    } catch (error) {
+      throw Object.assign(new Error("Unable to reach the Resend API."), { code: "ERESEND_NETWORK", cause: error });
+    }
+    if (!response.ok) {
+      throw Object.assign(new Error("Resend rejected the email request."), {
+        code: "ERESEND",
+        responseCode: response.status,
+      });
+    }
+    return;
+  }
+
+  await createAdminSmtpTransporter(provider).sendMail({ from: provider.from, to, subject, text });
+}
+
+export async function sendAdminEmailTest(): Promise<void> {
   const recipient = process.env.ADMIN_OTP_EMAIL;
   if (!recipient) throw new Error("ADMIN_OTP_EMAIL must be configured.");
-  await createAdminSmtpTransporter().sendMail({
-    from: process.env.SMTP_FROM,
-    to: recipient,
-    subject: "Admin email delivery test",
-    text: "This test confirms that the configured admin SMTP account accepted an email for delivery. It does not contain a verification code.",
-  });
+  await sendAdminEmail(
+    recipient,
+    "Admin email delivery test",
+    "This test confirms that the configured admin email provider accepted a message for delivery. It does not contain a verification code."
+  );
 }
 
 export function ensureAdminSecurityIndexes(db: Db): Promise<void> {
@@ -208,12 +261,11 @@ export async function recordFailedLogin(
 }
 
 export async function sendAdminOtp(email: string, code: string): Promise<void> {
-  await createAdminSmtpTransporter().sendMail({
-    from: process.env.SMTP_FROM,
-    to: email,
-    subject: "Your admin sign-in verification code",
-    text: `Your admin verification code is ${code}. It expires in 2 minutes. If you did not request this code, you can ignore this email.`,
-  });
+  await sendAdminEmail(
+    email,
+    "Your admin sign-in verification code",
+    `Your admin verification code is ${code}. It expires in 2 minutes. If you did not request this code, you can ignore this email.`
+  );
 }
 
 export function createOtpCode(): string {
