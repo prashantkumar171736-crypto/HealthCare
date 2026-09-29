@@ -32,9 +32,9 @@ export async function GET() {
     platform: process.platform,
     env: {
       MONGODB_URI: process.env.MONGODB_URI ? "SET (hidden)" : "NOT SET",
-      R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID ? "SET" : "NOT SET",
-      R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID ? "SET (hidden)" : "NOT SET",
-      R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY ? "SET (hidden)" : "NOT SET",
+      R2_UPLOADS_ACCOUNT_ID: process.env.R2_UPLOADS_ACCOUNT_ID || process.env.R2_ACCOUNT_ID ? "SET" : "NOT SET",
+      R2_UPLOADS_ACCESS_KEY_ID: process.env.R2_UPLOADS_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID ? "SET (hidden)" : "NOT SET",
+      R2_UPLOADS_SECRET_ACCESS_KEY: process.env.R2_UPLOADS_SECRET_ACCESS_KEY || process.env.R2_SECRET_ACCESS_KEY ? "SET (hidden)" : "NOT SET",
       VERCEL: process.env.VERCEL || "NOT SET",
     },
     osCheck: null as any,

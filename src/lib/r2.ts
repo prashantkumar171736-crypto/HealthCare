@@ -9,11 +9,11 @@ import {
 import { NodeHttpHandler } from "@smithy/node-http-handler";
 import crypto from "crypto";
 
-const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
-const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
-const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
-const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || "healthcare-uploads";
-const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || "https://pub-8ded07f2075a43daaa93fc2d473091fb.r2.dev";
+const R2_ACCOUNT_ID = process.env.R2_UPLOADS_ACCOUNT_ID || process.env.R2_ACCOUNT_ID;
+const R2_ACCESS_KEY_ID = process.env.R2_UPLOADS_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID;
+const R2_SECRET_ACCESS_KEY = process.env.R2_UPLOADS_SECRET_ACCESS_KEY || process.env.R2_SECRET_ACCESS_KEY;
+const R2_BUCKET_NAME = process.env.R2_UPLOADS_BUCKET_NAME || process.env.R2_BUCKET_NAME || "healthcare-uploads";
+const R2_PUBLIC_URL = process.env.R2_UPLOADS_PUBLIC_URL || process.env.R2_PUBLIC_URL || "https://pub-8ded07f2075a43daaa93fc2d473091fb.r2.dev";
 
 /**
  * Cloudflare R2 client (S3-compatible API).
@@ -23,7 +23,7 @@ let r2Client: S3Client | null = null;
 
 function getR2Client(): S3Client {
   if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
-    throw new Error("R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY must be configured.");
+    throw new Error("R2_UPLOADS_ACCOUNT_ID, R2_UPLOADS_ACCESS_KEY_ID, and R2_UPLOADS_SECRET_ACCESS_KEY must be configured.");
   }
 
   if (!r2Client) {
@@ -126,13 +126,13 @@ function describeR2Error(error: unknown): string {
   const status = err?.$metadata?.httpStatusCode;
 
   if (code === "AccessDenied" || status === 403) return "Access denied; check R2 token permissions.";
-  if (code === "NoSuchBucket" || status === 404) return "Bucket not found; check R2_BUCKET_NAME.";
+  if (code === "NoSuchBucket" || status === 404) return "Bucket not found; check R2_UPLOADS_BUCKET_NAME.";
   if (code === "InvalidAccessKeyId" || code === "SignatureDoesNotMatch" || status === 401) {
     return "R2 rejected the credentials (HTTP 401). Check that the access key ID and secret are a matching R2 S3 API token pair.";
   }
   if (/timeout|timedout|abort/i.test(code)) return "R2 request timed out.";
   if (code === "Error" && /must be configured/i.test((error as Error).message || "")) {
-    return "R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, or R2_SECRET_ACCESS_KEY is missing.";
+    return "R2_UPLOADS_ACCOUNT_ID, R2_UPLOADS_ACCESS_KEY_ID, or R2_UPLOADS_SECRET_ACCESS_KEY is missing.";
   }
   return `R2 request failed (${status ? `HTTP ${status}, ` : ""}${code}).`;
 }

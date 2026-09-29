@@ -15,9 +15,9 @@ function getSafeFailureReason(error: unknown): string {
   const code = err?.Code || err?.code || err?.name || "UnknownError";
   const status = err?.$metadata?.httpStatusCode;
   const missingVariables = [
-    !process.env.R2_ACCOUNT_ID && "R2_ACCOUNT_ID",
-    !process.env.R2_ACCESS_KEY_ID && "R2_ACCESS_KEY_ID",
-    !process.env.R2_SECRET_ACCESS_KEY && "R2_SECRET_ACCESS_KEY",
+    !(process.env.R2_UPLOADS_ACCOUNT_ID || process.env.R2_ACCOUNT_ID) && "R2_UPLOADS_ACCOUNT_ID",
+    !(process.env.R2_UPLOADS_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID) && "R2_UPLOADS_ACCESS_KEY_ID",
+    !(process.env.R2_UPLOADS_SECRET_ACCESS_KEY || process.env.R2_SECRET_ACCESS_KEY) && "R2_UPLOADS_SECRET_ACCESS_KEY",
   ].filter(Boolean);
 
   if (missingVariables.length) {
@@ -30,7 +30,7 @@ function getSafeFailureReason(error: unknown): string {
     return "R2 rejected the configured credentials (HTTP 401). Check that the access key ID and secret are a matching R2 S3 API token pair.";
   }
   if (code === "NoSuchBucket" || status === 404) {
-    return "R2 bucket was not found. Check R2_BUCKET_NAME.";
+    return "R2 bucket was not found. Check R2_UPLOADS_BUCKET_NAME.";
   }
   if (code === "InvalidAccessKeyId" || code === "SignatureDoesNotMatch") {
     return "R2 rejected the configured credentials.";
@@ -44,7 +44,12 @@ function getSafeFailureReason(error: unknown): string {
 
   if (error instanceof Error && error.message) {
     let detail = error.message;
-    for (const secret of [process.env.R2_SECRET_ACCESS_KEY, process.env.R2_ACCESS_KEY_ID]) {
+    for (const secret of [
+      process.env.R2_UPLOADS_SECRET_ACCESS_KEY,
+      process.env.R2_SECRET_ACCESS_KEY,
+      process.env.R2_UPLOADS_ACCESS_KEY_ID,
+      process.env.R2_ACCESS_KEY_ID,
+    ]) {
       if (secret) detail = detail.replaceAll(secret, "[redacted]");
     }
     detail = detail.replace(/https?:\/\/\S+/g, "[endpoint]").replace(/\s+/g, " ").slice(0, 180);

@@ -183,12 +183,17 @@ async function checkStorage() {
       }
 
       const { S3Client, ListObjectsV2Command } = require("@aws-sdk/client-s3");
+      const accountId = process.env.R2_UPLOADS_ACCOUNT_ID || process.env.R2_ACCOUNT_ID;
+      const accessKeyId = process.env.R2_UPLOADS_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID;
+      const secretAccessKey = process.env.R2_UPLOADS_SECRET_ACCESS_KEY || process.env.R2_SECRET_ACCESS_KEY;
+      const bucketName = process.env.R2_UPLOADS_BUCKET_NAME || process.env.R2_BUCKET_NAME;
+      const publicUrl = process.env.R2_UPLOADS_PUBLIC_URL || process.env.R2_PUBLIC_URL;
       const r2 = new S3Client({
         region: "auto",
-        endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+        endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
         credentials: {
-          accessKeyId: process.env.R2_ACCESS_KEY_ID,
-          secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+          accessKeyId,
+          secretAccessKey,
         },
       });
 
@@ -200,7 +205,7 @@ async function checkStorage() {
       do {
         const res = await r2.send(
           new ListObjectsV2Command({
-            Bucket: process.env.R2_BUCKET_NAME,
+            Bucket: bucketName,
             ContinuationToken: continuationToken,
           })
         );
@@ -221,8 +226,8 @@ async function checkStorage() {
       const pctUsed = ((totalGB / r2LimitGB) * 100).toFixed(2);
 
       console.log(`\n  Connection Status     : \x1b[32mConnected\x1b[0m (${r2Ping} ms)`);
-      console.log(`  Bucket Name           : \x1b[36m${process.env.R2_BUCKET_NAME}\x1b[0m`);
-      console.log(`  Public CDN Endpoint   : \x1b[33m${process.env.R2_PUBLIC_URL}\x1b[0m`);
+      console.log(`  Bucket Name           : \x1b[36m${bucketName}\x1b[0m`);
+      console.log(`  Public CDN Endpoint   : \x1b[33m${publicUrl}\x1b[0m`);
       console.log(`  Total Objects Uploaded: \x1b[36m${totalObjects} files\x1b[0m`);
       console.log(`  Data Storage Used     : \x1b[33m${totalMB.toFixed(2)} MB (${totalGB.toFixed(4)} GB)\x1b[0m`);
       console.log(`  Cloudflare Free Quota : 10 GB Free / month`);
