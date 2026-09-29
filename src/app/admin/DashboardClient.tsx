@@ -369,7 +369,7 @@ export default function DashboardClient() {
       if (showLoading) setLoading(true);
       const res = await fetch(`/api/admin/stats?period=${period}&logLimit=${limit}`);
       if (res.status === 401) {
-        router.push("/admin/login");
+        window.location.assign("/admin");
         return;
       }
 
@@ -403,7 +403,7 @@ export default function DashboardClient() {
     try {
       const res = await fetch("/api/admin/r2-stats", { cache: "no-store" });
       if (res.status === 401) {
-        router.push("/admin/login");
+        window.location.assign("/admin");
         return;
       }
       const bodyText = await res.text();
@@ -533,10 +533,9 @@ export default function DashboardClient() {
   const handleLogout = async () => {
     try {
       await fetch("/api/admin/logout", { method: "POST" });
-      router.push("/admin/login");
-      router.refresh();
+      window.location.assign("/admin");
     } catch {
-      window.location.href = "/admin/login";
+      window.location.assign("/admin");
     }
   };
 

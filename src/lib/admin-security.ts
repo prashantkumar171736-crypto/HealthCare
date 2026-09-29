@@ -1,6 +1,5 @@
 import crypto from "crypto";
 import { isIP } from "node:net";
-import nodemailer from "nodemailer";
 import type { Db } from "mongodb";
 
 const FAILURE_WINDOW_MS = 15 * 60 * 1000;
@@ -41,41 +40,12 @@ export function getOtpConfiguration() {
   };
 }
 
-type EmailProvider =
-  | { name: "Resend HTTPS API"; apiKey: string; from: string }
-  | { name: "SMTP"; host: string; port: number; user: string; password: string; from: string };
+type EmailProvider = { name: "Resend HTTPS API"; apiKey: string; from: string };
 
 function getEmailProvider(): EmailProvider | null {
   const apiKey = process.env.RESEND_API_KEY?.trim();
-  const resendFrom = process.env.RESEND_FROM?.trim() || process.env.SMTP_FROM?.trim();
-  if (apiKey && resendFrom) {
-    return { name: "Resend HTTPS API", apiKey, from: resendFrom };
-  }
-
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
-  const user = process.env.SMTP_USER;
-  const password = process.env.SMTP_PASSWORD;
-  const from = process.env.SMTP_FROM?.trim();
-
-  if (host && process.env.SMTP_PORT && Number.isInteger(port) && port > 0 && port <= 65535 && user && password && from) {
-    return { name: "SMTP", host, port, user, password, from };
-  }
-  return null;
-}
-
-function createAdminSmtpTransporter(provider: Extract<EmailProvider, { name: "SMTP" }>) {
-  return nodemailer.createTransport({
-    host: provider.host,
-    port: provider.port,
-    secure: provider.port === 465,
-    requireTLS: provider.port !== 465,
-    tls: { minVersion: "TLSv1.2" },
-    auth: { user: provider.user, pass: provider.password },
-    connectionTimeout: 5000,
-    greetingTimeout: 5000,
-    socketTimeout: 8000,
-  });
+  const from = process.env.RESEND_FROM?.trim();
+  return apiKey && from ? { name: "Resend HTTPS API", apiKey, from } : null;
 }
 
 export function getAdminEmailErrorMessage(error: unknown): string {
@@ -94,52 +64,35 @@ export function getAdminEmailErrorMessage(error: unknown): string {
     return "Could not connect to Resend over HTTPS. Check that RESEND_API_KEY is valid and outbound HTTPS requests are allowed from the deployment.";
   }
 
-  if (code === "EAUTH" || responseCode === 535) {
-    return "SMTP authentication failed. Check SMTP_USER and SMTP_PASSWORD in the deployment environment; your provider may require an app password or SMTP API key.";
-  }
-  if (code === "ETLS" || code === "EPROTOCOL") {
-    return "SMTP TLS negotiation failed. Check SMTP_PORT and the provider's required TLS mode (465 for implicit TLS, usually 587 for STARTTLS).";
-  }
-  if (["ECONNECTION", "ETIMEDOUT", "ESOCKET", "EDNS", "ECONNREFUSED", "ENOTFOUND"].includes(code)) {
-    return "Could not connect to the SMTP server. Check SMTP_HOST and SMTP_PORT, and confirm the provider allows connections from the deployment.";
-  }
-  if ([550, 553, 554].includes(responseCode || 0) || code === "EENVELOPE") {
-    return "The SMTP provider rejected the sender or recipient. Check that SMTP_FROM and ADMIN_OTP_EMAIL are valid and allowed by your provider.";
-  }
-  return "Check the SMTP host, port, credentials, sender address, and provider logs.";
+  return "Check RESEND_API_KEY, the verified sending domain, RESEND_FROM, and your Resend account logs.";
 }
 
 async function sendAdminEmail(to: string, subject: string, text: string): Promise<void> {
   const provider = getEmailProvider();
   if (!provider) {
-    throw new Error("Configure RESEND_API_KEY and RESEND_FROM, or SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM.");
+    throw new Error("Configure RESEND_API_KEY and RESEND_FROM.");
   }
 
-  if (provider.name === "Resend HTTPS API") {
-    let response: Response;
-    try {
-      response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${provider.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ from: provider.from, to: [to], subject, text }),
-        signal: AbortSignal.timeout(8000),
-      });
-    } catch (error) {
-      throw Object.assign(new Error("Unable to reach the Resend API."), { code: "ERESEND_NETWORK", cause: error });
-    }
-    if (!response.ok) {
-      throw Object.assign(new Error("Resend rejected the email request."), {
-        code: "ERESEND",
-        responseCode: response.status,
-      });
-    }
-    return;
+  let response: Response;
+  try {
+    response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${provider.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from: provider.from, to: [to], subject, text }),
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (error) {
+    throw Object.assign(new Error("Unable to reach the Resend API."), { code: "ERESEND_NETWORK", cause: error });
   }
-
-  await createAdminSmtpTransporter(provider).sendMail({ from: provider.from, to, subject, text });
+  if (!response.ok) {
+    throw Object.assign(new Error("Resend rejected the email request."), {
+      code: "ERESEND",
+      responseCode: response.status,
+    });
+  }
 }
 
 export async function sendAdminEmailTest(): Promise<void> {

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { validateSession } from "@/lib/admin-auth";
+import { getAdminLoginPath } from "@/lib/admin-login-path";
 import DashboardClient from "./DashboardClient";
 
 export const runtime = "nodejs";
@@ -18,7 +19,9 @@ export default async function AdminPage() {
 
   // Authenticate session, redirect to login if invalid
   if (!isValid) {
-    redirect("/admin/login");
+    const loginPath = getAdminLoginPath();
+    if (!loginPath) notFound();
+    redirect(loginPath);
   }
 
   // Session valid: render the dashboard GUI client component

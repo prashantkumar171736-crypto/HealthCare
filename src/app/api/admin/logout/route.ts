@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { revokeSession } from "@/lib/admin-auth";
+import { getAdminLoginPath } from "@/lib/admin-login-path";
 
 export const runtime = "nodejs";
 
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
       sameSite: "lax",
     });
 
-    const url = new URL("/admin/login", request.url);
+    const url = new URL(getAdminLoginPath() ?? "/", request.url);
     return NextResponse.redirect(url);
   } catch (err) {
     console.error("Admin logout error:", err);

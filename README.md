@@ -37,7 +37,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Admin Security
 
-Email OTP is disabled by default. Configure one email provider and the common variables in Vercel before enabling it from the Admin Dashboard's Security tab. On Vercel, use the HTTPS Resend API rather than SMTP if outbound SMTP connections are blocked:
+Email OTP is disabled by default. Configure Resend and the common variables in Vercel before enabling it from the Admin Dashboard's Security tab:
 
 ```text
 RESEND_API_KEY
@@ -45,9 +45,12 @@ RESEND_FROM
 ADMIN_OTP_EMAIL
 OTP_HMAC_SECRET
 IP_RATE_LIMIT_SECRET
+ADMIN_LOGIN_PATH
 ```
 
-Verify the sending domain with Resend, set `RESEND_FROM` to an address on that verified domain, and set `ADMIN_OTP_EMAIL` to the destination inbox. `RESEND_API_KEY` and `RESEND_FROM` take precedence when both Resend and SMTP are configured. For local/non-Vercel deployments, SMTP remains supported with `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM` instead.
+Set `ADMIN_LOGIN_PATH` to a high-entropy, single-segment path with at least 32 URL-safe characters, using the same value in local and Vercel environments. The About page links to this path; direct requests to `/admin/login` return 404. The path is an additional obscurity measure and does not replace password, session, or OTP authentication.
+
+Verify the sending domain with Resend, set `RESEND_FROM` to an address on that verified domain, and set `ADMIN_OTP_EMAIL` to the destination inbox. Admin email is sent through Resend's HTTPS API.
 
 `ADMIN_OTP_EMAIL` is the operator-managed destination for admin verification codes. SMS delivery is not enabled. Login protection uses five failed password attempts in a 15-minute window, followed by a 30-minute block. Active counters and blocks are stored in MongoDB using keyed IP fingerprints; raw visitor IPs are no longer written to new analytics records or returned in admin logs.
 

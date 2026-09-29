@@ -64,8 +64,8 @@ export async function POST(request: Request) {
       await sendAdminEmailTest();
       return NextResponse.json({ success: true, message: "Test email accepted by the configured email provider. Check the admin inbox and spam folder." });
     } catch (error) {
-      const smtpError = error as { code?: string; responseCode?: number };
-      console.error("Admin email test failed:", { code: smtpError?.code, responseCode: smtpError?.responseCode });
+      const emailError = error as { code?: string; responseCode?: number };
+      console.error("Admin email test failed:", { code: emailError?.code, responseCode: emailError?.responseCode });
       return NextResponse.json({ error: `Test email failed. ${getAdminEmailErrorMessage(error)}` }, { status: 502 });
     }
   }
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "otpEnabled must be a boolean." }, { status: 400 });
   }
   if (body.otpEnabled && !getOtpConfiguration().configured) {
-    return NextResponse.json({ error: "Configure RESEND_API_KEY and RESEND_FROM, or SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM, along with ADMIN_OTP_EMAIL and OTP_HMAC_SECRET before enabling email OTP." }, { status: 400 });
+    return NextResponse.json({ error: "Configure RESEND_API_KEY and RESEND_FROM, along with ADMIN_OTP_EMAIL and OTP_HMAC_SECRET before enabling email OTP." }, { status: 400 });
   }
   if (body.otpEnabled && !process.env.IP_RATE_LIMIT_SECRET) {
     return NextResponse.json({ error: "Configure IP_RATE_LIMIT_SECRET before enabling login security." }, { status: 400 });

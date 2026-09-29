@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { revokeSession, validateSession } from "@/lib/admin-auth";
+import { getAdminLoginPath } from "@/lib/admin-login-path";
 
 function isAdminPath(pathname: string): boolean {
   return pathname === "/admin" || pathname.startsWith("/admin/");
@@ -11,14 +12,26 @@ function isPageNavigation(request: NextRequest): boolean {
 }
 
 export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const loginPath = getAdminLoginPath();
   const sessionToken = request.cookies.get("admin_session")?.value;
-  if (!sessionToken || !(await validateSession(sessionToken))) {
-    return NextResponse.next();
+
+  if (pathname === "/admin/login") {
+    return new NextResponse(null, { status: 404, headers: { "Cache-Control": "no-store" } });
   }
 
-  const pathname = request.nextUrl.pathname;
-  if (pathname === "/admin/login") {
-    return NextResponse.redirect(new URL("/admin", request.url));
+  if (loginPath && pathname === loginPath) {
+    if (sessionToken && await validateSession(sessionToken)) {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
+    const response = NextResponse.rewrite(new URL("/admin/login", request.url));
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    response.headers.set("Cache-Control", "no-store");
+    return response;
+  }
+
+  if (!sessionToken || !(await validateSession(sessionToken))) {
+    return NextResponse.next();
   }
 
   if (isAdminPath(pathname) || !isPageNavigation(request)) {
@@ -27,8 +40,10 @@ export async function proxy(request: NextRequest) {
 
   await revokeSession(sessionToken);
 
+  const loginUrl = new URL(loginPath ?? "/", request.url);
+  loginUrl.searchParams.set("reason", "admin-area-only");
   const response = NextResponse.redirect(
-    new URL("/admin/login?reason=admin-area-only", request.url)
+    loginUrl
   );
   response.cookies.set("admin_session", "", {
     httpOnly: true,

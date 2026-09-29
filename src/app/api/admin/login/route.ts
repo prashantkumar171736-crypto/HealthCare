@@ -191,8 +191,8 @@ export async function POST(request: Request) {
               { challengeHash: hashChallengeId(challengeId), status: "pending" },
               { $set: { status: "invalidated", invalidatedAt: new Date() } }
             );
-            const smtpError = mailError as { code?: string; responseCode?: number };
-            console.error("Admin OTP email delivery failed:", { code: smtpError?.code, responseCode: smtpError?.responseCode });
+            const emailError = mailError as { code?: string; responseCode?: number };
+            console.error("Admin OTP email delivery failed:", { code: emailError?.code, responseCode: emailError?.responseCode });
             return NextResponse.json({
               error: `Could not send the verification email. No admin session was created. ${getAdminEmailErrorMessage(mailError)}`,
             }, { status: 503 });

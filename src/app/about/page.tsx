@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { getAdminLoginPath } from "@/lib/admin-login-path";
 
 export const metadata: Metadata = {
   title: "About Us | Rog Care Hindi — Free Healthcare Education",
@@ -50,6 +52,8 @@ const breadcrumbJsonLd = {
 };
 
 export default function AboutPage() {
+  const adminLoginPath = getAdminLoginPath();
+
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
@@ -89,6 +93,14 @@ export default function AboutPage() {
         <p>
           Every donation received through our platform helps cover web database hosting, research compiling, and site optimizations. If you find our resources valuable, please consider supporting us.
         </p>
+
+        {adminLoginPath && (
+          <p style={{ marginTop: "2rem" }}>
+            <Link href={adminLoginPath} rel="nofollow" className="btn btn-primary">
+              🛡️ Admin Portal
+            </Link>
+          </p>
+        )}
       </div>
       </div>
     </>
