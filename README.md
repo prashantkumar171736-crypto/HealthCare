@@ -52,11 +52,11 @@ IP_RATE_LIMIT_SECRET
 
 `ADMIN_OTP_EMAIL` is the operator-managed destination for admin verification codes. SMS delivery is not enabled. Login protection uses five failed password attempts in a 15-minute window, followed by a 30-minute block. Active counters and blocks are stored in MongoDB using keyed IP fingerprints; raw visitor IPs are no longer written to new analytics records or returned in admin logs.
 
-The `R2_SECURITY_*` bucket is not used by this release because raw-IP archiving is disabled. Analytics remain in MongoDB with IP fields removed; no IP archive is written to R2.
+IP archiving is optional and uses a separate private R2 bucket, not the public uploads bucket. Configure `R2_SECURITY_ACCOUNT_ID`, `R2_SECURITY_ACCESS_KEY_ID`, `R2_SECURITY_SECRET_ACCESS_KEY`, `R2_SECURITY_BUCKET_NAME`, and `R2_SECURITY_ENCRYPTION_KEY` to enable it. The R2 token should be scoped to that bucket; configure bucket lifecycle expiration to match your retention policy. The encryption key must be 32 random bytes encoded as 64 hex characters (generate with `openssl rand -hex 32`) and stored separately from R2. Losing the key makes archived data unrecoverable.
 
-To remove raw IPs and pseudonymize reversible legacy visitor IDs in existing analytics records, and clear the legacy raw-IP GeoIP cache, back up MongoDB first. The script requires `IP_RATE_LIMIT_SECRET`, defaults to a count-only dry run, and only writes with `-- --apply`:
+To remove raw IPs and pseudonymize reversible legacy visitor IDs in existing analytics records, and clear the legacy raw-IP GeoIP cache, back up MongoDB first. The script requires `IP_RATE_LIMIT_SECRET` and defaults to a count-only dry run. `--archive` uploads raw-IP analytics and cache documents as batched, gzip-compressed, AES-256-GCM encrypted Extended JSON to `ip-archive/`; `--archive --apply` completes all archive uploads before changing MongoDB. Archive failures stop cleanup. `--archive` without `--apply` uploads an archive but leaves MongoDB unchanged.
 
 ```bash
 npm run analytics:ip-cleanup
-npm run analytics:ip-cleanup -- --apply
+npm run analytics:ip-cleanup -- --archive --apply
 ```
