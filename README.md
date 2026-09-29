@@ -48,7 +48,7 @@ IP_RATE_LIMIT_SECRET
 ADMIN_LOGIN_PATH
 ```
 
-Set `ADMIN_LOGIN_PATH` to a high-entropy, single-segment path with at least 32 URL-safe characters, using the same value in local and Vercel environments. The About page links to this path; direct requests to `/admin/login` return 404. The path is an additional obscurity measure and does not replace password, session, or OTP authentication.
+The About page links to a high-entropy admin path by default. You can optionally override it with `ADMIN_LOGIN_PATH`, set to a single path segment containing at least 32 URL-safe characters; configure the override before building and use the same value in local and Vercel environments. Direct requests to `/admin/login` return 404. The path is an additional obscurity measure and does not replace password, session, or OTP authentication.
 
 Verify the sending domain with Resend, set `RESEND_FROM` to an address on that verified domain, and set `ADMIN_OTP_EMAIL` to the destination inbox. Admin email is sent through Resend's HTTPS API.
 
