@@ -6,7 +6,7 @@ import Link from "next/link";
 import PostEditor from "./PostEditor";
 import DonationSettings from "./DonationSettings";
 import CommentsManager from "./CommentsManager";
-import ThemeSettings, { AdminTheme, DEFAULT_THEME, hexToRgb, luminance, normalizeStoredTheme } from "./ThemeSettings";
+import ThemeSettings, { AdminTheme, AdminThemeBridge, DEFAULT_THEME, hexToRgb, luminance, normalizeStoredTheme } from "./ThemeSettings";
 import { useLanguage } from "@/context/LanguageContext";
 import { LANG_MAP } from "@/lib/detectLanguage";
 
