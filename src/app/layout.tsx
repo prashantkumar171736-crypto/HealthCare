@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import Tracker from "@/components/Tracker";
 import PageTranslator from "@/components/PageTranslator";
 import Script from "next/script";
+import { AdminFaviconBridge } from "./admin/ThemeSettings";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -195,6 +196,11 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
+  icons: {
+    icon: "/vercel.svg",
+    shortcut: "/vercel.svg",
+    apple: "/vercel.svg",
+  },
 };
 
 export default function RootLayout({
@@ -207,6 +213,7 @@ export default function RootLayout({
     // defaults are "en" / "ltr" for SSR.
     <html lang="en" dir="ltr" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        <AdminFaviconBridge />
         {process.env.NEXT_PUBLIC_GA_ID && (
           <>
             <Script

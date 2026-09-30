@@ -29,6 +29,102 @@ export const DEFAULT_THEME: AdminTheme = {
   autoAdjust: true,
 };
 
+export const DEFAULT_FAVICON = "/vercel.svg";
+export const FAVICON_STORAGE_KEY = "admin_panel_favicon";
+
+export function normalizeStoredFavicon(value: unknown): string {
+  if (typeof value !== "string") return DEFAULT_FAVICON;
+
+  const candidate = value.trim();
+  if (!candidate) return DEFAULT_FAVICON;
+
+  const dangerous = ["javascript:", "data:text/html", "vbscript:"]; 
+  if (dangerous.some((prefix) => candidate.toLowerCase().includes(prefix))) {
+    return DEFAULT_FAVICON;
+  }
+
+  const isAllowed = /^\s*(?:https?:\/\/|data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,|\/|\.\/|blob:)/i.test(candidate);
+  if (!isAllowed) {
+    return DEFAULT_FAVICON;
+  }
+
+  return candidate;
+}
+
+export function readStoredAdminFavicon(): string {
+  if (typeof window === "undefined") return DEFAULT_FAVICON;
+
+  try {
+    const saved = localStorage.getItem(FAVICON_STORAGE_KEY);
+    return normalizeStoredFavicon(saved ?? DEFAULT_FAVICON);
+  } catch {
+    return DEFAULT_FAVICON;
+  }
+}
+
+export function applyDocumentFavicon(href: string) {
+  if (typeof document === "undefined") return;
+
+  const nextHref = normalizeStoredFavicon(href);
+  const iconLinks = Array.from(document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'));
+
+  if (iconLinks.length === 0) {
+    const link = document.createElement("link");
+    link.rel = "icon";
+    link.href = nextHref;
+    document.head.appendChild(link);
+    return;
+  }
+
+  iconLinks.forEach((link) => {
+    link.setAttribute("href", nextHref);
+    if (link.getAttribute("rel") === "apple-touch-icon") {
+      link.setAttribute("sizes", "180x180");
+    }
+  });
+}
+
+export function AdminFaviconBridge() {
+  const [favicon, setFavicon] = useState<string>(DEFAULT_FAVICON);
+
+  useEffect(() => {
+    const syncFavicon = () => {
+      const saved = readStoredAdminFavicon();
+      setFavicon(saved);
+      applyDocumentFavicon(saved);
+    };
+
+    syncFavicon();
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === FAVICON_STORAGE_KEY) {
+        syncFavicon();
+      }
+    };
+
+    const handleFaviconChange = (event: Event) => {
+      const detail = event && "detail" in event ? (event as CustomEvent<string | null>).detail : null;
+      const next = normalizeStoredFavicon(detail ?? readStoredAdminFavicon());
+      setFavicon(next);
+      applyDocumentFavicon(next);
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("admin-favicon-change", handleFaviconChange as EventListener);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("admin-favicon-change", handleFaviconChange as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    applyDocumentFavicon(favicon);
+  }, [favicon]);
+
+  return null;
+}
+
 function isValidHexColor(value: unknown): value is string {
   return typeof value === "string" && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value);
 }
@@ -319,6 +415,83 @@ interface Props {
 
 export default function ThemeSettings({ theme, onChange }: Props) {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [faviconPreview, setFaviconPreview] = useState<string>(readStoredAdminFavicon());
+  const [faviconMessage, setFaviconMessage] = useState("");
+
+  useEffect(() => {
+    const sync = () => setFaviconPreview(readStoredAdminFavicon());
+    sync();
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === FAVICON_STORAGE_KEY) sync();
+    };
+
+    const handleFaviconChange = () => sync();
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("admin-favicon-change", handleFaviconChange as EventListener);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("admin-favicon-change", handleFaviconChange as EventListener);
+    };
+  }, []);
+
+  const updateFavicon = useCallback((href: string) => {
+    const normalized = normalizeStoredFavicon(href);
+    setFaviconPreview(normalized);
+    try {
+      localStorage.setItem(FAVICON_STORAGE_KEY, normalized);
+      window.dispatchEvent(new CustomEvent("admin-favicon-change", { detail: normalized }));
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const handleFaviconUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const supportedTypes = ["image/png", "image/svg+xml", "image/webp", "image/jpeg", "image/gif"];
+    if (!supportedTypes.includes(file.type)) {
+      setFaviconMessage("Unsupported image format. Choose PNG, SVG, WebP, JPG, or GIF.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 512 * 1024) {
+      setFaviconMessage("This file is larger than 512 KB. Resize or optimize it, then try again.");
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      if (!result) {
+        setFaviconMessage("The selected image could not be read. Try exporting it as PNG.");
+        return;
+      }
+
+      try {
+        const saved = updateFavicon(result);
+        setFaviconMessage(saved
+          ? "Favicon updated. It may take a moment for your browser tab to refresh."
+          : "The image could not be saved in this browser. Try a smaller file (under 512 KB).");
+      } catch {
+        setFaviconMessage("The image could not be saved in this browser. Try a smaller file (under 512 KB).");
+      }
+    };
+    reader.onerror = () => setFaviconMessage("The selected image could not be read. Try exporting it as PNG.");
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  };
+
+  const resetFavicon = () => {
+    setFaviconMessage(updateFavicon(DEFAULT_FAVICON)
+      ? "The default Vercel favicon has been restored."
+      : "The default could not be saved in this browser. Refresh and try again.");
+  };
 
   const update = useCallback((partial: Partial<AdminTheme>) => {
     const next = { ...theme, ...partial };
@@ -379,6 +552,59 @@ export default function ThemeSettings({ theme, onChange }: Props) {
           ↺ Reset theme and background
         </button>
       </div>
+
+      {/* ── Browser Tab Icon ── */}
+      <section className="ts-section">
+        <h3 className="ts-section-title">Browser tab icon</h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 16,
+              overflow: "hidden",
+              border: "1px solid rgba(148, 163, 184, 0.35)",
+              background: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 8px 20px rgba(15, 23, 42, 0.08)",
+            }}
+          >
+            <img src={faviconPreview} alt="Favicon preview" style={{ width: 40, height: 40, objectFit: "contain" }} />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "#0d9488", color: "#fff", padding: "10px 14px", borderRadius: 10, fontWeight: 700 }}>
+              Upload favicon/logo
+              <input type="file" accept=".png,.svg,.webp,.jpg,.jpeg,.gif,image/png,image/svg+xml,image/webp,image/jpeg,image/gif" onChange={handleFaviconUpload} style={{ display: "none" }} />
+            </label>
+            <button type="button" className="ts-reset-btn" onClick={resetFavicon} style={{ width: "fit-content" }}>
+              ↺ Reset to default Vercel icon
+            </button>
+            <span style={{ color: "var(--text-muted, #475569)", fontSize: 12 }}>This updates the browser tab icon across all pages.</span>
+            <details style={{ position: "relative", maxWidth: 520 }}>
+              <summary
+                title="Recommended: square PNG or SVG, 32 × 32 or 48 × 48 pixels, under 512 KB. Use a simple, high-contrast mark with transparent background; keep important details away from the edges."
+                style={{ cursor: "pointer", color: "var(--primary, #0d9488)", fontSize: 13, fontWeight: 700 }}
+              >
+                ⓘ Favicon image guide
+              </summary>
+              <div role="note" style={{ marginTop: 8, padding: 12, borderRadius: 8, border: "1px solid var(--border, #cbd5e1)", background: "var(--surface, #fff)", color: "var(--text-main, #0f172a)", fontSize: 13, lineHeight: 1.6 }}>
+                <strong>For the clearest browser-tab result:</strong>
+                <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                  <li>Use a square PNG (recommended) or SVG. WebP, JPG, and GIF are also accepted.</li>
+                  <li>Prepare a 32 × 32 or 48 × 48 pixel image; larger square source images are scaled by the browser.</li>
+                  <li>Prefer a simple, centered logo mark with strong contrast. Tiny text and fine detail become hard to see.</li>
+                  <li>Use transparency for a clean edge on different browser themes; avoid a large blank border.</li>
+                  <li>Keep the file at or below 512 KB. The image is saved in this browser, so changing browsers or devices does not transfer it.</li>
+                </ul>
+              </div>
+            </details>
+            {faviconMessage ? <span role="status" style={{ color: "var(--text-muted, #475569)", fontSize: 12 }}>{faviconMessage}</span> : null}
+          </div>
+        </div>
+      </section>
 
       {/* ── Preset Themes ── */}
       <section className="ts-section">
