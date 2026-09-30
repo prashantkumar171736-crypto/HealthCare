@@ -3,11 +3,25 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
 import { validateSession } from "@/lib/admin-auth";
+import type { Document } from "mongodb";
 import os from "os";
 
 export const runtime = "nodejs";
 // Note: maxDuration is ignored on Vercel Hobby (10s hard limit).
 // All queries MUST complete in < 9s total.
+
+interface ChartBucketDetail {
+  country: string;
+  region: string;
+  page: string;
+  visits: number;
+}
+
+interface ChartPeriodBucket extends Document {
+  _id: string;
+  count: number;
+  details: ChartBucketDetail[];
+}
 
 // Helper to authenticate requests
 async function isAuthenticated(): Promise<boolean> {
@@ -64,54 +78,75 @@ export async function GET(request: Request) {
       const now = new Date();
 
       // ── Period chart aggregation ─────────────────────────────────────────
-      let periodAggregationPromise: Promise<any[]> = Promise.resolve([]);
+      let periodAggregationPromise: Promise<ChartPeriodBucket[]> = Promise.resolve([]);
+      const aggregateChartPeriod = (startTime: Date, bucketExpression: Document) => analytics.aggregate<ChartPeriodBucket>([
+        { $match: { timestamp: { $gte: startTime } } },
+        {
+          $project: {
+            bucket: bucketExpression,
+            country: { $ifNull: ["$country", "Unknown"] },
+            region: { $ifNull: ["$region", "Unknown"] },
+            page: { $ifNull: ["$path", "/"] },
+          },
+        },
+        {
+          $group: {
+            _id: { bucket: "$bucket", country: "$country", region: "$region", page: "$page" },
+            visits: { $sum: 1 },
+          },
+        },
+        {
+          $group: {
+            _id: "$_id.bucket",
+            count: { $sum: "$visits" },
+            details: {
+              $push: {
+                country: "$_id.country",
+                region: "$_id.region",
+                page: "$_id.page",
+                visits: "$visits",
+              },
+            },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]).toArray().catch(() => []);
+
       if (period === "1d") {
         const startTime = new Date(now);
         startTime.setHours(startTime.getHours() - 23, 0, 0, 0);
-        periodAggregationPromise = analytics.aggregate([
-          { $match: { timestamp: { $gte: startTime } } },
-          { $project: { hourStr: { $dateToString: { format: "%Y-%m-%dT%H", date: "$timestamp" } } } },
-          { $group: { _id: "$hourStr", count: { $sum: 1 } } },
-          { $sort: { _id: 1 } },
-        ]).toArray().catch(() => []);
+        periodAggregationPromise = aggregateChartPeriod(startTime, {
+          $dateToString: { format: "%Y-%m-%dT%H", date: "$timestamp" },
+        });
       } else if (period === "7d") {
         const start = new Date(now);
         start.setDate(start.getDate() - 6);
         start.setHours(0, 0, 0, 0);
-        periodAggregationPromise = analytics.aggregate([
-          { $match: { timestamp: { $gte: start } } },
-          { $project: { dateStr: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } } } },
-          { $group: { _id: "$dateStr", count: { $sum: 1 } } },
-          { $sort: { _id: 1 } },
-        ]).toArray().catch(() => []);
+        periodAggregationPromise = aggregateChartPeriod(start, {
+          $dateToString: { format: "%Y-%m-%d", date: "$timestamp" },
+        });
       } else if (period === "monthly") {
         const start = new Date(now);
         start.setDate(start.getDate() - 29);
         start.setHours(0, 0, 0, 0);
-        periodAggregationPromise = analytics.aggregate([
-          { $match: { timestamp: { $gte: start } } },
-          { $project: { dateStr: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } } } },
-          { $group: { _id: "$dateStr", count: { $sum: 1 } } },
-          { $sort: { _id: 1 } },
-        ]).toArray().catch(() => []);
+        periodAggregationPromise = aggregateChartPeriod(start, {
+          $dateToString: { format: "%Y-%m-%d", date: "$timestamp" },
+        });
       } else if (period === "half-yearly") {
         const start = new Date(now);
         start.setDate(start.getDate() - 181);
         start.setHours(0, 0, 0, 0);
-        periodAggregationPromise = analytics.aggregate([
-          { $match: { timestamp: { $gte: start } } },
-          { $project: { weekStart: { $dateTrunc: { date: "$timestamp", unit: "week", startOfWeek: "monday" } } } },
-          { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$weekStart" } }, count: { $sum: 1 } } },
-          { $sort: { _id: 1 } },
-        ]).toArray().catch(() => []);
+        periodAggregationPromise = aggregateChartPeriod(start, {
+          $dateToString: {
+            format: "%Y-%m-%d",
+            date: { $dateTrunc: { date: "$timestamp", unit: "week", startOfWeek: "monday" } },
+          },
+        });
       } else if (period === "yearly") {
         const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-        periodAggregationPromise = analytics.aggregate([
-          { $match: { timestamp: { $gte: start } } },
-          { $project: { monthStr: { $dateToString: { format: "%Y-%m", date: "$timestamp" } } } },
-          { $group: { _id: "$monthStr", count: { $sum: 1 } } },
-          { $sort: { _id: 1 } },
-        ]).toArray().catch(() => []);
+        periodAggregationPromise = aggregateChartPeriod(start, {
+          $dateToString: { format: "%Y-%m", date: "$timestamp" },
+        });
       }
 
       // ── Scoped date window for fast queries (last 90 days only) ──────────
@@ -185,36 +220,39 @@ export async function GET(request: Request) {
       const uniqueVisitors = (uniqueSessionRes as any[])[0]?.count || 0;
 
       // ── Build daily views chart ───────────────────────────────────────────
-      let dailyViews: any[] = [];
+      const dailyViews: Array<{ date: string; views: number; details: ChartBucketDetail[] }> = [];
+      const detailsByBucket = new Map<string, ChartBucketDetail[]>(
+        rawPeriodViews.map((row): [string, ChartBucketDetail[]] => [row._id, row.details || []])
+      );
       if (period === "1d") {
-        const hourMap = new Map((rawPeriodViews as any[]).map((h: any) => [h._id, h.count]));
+        const hourMap = new Map<string, number>(rawPeriodViews.map((row): [string, number] => [row._id, row.count]));
         for (let i = 23; i >= 0; i--) {
           const d = new Date(now);
           d.setHours(d.getHours() - i, 0, 0, 0);
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}`;
-          dailyViews.push({ date: `${String(d.getHours()).padStart(2, "0")}:00`, views: hourMap.get(key) || 0 });
+          dailyViews.push({ date: `${String(d.getHours()).padStart(2, "0")}:00`, views: hourMap.get(key) || 0, details: detailsByBucket.get(key) || [] });
         }
       } else if (period === "7d") {
         const start = new Date(now);
         start.setDate(start.getDate() - 6);
         start.setHours(0, 0, 0, 0);
-        const map = new Map((rawPeriodViews as any[]).map((r: any) => [r._id, r.count]));
+        const map = new Map<string, number>(rawPeriodViews.map((row): [string, number] => [row._id, row.count]));
         for (let i = 0; i < 7; i++) {
           const d = new Date(start);
           d.setDate(d.getDate() + i);
           const dateStr = d.toISOString().split("T")[0];
-          dailyViews.push({ date: dateStr.substring(5), views: map.get(dateStr) || 0 });
+          dailyViews.push({ date: dateStr.substring(5), views: map.get(dateStr) || 0, details: detailsByBucket.get(dateStr) || [] });
         }
       } else if (period === "monthly") {
         const start = new Date(now);
         start.setDate(start.getDate() - 29);
         start.setHours(0, 0, 0, 0);
-        const map = new Map((rawPeriodViews as any[]).map((r: any) => [r._id, r.count]));
+        const map = new Map<string, number>(rawPeriodViews.map((row): [string, number] => [row._id, row.count]));
         for (let i = 0; i < 30; i++) {
           const d = new Date(start);
           d.setDate(d.getDate() + i);
           const dateStr = d.toISOString().split("T")[0];
-          dailyViews.push({ date: dateStr.substring(5), views: map.get(dateStr) || 0 });
+          dailyViews.push({ date: dateStr.substring(5), views: map.get(dateStr) || 0, details: detailsByBucket.get(dateStr) || [] });
         }
       } else if (period === "half-yearly") {
         const start = new Date(now);
@@ -223,20 +261,20 @@ export async function GET(request: Request) {
         const weekStart = new Date(start);
         const dow = weekStart.getDay();
         weekStart.setDate(weekStart.getDate() + (dow === 0 ? -6 : 1 - dow));
-        const map = new Map((rawPeriodViews as any[]).map((r: any) => [r._id, r.count]));
+        const map = new Map<string, number>(rawPeriodViews.map((row): [string, number] => [row._id, row.count]));
         for (let i = 0; i < 26; i++) {
           const d = new Date(weekStart);
           d.setDate(d.getDate() + i * 7);
           const dateStr = d.toISOString().split("T")[0];
-          dailyViews.push({ date: dateStr.substring(5), views: map.get(dateStr) || 0 });
+          dailyViews.push({ date: dateStr.substring(5), views: map.get(dateStr) || 0, details: detailsByBucket.get(dateStr) || [] });
         }
       } else if (period === "yearly") {
         const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-        const map = new Map((rawPeriodViews as any[]).map((r: any) => [r._id, r.count]));
+        const map = new Map<string, number>(rawPeriodViews.map((row): [string, number] => [row._id, row.count]));
         for (let i = 0; i < 12; i++) {
           const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
           const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-          dailyViews.push({ date: monthStr, views: map.get(monthStr) || 0 });
+          dailyViews.push({ date: monthStr, views: map.get(monthStr) || 0, details: detailsByBucket.get(monthStr) || [] });
         }
       }
 

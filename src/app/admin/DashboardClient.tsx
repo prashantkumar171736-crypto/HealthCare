@@ -25,6 +25,7 @@ interface DailyView {
 
 interface DailyViewDetail {
   country: string;
+  region: string;
   page: string;
   visits: number;
 }
@@ -662,26 +663,28 @@ export default function DashboardClient() {
 
   const hoveredDetails = hoveredPoint !== null ? points[hoveredPoint]?.details || [] : [];
 
-  // Group by country → pages, sorted by total country visits desc
-  const countryPageGroups: Array<{
-    country: string;
-    totalVisits: number;
-    pages: Array<[string, number]>;
-  }> = Array.from(
-    hoveredDetails.reduce((acc, detail) => {
-      const c = detail.country || "Unknown";
-      if (!acc.has(c)) acc.set(c, new Map<string, number>());
-      const pMap = acc.get(c)!;
-      pMap.set(detail.page, (pMap.get(detail.page) || 0) + detail.visits);
-      return acc;
-    }, new Map<string, Map<string, number>>())
-  )
-    .map(([country, pMap]) => ({
-      country,
-      totalVisits: Array.from(pMap.values()).reduce((s, v) => s + v, 0),
-      pages: Array.from(pMap.entries()).sort(([, a], [, b]) => b - a),
-    }))
-    .sort((a, b) => b.totalVisits - a.totalVisits);
+  // Group each chart bucket by country, state/region, and visited page.
+  const groupedCountryDetails = hoveredDetails.reduce((groups, detail) => {
+    const country = detail.country || "Unknown";
+    const group = groups.get(country) || {
+      totalVisits: 0,
+      regions: new Map<string, number>(),
+      pages: new Map<string, number>(),
+    };
+    const region = detail.region || "Unknown";
+    group.totalVisits += detail.visits;
+    group.regions.set(region, (group.regions.get(region) || 0) + detail.visits);
+    group.pages.set(detail.page || "/", (group.pages.get(detail.page || "/") || 0) + detail.visits);
+    groups.set(country, group);
+    return groups;
+  }, new Map<string, { totalVisits: number; regions: Map<string, number>; pages: Map<string, number> }>());
+
+  const countryPageGroups = Array.from(groupedCountryDetails, ([country, group]) => ({
+    country,
+    totalVisits: group.totalVisits,
+    regions: Array.from(group.regions.entries()).sort(([, a], [, b]) => b - a),
+    pages: Array.from(group.pages.entries()).sort(([, a], [, b]) => b - a),
+  })).sort((a, b) => b.totalVisits - a.totalVisits);
 
   // Smooth bezier curve path
   const smoothPath = points.length > 1 ? points.reduce((path, p, i) => {
@@ -1252,7 +1255,7 @@ export default function DashboardClient() {
                       {/* Column header row */}
                       {countryPageGroups.length > 0 && (
                         <div className="chc-col-header">
-                          <span>Visited Page</span>
+                          <span>Country, state / region &amp; page</span>
                           <span>Views</span>
                         </div>
                       )}
@@ -1274,6 +1277,17 @@ export default function DashboardClient() {
                                     {group.totalVisits} total
                                   </span>
                                 </div>
+                                {/* States / regions under this country */}
+                                {group.regions.length > 0 && (
+                                  <div className="chc-regions-list">
+                                    {group.regions.slice(0, 3).map(([region, visits]) => (
+                                      <div className="chc-region-row" key={`rg-${group.country}-${region}`}>
+                                        <span className="chc-region-name">↳ {region}</span>
+                                        <span className="chc-region-views">{visits} views</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                                 {/* Pages under this country */}
                                 <div className="chc-pages-list">
                                   {group.pages.slice(0, 6).map(([page, visits]) => (
@@ -1291,7 +1305,7 @@ export default function DashboardClient() {
                             );
                           })
                         ) : (
-                          <div className="chc-empty">No visitor data for this date</div>
+                          <div className="chc-empty">No visitor details recorded for this time bucket</div>
                         )}
                       </div>
                     </div>
@@ -4207,6 +4221,32 @@ export default function DashboardClient() {
           opacity: 0.75;
           flex-shrink: 0;
           white-space: nowrap;
+        }
+
+        .chc-regions-list {
+          display: flex;
+          flex-direction: column;
+          padding: 0.15rem 0 0.1rem 1.1rem;
+        }
+        .chc-region-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.5rem;
+          padding: 0.15rem 0.9rem 0.15rem 0.4rem;
+        }
+        .chc-region-name {
+          min-width: 0;
+          overflow: hidden;
+          color: #7dd3fc;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 0.66rem;
+        }
+        .chc-region-views {
+          flex-shrink: 0;
+          color: #94a3b8;
+          font-size: 0.62rem;
         }
 
         /* Page rows */
