@@ -234,7 +234,9 @@ a {
 .security-toolbar-group {
   display: flex;
   align-items: center;
-  gap: 4px;
+  flex: 1 1 auto;
+  justify-content: space-between;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -507,6 +509,7 @@ a {
   .security-layout { padding: 18px 12px 40px; }
   .security-header { align-items: start; }
   .security-header h1 { text-align: left; }
+  .security-toolbar-group { justify-content: flex-start; gap: 8px; }
   .security-filters,
   .security-config { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
   .security-setting-row { grid-template-columns: 1fr; gap: 8px; }
