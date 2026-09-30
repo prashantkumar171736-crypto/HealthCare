@@ -242,6 +242,10 @@ a {
   justify-content: center;
 }
 
+.security-config .security-actions-centered {
+  grid-column: 1 / -1;
+}
+
 .security-layout button,
 .security-layout input,
 .security-layout select {
