@@ -29,17 +29,19 @@ export async function GET() {
     const db = await getDb();
     await ensureAdminSecurityIndexes(db);
     const blocks = await db.collection("admin_ip_blocks")
-      .find({ expiresAt: { $gt: new Date() } })
+      .find({ expiresAt: { $gt: new Date() }, $or: [{ status: "blocked" }, { status: { $exists: false } }] })
       .sort({ blockedAt: -1 })
       .limit(100)
       .toArray();
     return NextResponse.json({ blocks: blocks.map((block) => ({
       id: block._id.toString(),
       fingerprint: String(block.ipKey).slice(0, 10),
+      ip: block.ip || "Not retained",
       country: block.country || "Unknown",
       attemptCount: block.attemptCount || 0,
       blockedAt: block.blockedAt,
       expiresAt: block.expiresAt,
+      status: block.status || "blocked",
     })) }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch {
     return NextResponse.json({ error: "Unable to load blocked IPs." }, { status: 503 });
@@ -61,7 +63,7 @@ export async function DELETE(request: Request) {
     const session = db.client.startSession();
     try {
       await session.withTransaction(async () => {
-        block = await db.collection("admin_ip_blocks").findOneAndDelete(
+        block = await db.collection("admin_ip_blocks").findOne(
           { _id: new ObjectId(id) },
           { session }
         );
@@ -75,6 +77,11 @@ export async function DELETE(request: Request) {
               { projection: { username: 1 }, session }
             )
           : null;
+        await db.collection("admin_ip_blocks").updateOne(
+          { _id: block._id, status: { $ne: "unblocked" } },
+          { $set: { status: "unblocked", unblockedAt: new Date(), unblockedBy: adminSession?.username || "unknown" } },
+          { session }
+        );
         await db.collection("admin_login_attempts").deleteOne({ ipKey: block.ipKey }, { session });
         await db.collection("admin_security_audit").insertOne({
           action: "ip_block_unblocked",

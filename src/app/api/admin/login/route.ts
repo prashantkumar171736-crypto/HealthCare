@@ -7,10 +7,10 @@ import { createAdminSession, SESSION_TTL_SECONDS } from "@/lib/admin-auth";
 import {
   createOtpCode,
   ensureAdminSecurityIndexes,
+  getEmailLoginSettings,
   findActiveIpBlock,
   findActiveLoginLock,
   getAdminEmailErrorMessage,
-  getAdminSecuritySettings,
   getIpKey,
   getOtpConfiguration,
   getTrustedClientIp,
@@ -116,13 +116,13 @@ export async function POST(request: Request) {
 
     const country = request.headers.get("x-vercel-ip-country") || "Unknown";
     if (username.length > 254 || password.length > 1024) {
-      await recordFailedLogin(db, ipKey, country, true);
+      await recordFailedLogin(db, ipKey, country, true, trustedIp);
       return NextResponse.json({ error: "Invalid username or password." }, { status: 401 });
     }
 
-    const securitySettings = await getAdminSecuritySettings(db);
+    const securitySettings = await getEmailLoginSettings(db);
     const otpConfiguration = getOtpConfiguration();
-    if (securitySettings.otpEnabled && !otpConfiguration.configured) {
+    if (securitySettings.requireOtp && !otpConfiguration.configured) {
       return NextResponse.json({ error: "Email OTP is enabled but its email-provider or admin-email configuration is incomplete." }, { status: 503 });
     }
 
@@ -143,22 +143,22 @@ export async function POST(request: Request) {
         salt: admin.salt,
       });
       if (isValid) {
-        if (securitySettings.otpEnabled) {
+        if (securitySettings.requireOtp) {
           const now = new Date();
           const challenges = db.collection("admin_otp_challenges");
-          const recentChallenge = await challenges.findOne({
-            adminId: admin._id,
-            createdAt: { $gt: new Date(now.getTime() - 60_000) },
-          });
-          if (recentChallenge) {
+          const cooldowns = db.collection("admin_otp_cooldowns");
+          const activeCooldown = await cooldowns.findOne({ adminId: admin._id, expiresAt: { $gt: now } });
+          if (activeCooldown) {
+            const retryAfter = Math.max(1, Math.ceil((activeCooldown.expiresAt.getTime() - now.getTime()) / 1000));
             return NextResponse.json(
-              { error: "A verification code was requested recently. Please wait before trying again." },
-              { status: 429, headers: { "Retry-After": "60" } }
+              { error: `A verification code was sent recently. Please wait ${retryAfter} seconds before trying again.` },
+              { status: 429, headers: { "Retry-After": String(retryAfter) } }
             );
           }
 
           const challengeId = crypto.randomBytes(32).toString("hex");
           const code = createOtpCode();
+          const expiresAt = otpExpiry(now, securitySettings.otpExpiryMinutes);
           await challenges.updateMany(
             { adminId: admin._id, status: "pending" },
             { $set: { status: "invalidated", invalidatedAt: now } }
@@ -170,39 +170,72 @@ export async function POST(request: Request) {
               username: authenticatedUsername,
               otpHash: hashOtp(challengeId, code),
               createdAt: now,
-              expiresAt: otpExpiry(now),
+              expiresAt,
               attemptCount: 0,
+              maxOtpAttempts: securitySettings.maxOtpAttempts,
+              resendCooldownSeconds: securitySettings.resendCooldownSeconds,
               status: "pending",
             });
           } catch (error) {
             if ((error as { code?: number }).code === 11000) {
+              const existingChallenge = await challenges.findOne(
+                { adminId: admin._id, status: "pending" },
+                { sort: { createdAt: -1 } }
+              );
+              const challengeCooldown = existingChallenge && Number.isInteger(existingChallenge.resendCooldownSeconds)
+                ? existingChallenge.resendCooldownSeconds
+                : securitySettings.resendCooldownSeconds;
+              const retryAfter = existingChallenge
+                ? Math.max(1, Math.ceil((existingChallenge.createdAt.getTime() + challengeCooldown * 1000 - Date.now()) / 1000))
+                : challengeCooldown;
               return NextResponse.json(
-                { error: "A verification code was requested recently. Please wait before trying again." },
-                { status: 429, headers: { "Retry-After": "60" } }
+                { error: `A verification code was requested recently. Please wait ${retryAfter} seconds before trying again.` },
+                { status: 429, headers: { "Retry-After": String(retryAfter) } }
               );
             }
             throw error;
           }
 
+          await cooldowns.updateOne(
+            { adminId: admin._id },
+            {
+              $set: {
+                adminId: admin._id,
+                createdAt: now,
+                expiresAt: new Date(now.getTime() + securitySettings.resendCooldownSeconds * 1000),
+              },
+            },
+            { upsert: true }
+          );
           try {
-            await sendAdminOtp(process.env.ADMIN_OTP_EMAIL!, code);
+            await sendAdminOtp(process.env.ADMIN_OTP_EMAIL!, code, securitySettings.otpExpiryMinutes);
           } catch (mailError) {
             await challenges.updateOne(
               { challengeHash: hashChallengeId(challengeId), status: "pending" },
               { $set: { status: "invalidated", invalidatedAt: new Date() } }
             );
+            await cooldowns.deleteOne({ adminId: admin._id });
             const emailError = mailError as { code?: string; responseCode?: number };
             console.error("Admin OTP email delivery failed:", { code: emailError?.code, responseCode: emailError?.responseCode });
             return NextResponse.json({
               error: `Could not send the verification email. No admin session was created. ${getAdminEmailErrorMessage(mailError)}`,
             }, { status: 503 });
           }
+          const sentAt = new Date();
+          try {
+            await cooldowns.updateOne(
+              { adminId: admin._id },
+              { $set: { createdAt: sentAt, expiresAt: new Date(sentAt.getTime() + securitySettings.resendCooldownSeconds * 1000) } }
+            );
+          } catch (cooldownError) {
+            console.error("Admin OTP cooldown update failed after delivery:", cooldownError);
+          }
 
           return NextResponse.json({
             otpRequired: true,
             challengeId,
             maskedDestination: otpConfiguration.maskedDestination,
-            expiresAt: otpExpiry(now).toISOString(),
+            expiresAt: expiresAt.toISOString(),
           });
         }
       }
@@ -237,7 +270,7 @@ export async function POST(request: Request) {
 
   const now = new Date();
   const country = request.headers.get("x-vercel-ip-country") || "Unknown";
-  await recordFailedLogin(db, ipKey, country, true, now);
+  await recordFailedLogin(db, ipKey, country, true, trustedIp, now);
 
   await new Promise((resolve) => setTimeout(resolve, crypto.randomInt(50, 151)));
 

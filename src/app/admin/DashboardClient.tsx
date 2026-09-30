@@ -2,11 +2,11 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import PostEditor from "./PostEditor";
 import DonationSettings from "./DonationSettings";
 import CommentsManager from "./CommentsManager";
 import ThemeSettings, { AdminTheme, DEFAULT_THEME, hexToRgb, luminance } from "./ThemeSettings";
-import SecuritySettings from "./SecuritySettings";
 import { useLanguage } from "@/context/LanguageContext";
 import { LANG_MAP } from "@/lib/detectLanguage";
 
@@ -148,7 +148,8 @@ export default function DashboardClient() {
   const [chartPeriod, setChartPeriod] = useState("monthly");
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation" | "comments" | "appearance" | "security">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation" | "comments" | "appearance">("overview");
+  const [securityExpanded, setSecurityExpanded] = useState(false);
   const [theme, setTheme] = useState<AdminTheme>(DEFAULT_THEME);
 
   // Live Server Request Log filters & controls
@@ -816,11 +817,18 @@ export default function DashboardClient() {
             🎨 Appearance
           </button>
           <button
-            className={`nav-item ${activeTab === "security" ? "active" : ""}`}
-            onClick={() => setActiveTab("security")}
+            className="nav-item"
+            aria-expanded={securityExpanded}
+            onClick={() => setSecurityExpanded((expanded) => !expanded)}
           >
-            🛡️ Security
+            <span>🛡️ Security</span><span aria-hidden="true">{securityExpanded ? "−" : "+"}</span>
           </button>
+          {securityExpanded && (
+            <div className="nav-submenu">
+              <Link href="/admin/security/ip-settings">IP Settings</Link>
+              <Link href="/admin/security/email-login">Email Login Settings</Link>
+            </div>
+          )}
         </nav>
 
         {/* Language Settings */}
@@ -3518,7 +3526,6 @@ export default function DashboardClient() {
             <ThemeSettings theme={theme} onChange={handleThemeChange} />
           </div>
         )}
-        {activeTab === "security" && <SecuritySettings />}
       </main>
 
       <style jsx global>{`
@@ -3590,6 +3597,35 @@ export default function DashboardClient() {
           cursor: pointer;
           border-radius: 8px;
           transition: all 0.2s;
+        }
+
+        .nav-item[aria-expanded] {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+        }
+
+        .nav-submenu {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          margin: -0.2rem 0 0.35rem 1rem;
+          padding-left: 0.65rem;
+          border-left: 1px solid var(--admin-border-strong, rgba(0, 200, 150, 0.3));
+        }
+
+        .nav-submenu a {
+          color: var(--admin-text-secondary, #9ca3af);
+          padding: 0.55rem 0.7rem;
+          border-radius: 6px;
+          font-size: 0.88rem;
+          font-weight: 600;
+        }
+
+        .nav-submenu a:hover {
+          color: var(--admin-text-primary, #ffffff);
+          background-color: var(--admin-hover-bg, rgba(255, 255, 255, 0.05));
         }
 
         .nav-item:hover, .nav-item.active {

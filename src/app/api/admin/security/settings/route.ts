@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import crypto from "crypto";
 import { getDb } from "@/lib/db";
 import { validateSession } from "@/lib/admin-auth";
 import {
   ensureAdminSecurityIndexes,
+  clearEmailLoginSettingsCache,
   getAdminEmailErrorMessage,
+  getEmailLoginSettings,
   getAdminSecuritySettings,
   getOtpConfiguration,
   sendAdminEmailTest,
@@ -61,7 +64,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Configure all email OTP environment variables before testing email delivery." }, { status: 400 });
     }
     try {
-      await sendAdminEmailTest();
+      const db = await getDb();
+      const settings = await getEmailLoginSettings(db);
+      await sendAdminEmailTest(settings.otpExpiryMinutes);
       return NextResponse.json({ success: true, message: "Test email accepted by the configured email provider. Check the admin inbox and spam folder." });
     } catch (error) {
       const emailError = error as { code?: string; responseCode?: number };
@@ -83,11 +88,30 @@ export async function POST(request: Request) {
   try {
     const db = await getDb();
     await ensureAdminSecurityIndexes(db);
+    const currentEmailSettings = await getEmailLoginSettings(db);
+    const sessionToken = (await cookies()).get("admin_session")?.value;
+    const tokenHash = sessionToken ? crypto.createHash("sha256").update(sessionToken).digest("hex") : "";
+    const adminSession = tokenHash
+      ? await db.collection("admin_sessions").findOne({ tokenHash }, { projection: { username: 1 } })
+      : null;
+    const now = new Date();
     await db.collection("settings").updateOne(
-      { key: "admin_security_settings" },
-      { $set: { key: "admin_security_settings", otpEnabled: body.otpEnabled, updatedAt: new Date() } },
+      { key: "emailLogin" },
+      { $set: {
+        key: "emailLogin",
+        ...currentEmailSettings,
+        requireOtp: body.otpEnabled,
+        updatedAt: now,
+        updatedBy: adminSession?.username || "unknown",
+      } },
       { upsert: true }
     );
+    await db.collection("settings").updateOne(
+      { key: "admin_security_settings" },
+      { $set: { key: "admin_security_settings", otpEnabled: body.otpEnabled, updatedAt: now } },
+      { upsert: true }
+    );
+    clearEmailLoginSettingsCache();
     if (!body.otpEnabled) {
       await db.collection("admin_otp_challenges").updateMany(
         { status: "pending" },

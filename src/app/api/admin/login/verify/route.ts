@@ -5,10 +5,9 @@ import { getDb } from "@/lib/db";
 import { createAdminSession, SESSION_TTL_SECONDS } from "@/lib/admin-auth";
 import {
   ensureAdminSecurityIndexes,
-  getAdminSecuritySettings,
+  getEmailLoginSettings,
   hashChallengeId,
   hashOtp,
-  OTP_MAX_ATTEMPTS,
 } from "@/lib/admin-security";
 
 export const runtime = "nodejs";
@@ -30,7 +29,8 @@ export async function POST(request: Request) {
   try {
     const db = await getDb();
     await ensureAdminSecurityIndexes(db);
-    if (!(await getAdminSecuritySettings(db)).otpEnabled) {
+    const emailSettings = await getEmailLoginSettings(db);
+    if (!emailSettings.requireOtp) {
       return NextResponse.json({ error: "Email verification is currently disabled." }, { status: 400 });
     }
     const challenges = db.collection("admin_otp_challenges");
@@ -40,10 +40,16 @@ export async function POST(request: Request) {
       challengeHash,
       status: "pending",
       expiresAt: { $gt: now },
-      attemptCount: { $lt: OTP_MAX_ATTEMPTS },
     });
 
     if (!challenge || typeof challenge.username !== "string") {
+      return NextResponse.json({ error: "Invalid or expired verification code." }, { status: 400 });
+    }
+    const maxOtpAttempts = Number.isInteger(challenge.maxOtpAttempts) && challenge.maxOtpAttempts >= 3 && challenge.maxOtpAttempts <= 10
+      ? challenge.maxOtpAttempts
+      : emailSettings.maxOtpAttempts;
+    if (challenge.attemptCount >= maxOtpAttempts) {
+      await challenges.updateOne({ _id: challenge._id, status: "pending" }, { $set: { status: "invalidated", invalidatedAt: now } });
       return NextResponse.json({ error: "Invalid or expired verification code." }, { status: 400 });
     }
 
@@ -57,11 +63,11 @@ export async function POST(request: Request) {
           _id: challenge._id,
           status: "pending",
           expiresAt: { $gt: now },
-          attemptCount: { $lt: OTP_MAX_ATTEMPTS },
+          attemptCount: { $lt: maxOtpAttempts },
         },
         { $inc: { attemptCount: 1 } }
       );
-      if (update.modifiedCount && challenge.attemptCount + 1 >= OTP_MAX_ATTEMPTS) {
+      if (update.modifiedCount && challenge.attemptCount + 1 >= maxOtpAttempts) {
         await challenges.updateOne(
           { _id: challenge._id, status: "pending" },
           { $set: { status: "invalidated", invalidatedAt: new Date() } }
@@ -75,7 +81,7 @@ export async function POST(request: Request) {
         _id: challenge._id,
         status: "pending",
         expiresAt: { $gt: now },
-        attemptCount: { $lt: OTP_MAX_ATTEMPTS },
+        attemptCount: { $lt: maxOtpAttempts },
       },
       { $set: { status: "consumed", consumedAt: now } }
     );
