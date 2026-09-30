@@ -290,7 +290,7 @@ export default function IpSettings() {
           <p className="security-note">New settings apply only to future blocks.</p>
           <div className="security-actions security-actions-centered">
             <button className="security-button primary" type="submit" disabled={saving || !ipSettings}>{saving ? "Saving..." : "Save"}</button>
-            <button className="security-button" type="button" disabled={saving} onClick={() => setDraftSettings(DEFAULT_SETTINGS)}>Reset to defaults (5 / 15 / 1 day)</button>
+            <button className="security-button reset" type="button" disabled={saving} onClick={() => setDraftSettings(DEFAULT_SETTINGS)}>Reset to Default</button>
           </div>
         </form>
       )}

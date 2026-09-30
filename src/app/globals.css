@@ -271,9 +271,27 @@ a {
 }
 
 .security-button.primary {
-  border-color: var(--primary);
-  background: var(--primary);
+  border-color: #1d4ed8;
+  background: #1d4ed8;
   color: #fff;
+}
+
+.security-button.primary:hover:not(:disabled) {
+  border-color: #1e40af;
+  background: #1e40af;
+  color: #fff;
+}
+
+.security-button.reset {
+  border-color: #e8c879;
+  background: #fff5d9;
+  color: #784b08;
+}
+
+.security-button.reset:hover:not(:disabled) {
+  border-color: #d9a93d;
+  background: #ffedbd;
+  color: #603900;
 }
 
 .security-button:disabled,

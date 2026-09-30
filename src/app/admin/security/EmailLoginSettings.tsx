@@ -141,12 +141,12 @@ export default function EmailLoginSettings() {
         <div className="security-actions security-actions-centered">
           <button className="security-button primary" type="submit" disabled={saving}>{saving ? "Saving..." : "Save"}</button>
           <button
-            className="security-button"
+            className="security-button reset"
             type="button"
             disabled={saving}
             onClick={() => setSettings((current) => current ? { ...current, ...DEFAULTS } : current)}
           >
-            Reset to defaults (2 / 5 / 60)
+            Reset to Default
           </button>
         </div>
       </form>
