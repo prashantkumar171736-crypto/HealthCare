@@ -745,7 +745,9 @@ export default function DashboardClient() {
   const sidebarRgb = hexToRgb(theme.sidebarColor);
   const cardRgb = hexToRgb(theme.cardColor);
   const bgLum = bgRgb ? luminance(...bgRgb) : 0;
+  const cardLum = cardRgb ? luminance(...cardRgb) : bgLum;
   const isLight = bgLum > 0.4;
+  const isLightCard = cardLum > 0.4;
 
   const sidebarGlass = sidebarRgb ? `rgba(${sidebarRgb[0]}, ${sidebarRgb[1]}, ${sidebarRgb[2]}, 0.82)` : theme.sidebarColor;
   const cardGlass = cardRgb ? `rgba(${cardRgb[0]}, ${cardRgb[1]}, ${cardRgb[2]}, 0.78)` : theme.cardColor;
@@ -757,6 +759,8 @@ export default function DashboardClient() {
     "--admin-accent": theme.accentColor,
     "--admin-text-primary": theme.textPrimary,
     "--admin-text-secondary": theme.textSecondary,
+    "--admin-health-value": isLightCard ? "#0f172a" : "#f3f4f6",
+    "--admin-health-label": isLightCard ? "#475569" : "#9ca3af",
     "--admin-font-family": theme.fontFamily,
     "--admin-font-size": `${theme.fontSize}px`,
     "--admin-border": isLight ? "#e2e8f0" : "rgba(0, 229, 255, 0.14)",
@@ -5695,12 +5699,12 @@ export default function DashboardClient() {
         }
 
         .row-label {
-          color: #9ca3af;
+          color: var(--admin-health-label, #9ca3af);
           font-weight: 500;
         }
 
         .row-val {
-          color: #f3f4f6;
+          color: var(--admin-health-value, #f3f4f6);
           font-weight: 600;
         }
 
