@@ -18,17 +18,35 @@ export default async function SecurityLayout({ children }: Readonly<{ children: 
   }
 
   return (
-    <main className="security-layout">
+    <>
       <AdminThemeBridge />
-      <div className="security-layout-inner">
-        <header className="security-header">
-          <div>
-            <Link className="security-back" href="/admin">← Admin dashboard</Link>
-            <h1>Security</h1>
+      <div className="admin-security-shell">
+        <aside className="admin-security-sidebar">
+          <div className="sidebar-brand">
+            <span>⚕️</span> HealthEdu
           </div>
-        </header>
-        {children}
+          <div className="admin-badge">ADMIN CONTROL</div>
+
+          <nav className="sidebar-nav" aria-label="Admin navigation">
+            <Link className="nav-item" href="/admin">📊 Dashboard Overview</Link>
+            <Link className="nav-item" href="/admin/security/ip-settings">🛡️ IP Settings</Link>
+            <Link className="nav-item" href="/admin/security/email-login">✉️ Email Login Settings</Link>
+            <Link className="nav-item" href="/admin">⚙️ Security Overview</Link>
+          </nav>
+        </aside>
+
+        <main className="security-layout">
+          <div className="security-layout-inner">
+            <header className="security-header">
+              <div>
+                <Link className="security-back" href="/admin">← Admin dashboard</Link>
+                <h1>Security</h1>
+              </div>
+            </header>
+            {children}
+          </div>
+        </main>
       </div>
-    </main>
+    </>
   );
 }
