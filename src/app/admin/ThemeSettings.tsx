@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 /* ─────────────────────────────────────────────────────────────
    Types & Constants
@@ -56,6 +56,82 @@ export function normalizeStoredTheme(storedTheme: Partial<AdminTheme> | null | u
   }
 
   return merged;
+}
+
+export function readStoredAdminTheme(): AdminTheme {
+  try {
+    const saved = localStorage.getItem("admin_panel_theme");
+    return normalizeStoredTheme(saved ? JSON.parse(saved) : null);
+  } catch {
+    return DEFAULT_THEME;
+  }
+}
+
+export function buildAdminThemeCssVariables(theme: AdminTheme): Record<string, string> {
+  const rgb = hexToRgb(theme.bgColor);
+  const bgLum = rgb ? luminance(...rgb) : 0;
+  const isLight = bgLum > 0.4;
+  const border = isLight ? "#e2e8f0" : "rgba(148, 163, 184, 0.18)";
+  const surface = theme.cardColor;
+  const textMain = theme.textPrimary;
+  const textMuted = theme.textSecondary;
+
+  return {
+    "--primary": theme.accentColor,
+    "--primary-hover": theme.accentColor,
+    "--background": theme.bgColor,
+    "--surface": surface,
+    "--surface-hover": theme.cardColor,
+    "--text-main": textMain,
+    "--text-muted": textMuted,
+    "--text-light": textMuted,
+    "--border": border,
+    "--shadow-sm": isLight
+      ? "0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.06)"
+      : "0 10px 30px rgba(2, 6, 23, 0.28)",
+  };
+}
+
+export function AdminThemeBridge() {
+  const [theme, setTheme] = useState<AdminTheme>(DEFAULT_THEME);
+
+  useEffect(() => {
+    const syncTheme = (event?: Event) => {
+      const customDetail = event && "detail" in event ? (event as CustomEvent<AdminTheme | null>).detail : null;
+      if (customDetail) {
+        setTheme(normalizeStoredTheme(customDetail));
+        return;
+      }
+      setTheme(readStoredAdminTheme());
+    };
+
+    syncTheme();
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === "admin_panel_theme") {
+        syncTheme();
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("admin-theme-change", syncTheme as EventListener);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("admin-theme-change", syncTheme as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    const vars = buildAdminThemeCssVariables(theme);
+    Object.entries(vars).forEach(([key, value]) => {
+      root.style.setProperty(key, value);
+    });
+  }, [theme]);
+
+  return null;
 }
 
 const PRESET_THEMES: { name: string; emoji: string; theme: Partial<AdminTheme> }[] = [

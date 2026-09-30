@@ -361,7 +361,10 @@ export default function DashboardClient() {
   // Save theme to localStorage whenever it changes
   const handleThemeChange = useCallback((t: AdminTheme) => {
     setTheme(t);
-    try { localStorage.setItem(LS_THEME_KEY, JSON.stringify(t)); } catch { }
+    try {
+      localStorage.setItem(LS_THEME_KEY, JSON.stringify(t));
+      window.dispatchEvent(new CustomEvent("admin-theme-change", { detail: t }));
+    } catch { }
   }, []);
 
   const fetchStats = async (
@@ -775,7 +778,9 @@ export default function DashboardClient() {
   } as React.CSSProperties;
 
   return (
-    <div className="admin-dashboard-root" style={themeVars}>
+    <>
+      <AdminThemeBridge />
+      <div className="admin-dashboard-root" style={themeVars}>
       {/* Sidebar Nav */}
       <aside className="admin-sidebar">
         <div className="sidebar-brand">
@@ -6038,6 +6043,7 @@ export default function DashboardClient() {
           text-align: center;
         }
       `}</style>
-    </div>
+      </div>
+    </>
   );
 }
