@@ -6,7 +6,7 @@ import Link from "next/link";
 import PostEditor from "./PostEditor";
 import DonationSettings from "./DonationSettings";
 import CommentsManager from "./CommentsManager";
-import ThemeSettings, { AdminTheme, DEFAULT_THEME, hexToRgb, luminance } from "./ThemeSettings";
+import ThemeSettings, { AdminTheme, DEFAULT_THEME, hexToRgb, luminance, normalizeStoredTheme } from "./ThemeSettings";
 import { useLanguage } from "@/context/LanguageContext";
 import { LANG_MAP } from "@/lib/detectLanguage";
 
@@ -341,18 +341,21 @@ export default function DashboardClient() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(LS_THEME_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.bgColor === "#071924") {
-          setTheme(DEFAULT_THEME);
-          localStorage.setItem(LS_THEME_KEY, JSON.stringify(DEFAULT_THEME));
-        } else {
-          setTheme({ ...DEFAULT_THEME, ...parsed });
-        }
-      } else {
+      if (!saved) {
         setTheme(DEFAULT_THEME);
+        return;
       }
-    } catch { }
+
+      const parsed = JSON.parse(saved);
+      const normalized = normalizeStoredTheme(parsed);
+      setTheme(normalized);
+
+      if (JSON.stringify(normalized) !== saved) {
+        localStorage.setItem(LS_THEME_KEY, JSON.stringify(normalized));
+      }
+    } catch {
+      setTheme(DEFAULT_THEME);
+    }
   }, []);
 
   // Save theme to localStorage whenever it changes

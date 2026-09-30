@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 
 /* ─────────────────────────────────────────────────────────────
    Types & Constants
@@ -28,6 +28,35 @@ export const DEFAULT_THEME: AdminTheme = {
   fontSize: 15,
   autoAdjust: true,
 };
+
+function isValidHexColor(value: unknown): value is string {
+  return typeof value === "string" && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value);
+}
+
+export function normalizeStoredTheme(storedTheme: Partial<AdminTheme> | null | undefined): AdminTheme {
+  if (!storedTheme || typeof storedTheme !== "object") {
+    return DEFAULT_THEME;
+  }
+
+  const merged = { ...DEFAULT_THEME, ...storedTheme };
+  const hasValidColors = [
+    merged.bgColor,
+    merged.sidebarColor,
+    merged.cardColor,
+    merged.accentColor,
+    merged.textPrimary,
+    merged.textSecondary,
+  ].every(isValidHexColor);
+
+  const hasValidFont = typeof merged.fontFamily === "string" && merged.fontFamily.length > 0;
+  const hasValidFontSize = Number.isFinite(merged.fontSize) && merged.fontSize >= 12 && merged.fontSize <= 24;
+
+  if (!hasValidColors || !hasValidFont || !hasValidFontSize) {
+    return DEFAULT_THEME;
+  }
+
+  return merged;
+}
 
 const PRESET_THEMES: { name: string; emoji: string; theme: Partial<AdminTheme> }[] = [
   {
@@ -254,11 +283,6 @@ export default function ThemeSettings({ theme, onChange }: Props) {
     }
   };
 
-  const bgLum = (() => {
-    const rgb = hexToRgb(theme.bgColor);
-    return rgb ? luminance(...rgb) : 0;
-  })();
-  const isDark = bgLum < 0.2;
   const previewContrast = contrastRatio(theme.bgColor, theme.textPrimary).toFixed(1);
   const wcagLevel = parseFloat(previewContrast) >= 7 ? "AAA ✅" : parseFloat(previewContrast) >= 4.5 ? "AA ✅" : "⚠️ Low";
 
