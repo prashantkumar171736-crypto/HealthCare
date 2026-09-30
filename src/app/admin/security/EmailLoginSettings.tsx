@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { LoaderCircle, MailCheck, Send } from "lucide-react";
 
 interface EmailSettings {
   requireOtp: boolean;
@@ -101,27 +102,48 @@ export default function EmailLoginSettings() {
     <section className="security-panel">
       <h2 className="security-title">Email Login Settings</h2>
       <form className="security-email-form" onSubmit={save}>
-        <div>
-          <strong>Email delivery</strong>
-          <p className="security-note">
-            {settings.emailOtpConfigured
-              ? `Email OTP is configured via ${settings.emailProvider} for ${settings.maskedDestination}.`
-              : "Email OTP is not configured. Provider credentials and the destination are read from server environment variables."}
-          </p>
-          <button className="security-button" type="button" onClick={() => void sendTestEmail()} disabled={testing || !settings.emailOtpConfigured}>
-            {testing ? "Sending test email..." : "Send test email"}
-          </button>
-        </div>
+        <section className={`security-email-delivery ${settings.emailOtpConfigured ? "configured" : "unconfigured"}`} aria-label="Email delivery and OTP requirement">
+          <div className="security-email-copy">
+            <div className="security-email-heading">
+              <span className="security-email-icon"><MailCheck size={19} aria-hidden="true" /></span>
+              <div>
+                <strong>Email delivery</strong>
+                <span className={`security-delivery-status ${settings.emailOtpConfigured ? "configured" : "unconfigured"}`}>
+                  {settings.emailOtpConfigured ? "Delivery configured" : "Setup required"}
+                </span>
+              </div>
+            </div>
+            <p className="security-delivery-note">
+              {settings.emailOtpConfigured ? (
+                <>Verification codes are sent through <span className="security-provider-chip">{settings.emailProvider}</span> to <span className="security-destination-chip">{settings.maskedDestination}</span>.</>
+              ) : (
+                "Email codes cannot be delivered yet. Configure the provider credentials and administrator destination in the server environment."
+              )}
+            </p>
+          </div>
 
-        <label className="security-toggle">
-          <input
-            type="checkbox"
-            checked={settings.requireOtp}
-            disabled={!settings.emailOtpConfigured && !settings.requireOtp}
-            onChange={(event) => setSettings((current) => current ? { ...current, requireOtp: event.target.checked } : current)}
-          />
-          Require email OTP after password verification
-        </label>
+          <div className="security-email-controls">
+            <button className="security-button test-email-button" type="button" onClick={() => void sendTestEmail()} disabled={testing || !settings.emailOtpConfigured}>
+              {testing ? <LoaderCircle className="security-spinner" size={17} aria-hidden="true" /> : <Send size={16} aria-hidden="true" />}
+              <span>{testing ? "Sending test email..." : "Send Test Email"}</span>
+            </button>
+            <div className="security-otp-control">
+              <span className="security-otp-label" id="require-email-otp-label">Require email OTP after password verification</span>
+              <button
+                className={`security-toggle-switch ${settings.requireOtp ? "enabled" : "disabled"}`}
+                type="button"
+                role="switch"
+                aria-labelledby="require-email-otp-label"
+                aria-checked={settings.requireOtp}
+                disabled={!settings.emailOtpConfigured && !settings.requireOtp}
+                onClick={() => setSettings((current) => current ? { ...current, requireOtp: !current.requireOtp } : current)}
+              >
+                <span className="security-switch-track" aria-hidden="true"><span className="security-switch-thumb" /></span>
+                <span className="security-switch-state">{settings.requireOtp ? "Enable" : "Disable"}</span>
+              </button>
+            </div>
+          </div>
+        </section>
 
         <label className="security-setting-row security-field" title="The time limit for each email verification code. A code cannot be used after it expires; request a new code to continue signing in.">
           <span>OTP expiry (minutes)<p>Each emailed code is valid for this many minutes. After it expires, a new code is required to complete sign-in.</p></span>
