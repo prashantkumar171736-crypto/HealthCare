@@ -29,9 +29,9 @@ export default async function SecurityLayout({ children }: Readonly<{ children: 
 
           <nav className="sidebar-nav" aria-label="Admin navigation">
             <Link className="nav-item" href="/admin">📊 Dashboard Overview</Link>
+            <Link className="nav-item" href="/admin/security/overview">⚙️ Security Overview</Link>
             <Link className="nav-item" href="/admin/security/ip-settings">🛡️ IP Settings</Link>
             <Link className="nav-item" href="/admin/security/email-login">✉️ Email Login Settings</Link>
-            <Link className="nav-item" href="/admin">⚙️ Security Overview</Link>
           </nav>
         </aside>
 
