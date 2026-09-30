@@ -5,7 +5,7 @@ import type { Db } from "mongodb";
 export const DEFAULT_IP_BLOCK_SETTINGS = {
   maxFailedAttempts: 5,
   attemptWindowMinutes: 15,
-  blockDurationMinutes: 30,
+  blockDurationMinutes: 1440,
 };
 
 export const DEFAULT_EMAIL_LOGIN_SETTINGS = {
@@ -192,10 +192,13 @@ export async function getIpBlockSettings(db: Db): Promise<IpBlockSettings> {
     return ipBlockSettingsCache.value;
   }
   const document = await db.collection("settings").findOne({ key: IP_SETTINGS_KEY });
+  const storedBlockDuration = document?.blockDurationMinutes === 30
+    ? DEFAULT_IP_BLOCK_SETTINGS.blockDurationMinutes
+    : document?.blockDurationMinutes;
   const value: IpBlockSettings = {
     maxFailedAttempts: boundedInteger(document?.maxFailedAttempts, DEFAULT_IP_BLOCK_SETTINGS.maxFailedAttempts, 3, 20),
     attemptWindowMinutes: boundedInteger(document?.attemptWindowMinutes, DEFAULT_IP_BLOCK_SETTINGS.attemptWindowMinutes, 1, 120),
-    blockDurationMinutes: boundedInteger(document?.blockDurationMinutes, DEFAULT_IP_BLOCK_SETTINGS.blockDurationMinutes, 1, 43200),
+    blockDurationMinutes: boundedInteger(storedBlockDuration, DEFAULT_IP_BLOCK_SETTINGS.blockDurationMinutes, 1, 43200),
   };
   ipBlockSettingsCache = { value, at: Date.now() };
   return value;

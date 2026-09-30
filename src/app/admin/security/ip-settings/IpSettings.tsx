@@ -56,7 +56,7 @@ const EMPTY_FILTERS: Filters = {
 const DEFAULT_SETTINGS: IpSettings = {
   maxFailedAttempts: 5,
   attemptWindowMinutes: 15,
-  blockDurationMinutes: 30,
+  blockDurationMinutes: 1440,
 };
 
 const BLOCK_DURATIONS = [1440, 10080, 21600, 43200];
@@ -281,7 +281,6 @@ export default function IpSettings() {
           <label className="security-field" title="How long a fingerprint that reaches the failed-attempt limit is prevented from signing in. This setting affects new blocks only.">Block duration
             <select required value={draftSettings.blockDurationMinutes} onChange={(event) => setDraftSettings({ ...draftSettings, blockDurationMinutes: Number(event.target.value) })}>
               {draftSettings.blockDurationMinutes !== 30 && !BLOCK_DURATIONS.includes(draftSettings.blockDurationMinutes) && <option value={draftSettings.blockDurationMinutes}>{draftSettings.blockDurationMinutes} minutes (current setting)</option>}
-              <option value={30}>30 minutes (default)</option>
               <option value={1440}>1 day (24 Hours)</option>
               <option value={10080}>7 Days</option>
               <option value={21600}>15 Days</option>
@@ -291,7 +290,7 @@ export default function IpSettings() {
           <p className="security-note">New settings apply only to future blocks.</p>
           <div className="security-actions security-actions-centered">
             <button className="security-button primary" type="submit" disabled={saving || !ipSettings}>{saving ? "Saving..." : "Save"}</button>
-            <button className="security-button" type="button" disabled={saving} onClick={() => setDraftSettings(DEFAULT_SETTINGS)}>Reset to defaults (5 / 15 / 30 minutes)</button>
+            <button className="security-button" type="button" disabled={saving} onClick={() => setDraftSettings(DEFAULT_SETTINGS)}>Reset to defaults (5 / 15 / 1 day)</button>
           </div>
         </form>
       )}
