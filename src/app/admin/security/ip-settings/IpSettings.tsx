@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { FileSpreadsheet, RotateCcw, Search, Settings2, SlidersHorizontal } from "lucide-react";
 
 interface IpBlock {
   id: string;
@@ -218,13 +219,13 @@ export default function IpSettings() {
       <div className="security-toolbar">
         <div className="security-toolbar-group">
           <button
-            className="security-button"
+            className="security-button toolbar-search"
             type="button"
             aria-label={quickSearchOpen ? "Close quick search" : "Open quick search"}
             title={quickSearchOpen ? "Close quick search" : "Quick search"}
             onClick={() => setQuickSearchOpen((open) => !open)}
           >
-            ⌕
+            <Search size={16} aria-hidden="true" />
           </button>
           {quickSearchOpen && (
             <input
@@ -237,20 +238,27 @@ export default function IpSettings() {
               onKeyDown={(event) => { if (event.key === "Enter") applyQuickSearch(); }}
             />
           )}
-          <button className="security-button" type="button" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen((open) => !open)}>
-            Advanced Search
+          <button className="security-button toolbar-filter" type="button" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen((open) => !open)}>
+            <SlidersHorizontal size={16} aria-hidden="true" />
+            <span>Advanced Search</span>
           </button>
-          <button className="security-button" type="button" onClick={resetSearch}>Reset</button>
-          <button className="security-button" type="button" onClick={exportResults}>Export Excel (.csv)</button>
+          <button className="security-button reset" type="button" onClick={resetSearch}>
+            <RotateCcw size={15} aria-hidden="true" />
+            <span>Reset</span>
+          </button>
+          <button className="security-button toolbar-export" type="button" onClick={exportResults}>
+            <FileSpreadsheet size={16} aria-hidden="true" />
+            <span>Export Excel (.csv)</span>
+          </button>
         </div>
         <button
-          className="security-button"
+          className="security-button toolbar-settings"
           type="button"
           aria-label="IP blocking settings"
           title="IP blocking settings"
           onClick={() => setSettingsOpen((open) => !open)}
         >
-          ⚙
+          <Settings2 size={17} aria-hidden="true" />
         </button>
       </div>
 

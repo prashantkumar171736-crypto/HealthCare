@@ -234,7 +234,7 @@ a {
 .security-toolbar-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 
@@ -262,6 +262,59 @@ a {
   color: var(--text-main);
   cursor: pointer;
   font-weight: 650;
+}
+
+.security-toolbar .security-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.security-button.toolbar-search {
+  padding-inline: 10px;
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.security-button.toolbar-search:hover {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.security-button.toolbar-filter {
+  border-color: #a9ded5;
+  background: #effaf7;
+  color: #087f69;
+}
+
+.security-button.toolbar-filter:hover {
+  background: #d8f2eb;
+  color: #066653;
+}
+
+.security-button.toolbar-export {
+  border-color: #b9dfc2;
+  background: #eff9f0;
+  color: #237a3b;
+}
+
+.security-button.toolbar-export:hover {
+  background: #daf0dd;
+  color: #185d2c;
+}
+
+.security-button.toolbar-settings {
+  padding-inline: 10px;
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.security-button.toolbar-settings:hover {
+  background: #e2e8f0;
+  color: #1e293b;
 }
 
 .security-button:hover,
