@@ -324,14 +324,8 @@ a {
 }
 
 .security-button.primary {
-  border-color: #1d4ed8;
-  background: #1d4ed8;
-  color: #fff;
-}
-
-.security-button.primary:hover:not(:disabled) {
-  border-color: #1e40af;
-  background: #1e40af;
+  border-color: var(--primary);
+  background: var(--primary);
   color: #fff;
 }
 
