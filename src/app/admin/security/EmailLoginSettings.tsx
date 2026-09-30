@@ -123,22 +123,22 @@ export default function EmailLoginSettings() {
           Require email OTP after password verification
         </label>
 
-        <label className="security-setting-row security-field">
-          <span>OTP expiry (minutes)<p>How long a newly issued verification code remains valid.</p></span>
+        <label className="security-setting-row security-field" title="The time limit for each email verification code. A code cannot be used after it expires; request a new code to continue signing in.">
+          <span>OTP expiry (minutes)<p>Each emailed code is valid for this many minutes. After it expires, a new code is required to complete sign-in.</p></span>
           <input type="number" min={1} max={10} step={1} required value={settings.otpExpiryMinutes} onChange={(event) => updateNumber("otpExpiryMinutes", event.target.value)} />
         </label>
-        <label className="security-setting-row security-field">
-          <span>Max OTP attempts<p>Wrong-code attempts allowed before that code is invalidated.</p></span>
+        <label className="security-setting-row security-field" title="The maximum number of incorrect entries allowed for one verification code. Once reached, that code is invalidated and another code must be requested.">
+          <span>Max OTP attempts<p>Incorrect entries permitted for a single code. Reaching this limit invalidates the code, so another must be requested.</p></span>
           <input type="number" min={3} max={10} step={1} required value={settings.maxOtpAttempts} onChange={(event) => updateNumber("maxOtpAttempts", event.target.value)} />
         </label>
-        <label className="security-setting-row security-field">
-          <span>Resend cooldown (seconds)<p>Wait this long after sending a code before requesting another.</p></span>
+        <label className="security-setting-row security-field" title="The minimum wait after a code is sent before another can be requested. This limits repeated email sends while still allowing a replacement after the cooldown.">
+          <span>Resend cooldown (seconds)<p>Wait at least this many seconds after sending a code before requesting another. This helps limit repeated sends to the administrator email address.</p></span>
           <input type="number" min={30} max={300} step={1} required value={settings.resendCooldownSeconds} onChange={(event) => updateNumber("resendCooldownSeconds", event.target.value)} />
         </label>
 
         {error && <p className="security-feedback error" role="alert">{error}</p>}
         {message && <p className="security-feedback" role="status">{message}</p>}
-        <div className="security-actions">
+        <div className="security-actions security-actions-centered">
           <button className="security-button primary" type="submit" disabled={saving}>{saving ? "Saving..." : "Save"}</button>
           <button
             className="security-button"

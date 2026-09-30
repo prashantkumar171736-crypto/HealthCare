@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { validateSession } from "@/lib/admin-auth";
 import { getAdminLoginPath } from "@/lib/admin-login-path";
-import SecuritySubnav from "./SecuritySubnav";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +24,6 @@ export default async function SecurityLayout({ children }: Readonly<{ children: 
             <Link className="security-back" href="/admin">← Admin dashboard</Link>
             <h1>Security</h1>
           </div>
-          <SecuritySubnav />
         </header>
         {children}
       </div>

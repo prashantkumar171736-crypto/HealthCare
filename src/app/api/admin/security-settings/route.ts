@@ -57,7 +57,7 @@ export async function PUT(request: Request) {
   const ranges = {
     maxFailedAttempts: [3, 20],
     attemptWindowMinutes: [1, 120],
-    blockDurationMinutes: [1, 1440],
+    blockDurationMinutes: [1, 43200],
   } as const;
   for (const [key, [min, max]] of Object.entries(ranges)) {
     const value = body[key];

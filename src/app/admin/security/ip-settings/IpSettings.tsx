@@ -59,6 +59,8 @@ const DEFAULT_SETTINGS: IpSettings = {
   blockDurationMinutes: 30,
 };
 
+const BLOCK_DURATIONS = [1440, 10080, 21600, 43200];
+
 function makeQuery(page: number, pageSize: number, quickQuery: string, filters: Filters): string {
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (quickQuery) params.set("q", quickQuery);
@@ -154,6 +156,12 @@ export default function IpSettings() {
     setPage(1);
   }
 
+  function exportResults() {
+    const params = new URLSearchParams(makeQuery(page, pageSize, quickQuery, appliedFilters));
+    params.set("format", "csv");
+    window.location.assign(`/api/admin/security/ip-list?${params.toString()}`);
+  }
+
   function applyAdvancedSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAppliedFilters({ ...draftFilters });
@@ -233,6 +241,7 @@ export default function IpSettings() {
             Advanced Search
           </button>
           <button className="security-button" type="button" onClick={resetSearch}>Reset</button>
+          <button className="security-button" type="button" onClick={exportResults}>Export Excel (.csv)</button>
         </div>
         <button
           className="security-button"
@@ -267,13 +276,22 @@ export default function IpSettings() {
 
       {settingsOpen && (
         <form className="security-config" onSubmit={saveIpSettings}>
-          <label className="security-field">Max failed attempts<input type="number" min={3} max={20} step={1} required value={draftSettings.maxFailedAttempts} onChange={(event) => setDraftSettings({ ...draftSettings, maxFailedAttempts: Number(event.target.value) })} /></label>
-          <label className="security-field">Attempt window (minutes)<input type="number" min={1} max={120} step={1} required value={draftSettings.attemptWindowMinutes} onChange={(event) => setDraftSettings({ ...draftSettings, attemptWindowMinutes: Number(event.target.value) })} /></label>
-          <label className="security-field">Block duration (minutes)<input type="number" min={1} max={1440} step={1} required value={draftSettings.blockDurationMinutes} onChange={(event) => setDraftSettings({ ...draftSettings, blockDurationMinutes: Number(event.target.value) })} /></label>
+          <label className="security-field" title="The number of failed administrator sign-in attempts from the same keyed IP fingerprint that triggers a temporary block.">Max failed attempts<input type="number" min={3} max={20} step={1} required value={draftSettings.maxFailedAttempts} onChange={(event) => setDraftSettings({ ...draftSettings, maxFailedAttempts: Number(event.target.value) })} /></label>
+          <label className="security-field" title="The rolling time window used to count failed sign-in attempts. Attempts older than this window are not included when deciding whether to block the IP.">Attempt window (minutes)<input type="number" min={1} max={120} step={1} required value={draftSettings.attemptWindowMinutes} onChange={(event) => setDraftSettings({ ...draftSettings, attemptWindowMinutes: Number(event.target.value) })} /></label>
+          <label className="security-field" title="How long a fingerprint that reaches the failed-attempt limit is prevented from signing in. This setting affects new blocks only.">Block duration
+            <select required value={draftSettings.blockDurationMinutes} onChange={(event) => setDraftSettings({ ...draftSettings, blockDurationMinutes: Number(event.target.value) })}>
+              {draftSettings.blockDurationMinutes !== 30 && !BLOCK_DURATIONS.includes(draftSettings.blockDurationMinutes) && <option value={draftSettings.blockDurationMinutes}>{draftSettings.blockDurationMinutes} minutes (current setting)</option>}
+              <option value={30}>30 minutes (default)</option>
+              <option value={1440}>1 day (24 Hours)</option>
+              <option value={10080}>7 Days</option>
+              <option value={21600}>15 Days</option>
+              <option value={43200}>30 Days</option>
+            </select>
+          </label>
           <p className="security-note">New settings apply only to future blocks.</p>
-          <div className="security-actions">
+          <div className="security-actions security-actions-centered">
             <button className="security-button primary" type="submit" disabled={saving || !ipSettings}>{saving ? "Saving..." : "Save"}</button>
-            <button className="security-button" type="button" disabled={saving} onClick={() => setDraftSettings(DEFAULT_SETTINGS)}>Reset to defaults (5 / 15 / 30)</button>
+            <button className="security-button" type="button" disabled={saving} onClick={() => setDraftSettings(DEFAULT_SETTINGS)}>Reset to defaults (5 / 15 / 30 minutes)</button>
           </div>
         </form>
       )}

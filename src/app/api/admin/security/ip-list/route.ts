@@ -9,6 +9,18 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZES = new Set([100, 250, 500, 1000]);
 
+function csvCell(value: unknown): string {
+  let text = value == null ? "" : String(value);
+  if (/^[\t\r ]*[=+\-@]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function csvDate(value: unknown): string {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(String(value));
+  return Number.isFinite(date.getTime()) ? date.toISOString() : "";
+}
+
 async function isAdmin(): Promise<boolean> {
   const cookieStore = await cookies();
   return validateSession(cookieStore.get("admin_session")?.value);
@@ -30,12 +42,13 @@ export async function GET(request: Request) {
   if (!(await isAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const params = new URL(request.url).searchParams;
+  const exportCsv = params.get("format") === "csv";
   const requestedPage = Number(params.get("page") || 1);
   const pageSize = Number(params.get("pageSize") || 100);
-  if (!Number.isInteger(requestedPage) || requestedPage < 1) {
+  if (!exportCsv && (!Number.isInteger(requestedPage) || requestedPage < 1)) {
     return NextResponse.json({ error: "page must be a positive integer." }, { status: 400 });
   }
-  if (!Number.isInteger(pageSize) || !PAGE_SIZES.has(pageSize)) {
+  if (!exportCsv && (!Number.isInteger(pageSize) || !PAGE_SIZES.has(pageSize))) {
     return NextResponse.json({ error: "pageSize must be 100, 250, 500, or 1000." }, { status: 400 });
   }
 
@@ -110,24 +123,40 @@ export async function GET(request: Request) {
     const total = await collection.countDocuments(filter);
     const totalPages = Math.ceil(total / pageSize);
     const page = Math.min(requestedPage, Math.max(1, totalPages));
-    const items = await collection.find(filter)
-      .sort({ blockedAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .toArray();
+    const cursor = collection.find(filter).sort({ blockedAt: -1 });
+    const items = exportCsv
+      ? await cursor.toArray()
+      : await cursor.skip((page - 1) * pageSize).limit(pageSize).toArray();
+
+    const rows = items.map((block) => ({
+      id: block._id.toString(),
+      ip: typeof block.ip === "string" ? block.ip : "Not retained",
+      fingerprint: String(block.ipKey || "").slice(0, 10),
+      country: block.country || "Unknown",
+      failedAttempts: block.attemptCount || 0,
+      blockedAt: block.blockedAt,
+      expiresAt: block.expiresAt,
+      status: block.status === "unblocked" ? "unblocked" : new Date(block.expiresAt).getTime() <= now.getTime() ? "expired" : "blocked",
+      unblockedAt: block.unblockedAt || null,
+    }));
+
+    if (exportCsv) {
+      const columns = ["Record ID", "IP address", "Fingerprint", "Country", "Failed attempts", "Blocked at", "Blocked until", "Status", "Unblocked at"];
+      const lines = [
+        columns.map(csvCell).join(","),
+        ...rows.map((row) => [row.id, row.ip, row.fingerprint, row.country, row.failedAttempts, csvDate(row.blockedAt), csvDate(row.expiresAt), row.status, csvDate(row.unblockedAt)].map(csvCell).join(",")),
+      ];
+      return new Response(`\uFEFF${lines.join("\r\n")}`, {
+        headers: {
+          "Cache-Control": "private, no-store, max-age=0",
+          "Content-Disposition": 'attachment; filename="ip-block-history.csv"',
+          "Content-Type": "text/csv; charset=utf-8",
+        },
+      });
+    }
 
     return NextResponse.json({
-      items: items.map((block) => ({
-        id: block._id.toString(),
-        ip: typeof block.ip === "string" ? block.ip : "Not retained",
-        fingerprint: String(block.ipKey || "").slice(0, 10),
-        country: block.country || "Unknown",
-        failedAttempts: block.attemptCount || 0,
-        status: block.status === "unblocked" ? "unblocked" : new Date(block.expiresAt).getTime() <= now.getTime() ? "expired" : "blocked",
-        blockedAt: block.blockedAt,
-        expiresAt: block.expiresAt,
-        unblockedAt: block.unblockedAt || null,
-      })),
+      items: rows,
       total,
       page,
       pageSize,

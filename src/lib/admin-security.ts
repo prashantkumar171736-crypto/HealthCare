@@ -195,7 +195,7 @@ export async function getIpBlockSettings(db: Db): Promise<IpBlockSettings> {
   const value: IpBlockSettings = {
     maxFailedAttempts: boundedInteger(document?.maxFailedAttempts, DEFAULT_IP_BLOCK_SETTINGS.maxFailedAttempts, 3, 20),
     attemptWindowMinutes: boundedInteger(document?.attemptWindowMinutes, DEFAULT_IP_BLOCK_SETTINGS.attemptWindowMinutes, 1, 120),
-    blockDurationMinutes: boundedInteger(document?.blockDurationMinutes, DEFAULT_IP_BLOCK_SETTINGS.blockDurationMinutes, 1, 1440),
+    blockDurationMinutes: boundedInteger(document?.blockDurationMinutes, DEFAULT_IP_BLOCK_SETTINGS.blockDurationMinutes, 1, 43200),
   };
   ipBlockSettingsCache = { value, at: Date.now() };
   return value;

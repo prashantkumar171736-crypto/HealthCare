@@ -238,6 +238,10 @@ a {
   flex-wrap: wrap;
 }
 
+.security-actions-centered {
+  justify-content: center;
+}
+
 .security-layout button,
 .security-layout input,
 .security-layout select {
