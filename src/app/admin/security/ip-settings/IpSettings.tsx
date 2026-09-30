@@ -250,16 +250,17 @@ export default function IpSettings() {
             <FileSpreadsheet size={16} aria-hidden="true" />
             <span>Export Excel (.csv)</span>
           </button>
+          <button
+            className="security-button toolbar-settings"
+            type="button"
+            aria-expanded={settingsOpen}
+            title="IP blocking settings"
+            onClick={() => setSettingsOpen((open) => !open)}
+          >
+            <Settings2 size={17} aria-hidden="true" />
+            <span>IP Blocking Settings</span>
+          </button>
         </div>
-        <button
-          className="security-button toolbar-settings"
-          type="button"
-          aria-label="IP blocking settings"
-          title="IP blocking settings"
-          onClick={() => setSettingsOpen((open) => !open)}
-        >
-          <Settings2 size={17} aria-hidden="true" />
-        </button>
       </div>
 
       {advancedOpen && (
