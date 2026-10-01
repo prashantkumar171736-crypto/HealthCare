@@ -3685,7 +3685,7 @@ export default function DashboardClient() {
               </div>
 
               <div className="archive-section-title-row">
-                <h2>Archive &amp; retention</h2>
+                <h2><span className="archive-title-icon" aria-hidden="true">📈</span> Archive &amp; Retention</h2>
               </div>
 
               <div className="archive-retention-box">
@@ -3975,6 +3975,7 @@ export default function DashboardClient() {
         }
 
         .archive-panel-shell {
+          --archive-text-yellow: #facc15;
           background: rgba(255, 255, 255, 0.18);
           border: 1px solid rgba(148, 163, 184, 0.18);
           box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
@@ -3999,7 +4000,7 @@ export default function DashboardClient() {
           border-radius: 999px;
           background: var(--admin-hover-bg, rgba(255, 255, 255, 0.08));
           border: 1px solid var(--admin-border-strong, rgba(13, 148, 136, 0.4));
-          color: var(--admin-text-primary, #0f766e);
+          color: var(--archive-text-yellow, #facc15);
           font-size: 12px;
           font-weight: 800;
           letter-spacing: 0.08em;
@@ -4031,7 +4032,7 @@ export default function DashboardClient() {
 
         .archive-panel-btn-primary {
           background: linear-gradient(135deg, #14b8a6, #0ea5a4);
-          color: #fff;
+          color: var(--archive-text-yellow, #facc15);
           box-shadow: 0 10px 18px rgba(20, 184, 166, 0.22);
         }
 
@@ -4041,13 +4042,31 @@ export default function DashboardClient() {
           border-color: rgba(148, 163, 184, 0.45);
         }
 
-        .archive-section-title-row h2 {
+        .archive-section-title-row {
+          display: flex;
+          justify-content: center;
+          text-align: center;
           margin: 0 0 16px;
-          font-size: clamp(2rem, 2.4vw, 3rem);
+        }
+
+        .archive-section-title-row h2 {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          margin: 0;
+          font-size: 2.25rem;
           line-height: 1.1;
-          letter-spacing: -0.03em;
-          color: var(--admin-text-primary, #0f172a);
+          letter-spacing: 0;
+          color: #fb7185;
           font-weight: 800;
+          text-shadow: 0 0 18px rgba(251, 113, 133, 0.22);
+        }
+
+        .archive-title-icon {
+          flex: 0 0 auto;
+          font-size: 0.9em;
+          line-height: 1;
         }
 
         .archive-retention-box {
@@ -4072,7 +4091,7 @@ export default function DashboardClient() {
           border-radius: 10px;
           border: 1px solid var(--admin-input-border, rgba(148, 163, 184, 0.5));
           background: var(--admin-input-bg, rgba(255,255,255,0.7));
-          color: var(--admin-text-primary, #0f172a);
+          color: var(--archive-text-yellow, #facc15);
           font-weight: 700;
           font: inherit;
           cursor: pointer;
@@ -4103,7 +4122,7 @@ export default function DashboardClient() {
           gap: 11px;
           min-height: 58px;
           padding: 12px 16px;
-          color: var(--admin-text-primary, #0f172a);
+          color: var(--archive-text-yellow, #facc15);
           font-weight: 750;
           cursor: pointer;
           list-style: none;
@@ -4150,7 +4169,7 @@ export default function DashboardClient() {
         .archive-guide-intro h3,
         .archive-guide-periods h4 {
           margin: 16px 0 6px;
-          color: var(--admin-text-primary, #0f172a);
+          color: var(--archive-text-yellow, #facc15);
           font-size: 1rem;
           font-weight: 750;
         }
@@ -4209,7 +4228,7 @@ export default function DashboardClient() {
         }
 
         .archive-guide-flow-step strong {
-          color: var(--admin-text-primary, #0f172a);
+          color: var(--archive-text-yellow, #facc15);
           font-size: 0.82rem;
           font-weight: 750;
         }
@@ -4241,7 +4260,7 @@ export default function DashboardClient() {
         .archive-guide-data-card h4,
         .archive-guide-notes h4 {
           margin: 0 0 7px;
-          color: var(--admin-text-primary, #0f172a);
+          color: var(--archive-text-yellow, #facc15);
           font-size: 0.9rem;
           font-weight: 750;
         }
@@ -4286,7 +4305,7 @@ export default function DashboardClient() {
         }
 
         .archive-guide-period strong {
-          color: var(--admin-text-primary, #0f172a);
+          color: var(--archive-text-yellow, #facc15);
           font-size: 0.82rem;
         }
 
@@ -4413,7 +4432,7 @@ export default function DashboardClient() {
           margin: 0 0 18px;
           font-size: 1.05rem;
           font-weight: 800;
-          color: var(--admin-text-primary, #1f2937);
+          color: var(--archive-text-yellow, #facc15);
         }
 
         .archive-file-list {
@@ -4435,7 +4454,7 @@ export default function DashboardClient() {
 
         .archive-file-name {
           font-weight: 700;
-          color: var(--admin-text-primary, #0f172a);
+          color: var(--archive-text-yellow, #facc15);
           margin-bottom: 4px;
           word-break: break-word;
         }
@@ -4506,7 +4525,7 @@ export default function DashboardClient() {
 
         .archive-scope-row strong {
           text-align: right;
-          color: var(--admin-text-primary, #0f172a);
+          color: var(--archive-text-yellow, #facc15);
           font-weight: 700;
           font-size: 0.9rem;
         }
