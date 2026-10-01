@@ -58,6 +58,22 @@ interface VisitorLog {
   timestamp: string;
 }
 
+interface ArchiveFileItem {
+  key: string;
+  size: number;
+  lastModified: string;
+}
+
+interface ArchiveStatus {
+  enabled: boolean;
+  bucketName: string;
+  retentionDays: number;
+  lastRun: string | null;
+  nextRun: string;
+  files: ArchiveFileItem[];
+  totalFiles: number;
+}
+
 export interface R2Stats {
   status: string;
   error?: string;
@@ -149,9 +165,14 @@ export default function DashboardClient() {
   const [chartPeriod, setChartPeriod] = useState("monthly");
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation" | "comments" | "appearance">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "logs" | "system" | "posts" | "donation" | "comments" | "appearance" | "archive">("overview");
   const [securityExpanded, setSecurityExpanded] = useState(false);
   const [theme, setTheme] = useState<AdminTheme>(DEFAULT_THEME);
+  const [archiveStatus, setArchiveStatus] = useState<ArchiveStatus | null>(null);
+  const [archiveLoading, setArchiveLoading] = useState(true);
+  const [archiveError, setArchiveError] = useState("");
+  const [archiveRetention, setArchiveRetention] = useState(30);
+  const [archiveRunning, setArchiveRunning] = useState(false);
 
   // Live Server Request Log filters & controls
   const [logLimit, setLogLimit] = useState<string>("50");
@@ -459,6 +480,45 @@ export default function DashboardClient() {
     }
   }, []);
 
+  const loadArchiveStatus = useCallback(async () => {
+    try {
+      setArchiveLoading(true);
+      const res = await fetch("/api/admin/archive", { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Unable to load archive status.");
+      }
+      setArchiveStatus(data);
+      setArchiveRetention(Number(data?.retentionDays ?? 30));
+      setArchiveError("");
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : "Unable to load archive status.");
+    } finally {
+      setArchiveLoading(false);
+    }
+  }, []);
+
+  const runArchiveNow = useCallback(async () => {
+    try {
+      setArchiveRunning(true);
+      setArchiveError("");
+      const res = await fetch("/api/admin/archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: "all", retentionDays: archiveRetention }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Archive export failed.");
+      }
+      await loadArchiveStatus();
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : "Archive export failed.");
+    } finally {
+      setArchiveRunning(false);
+    }
+  }, [archiveRetention, loadArchiveStatus]);
+
   // Initial load + 30-second auto-refresh
   useEffect(() => {
     fetchStats(chartPeriod, logLimit);
@@ -472,6 +532,10 @@ export default function DashboardClient() {
     const interval = setInterval(() => void fetchR2Stats(), 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchR2Stats]);
+
+  useEffect(() => {
+    void loadArchiveStatus();
+  }, [loadArchiveStatus]);
 
   // Fetch traffic data on mount and whenever trafficRange changes
   useEffect(() => {
@@ -831,9 +895,12 @@ export default function DashboardClient() {
           >
             🎨 Appearance
           </button>
-          <Link href="/admin/data-archive" className="nav-item" style={{ textDecoration: "none" }}>
+          <button
+            className={`nav-item ${activeTab === "archive" ? "active" : ""}`}
+            onClick={() => setActiveTab("archive")}
+          >
             🗂️ Data Archive
-          </Link>
+          </button>
           <button
             className="nav-item"
             aria-expanded={securityExpanded}
@@ -3550,6 +3617,120 @@ export default function DashboardClient() {
           </div>
         )}
 
+        {activeTab === "archive" && (() => {
+          const archiveScope = [
+            { label: "Analytics", value: `Older than ${archiveStatus?.retentionDays ?? 30} days` },
+            { label: "IP security", value: "Blocked and failed-attempt history" },
+            { label: "Server logs", value: "Exported only when durable logs are captured" },
+            { label: "Format", value: "Excel (.xls)" },
+            { label: "Bucket", value: archiveStatus?.bucketName || "healthcare-ip-security" },
+          ];
+
+          const metricCards = [
+            { label: "Archive status", value: archiveStatus?.enabled ? "Enabled" : "Disabled", tone: "success" },
+            { label: "Last archive run", value: archiveStatus?.lastRun ? new Date(archiveStatus.lastRun).toLocaleString() : "Never", tone: "warning" },
+            { label: "Next scheduled run", value: archiveStatus?.nextRun || "Monthly (default schedule)", tone: "info" },
+            { label: "Bucket", value: archiveStatus?.bucketName || "healthcare-ip-security", tone: "success" },
+            { label: "Retention", value: `${archiveStatus?.retentionDays ?? 30} days`, tone: "success" },
+            { label: "Archived files", value: String(archiveStatus?.totalFiles ?? 0), tone: "warning" },
+          ];
+
+          return (
+            <div className="panel-card full-panel archive-panel-shell">
+              <div className="archive-panel-header">
+                <div className="archive-badge-inline">DATA ARCHIVE</div>
+                <div className="archive-header-actions">
+                  <button type="button" className="archive-panel-btn archive-panel-btn-primary" onClick={() => void runArchiveNow()} disabled={archiveRunning}>
+                    {archiveRunning ? "Running…" : "Run archive now"}
+                  </button>
+                  <button type="button" className="archive-panel-btn archive-panel-btn-secondary" onClick={() => setActiveTab("overview")}>
+                    Back to dashboard
+                  </button>
+                </div>
+              </div>
+
+              <div className="archive-section-title-row">
+                <h2>Archive &amp; retention</h2>
+              </div>
+
+              <div className="archive-retention-box">
+                <label className="archive-retention-label">
+                  Retention days
+                  <input
+                    type="number"
+                    min={1}
+                    max={3650}
+                    value={archiveRetention}
+                    onChange={(event) => setArchiveRetention(Number(event.target.value || 30))}
+                  />
+                </label>
+              </div>
+
+              {archiveError ? <p className="archive-panel-error" role="alert">{archiveError}</p> : null}
+
+              {archiveLoading ? (
+                <div className="archive-panel-loading">Loading archive status…</div>
+              ) : (
+                <>
+                  <div className="archive-metric-grid">
+                    {metricCards.map((card) => (
+                      <div key={card.label} className={`archive-metric-card archive-tone-${card.tone}`}>
+                        <div className="archive-metric-label">{card.label}</div>
+                        <div className="archive-metric-value">{card.value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="archive-panel-grid">
+                    <div className="archive-panel-box">
+                      <h3>Archives in bucket</h3>
+
+                      {archiveStatus && archiveStatus.files.length > 0 ? (
+                        <div className="archive-file-list">
+                          {archiveStatus.files.map((file) => {
+                            const fileUrl = `${archiveStatus.bucketName === "healthcare-ip-security" ? "https://pub-8ded07f2075a43daaa93fc2d473091fb.r2.dev" : ""}/${file.key}`;
+                            const link = fileUrl.startsWith("https://") ? fileUrl : "#";
+
+                            return (
+                              <div key={file.key} className="archive-file-row">
+                                <div>
+                                  <div className="archive-file-name">{file.key}</div>
+                                  <div className="archive-file-meta">
+                                    {file.size} bytes • {file.lastModified ? new Date(file.lastModified).toLocaleString() : "Unknown time"}
+                                  </div>
+                                </div>
+                                {link !== "#" ? (
+                                  <a href={link} target="_blank" rel="noreferrer" className="archive-file-link">Download</a>
+                                ) : (
+                                  <span className="archive-pill warning">Available in bucket</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="archive-empty">No archived Excel files have been uploaded yet.</div>
+                      )}
+                    </div>
+
+                    <div className="archive-panel-box">
+                      <h3>Archive scope</h3>
+                      <div className="archive-scope-list">
+                        {archiveScope.map((item) => (
+                          <div key={item.label} className="archive-scope-row">
+                            <span>{item.label}</span>
+                            <strong>{item.value}</strong>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
+
         {activeTab === "appearance" && (
           <div className="panel-card full-panel">
             <ThemeSettings theme={theme} onChange={handleThemeChange} />
@@ -3667,6 +3848,297 @@ export default function DashboardClient() {
           border-top-left-radius: 0;
           border-bottom-left-radius: 0;
           padding-left: calc(1rem - 3px);
+        }
+
+        .archive-panel-shell {
+          background: rgba(255, 255, 255, 0.18);
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+          padding: 18px 18px 14px;
+        }
+
+        .archive-panel-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          margin-bottom: 14px;
+          flex-wrap: wrap;
+        }
+
+        .archive-badge-inline {
+          display: inline-flex;
+          align-items: center;
+          border-radius: 999px;
+          background: rgba(15, 118, 110, 0.13);
+          border: 1px solid rgba(13, 148, 136, 0.25);
+          color: #0f766e;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+          padding: 7px 10px;
+          text-transform: uppercase;
+        }
+
+        .archive-header-actions {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .archive-panel-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 10px;
+          padding: 10px 16px;
+          font-size: 0.9rem;
+          font-weight: 700;
+          border: 1px solid transparent;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .archive-panel-btn-primary {
+          background: linear-gradient(135deg, #14b8a6, #0ea5a4);
+          color: #fff;
+          box-shadow: 0 10px 18px rgba(20, 184, 166, 0.22);
+        }
+
+        .archive-panel-btn-secondary {
+          background: #fff;
+          color: #334155;
+          border-color: rgba(148, 163, 184, 0.45);
+        }
+
+        .archive-section-title-row h2 {
+          margin: 0 0 16px;
+          font-size: clamp(2rem, 2.4vw, 3rem);
+          line-height: 1.1;
+          letter-spacing: -0.03em;
+          color: #0f172a;
+          font-weight: 800;
+        }
+
+        .archive-retention-box {
+          display: flex;
+          align-items: center;
+          margin-bottom: 16px;
+        }
+
+        .archive-retention-label {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          color: #475569;
+          font-weight: 600;
+          font-size: 0.92rem;
+        }
+
+        .archive-retention-label input {
+          width: 92px;
+          padding: 8px 10px;
+          border-radius: 10px;
+          border: 1px solid rgba(148, 163, 184, 0.5);
+          background: rgba(255,255,255,0.7);
+          color: #0f172a;
+          font-weight: 700;
+          font-size: 0.95rem;
+        }
+
+        .archive-panel-error {
+          margin: 0 0 18px;
+          color: #b91c1c;
+          background: rgba(254, 226, 226, 0.8);
+          border: 1px solid rgba(239, 68, 68, 0.25);
+          border-radius: 10px;
+          padding: 10px 12px;
+          font-weight: 600;
+        }
+
+        .archive-panel-loading {
+          padding: 16px 0 8px;
+          color: #475569;
+          font-weight: 600;
+        }
+
+        .archive-metric-grid {
+          display: grid;
+          grid-template-columns: repeat(5, minmax(180px, 1fr));
+          gap: 14px;
+          margin-bottom: 20px;
+        }
+
+        @media (max-width: 1200px) {
+          .archive-metric-grid {
+            grid-template-columns: repeat(2, minmax(180px, 1fr));
+          }
+        }
+
+        @media (max-width: 640px) {
+          .archive-metric-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .archive-metric-card {
+          background: linear-gradient(180deg, rgba(255,255,255,0.38), rgba(255,255,255,0.18));
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 14px;
+          padding: 16px 18px;
+          min-height: 120px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .archive-tone-success { border-color: rgba(16, 185, 129, 0.25); }
+        .archive-tone-warning { border-color: rgba(245, 158, 11, 0.25); }
+        .archive-tone-info { border-color: rgba(59, 130, 246, 0.25); }
+
+        .archive-metric-label {
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          font-size: 0.72rem;
+          font-weight: 800;
+          color: #64748b;
+          margin-bottom: 10px;
+        }
+
+        .archive-metric-value {
+          font-size: clamp(1.2rem, 1.5vw, 2.1rem);
+          line-height: 1.2;
+          font-weight: 800;
+          color: #10b981;
+          word-break: break-word;
+        }
+
+        .archive-tone-warning .archive-metric-value { color: #f59e0b; }
+        .archive-tone-info .archive-metric-value { color: #2563eb; }
+
+        .archive-panel-grid {
+          display: grid;
+          grid-template-columns: 1.45fr 0.9fr;
+          gap: 18px;
+        }
+
+        @media (max-width: 920px) {
+          .archive-panel-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .archive-panel-box {
+          background: rgba(255,255,255,0.42);
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 16px;
+          padding: 18px 18px 14px;
+          min-height: 260px;
+          box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .archive-panel-box h3 {
+          margin: 0 0 18px;
+          font-size: 1.05rem;
+          font-weight: 800;
+          color: #1f2937;
+        }
+
+        .archive-file-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .archive-file-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          background: rgba(255,255,255,0.22);
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          border-radius: 12px;
+          padding: 10px 12px;
+        }
+
+        .archive-file-name {
+          font-weight: 700;
+          color: #0f172a;
+          margin-bottom: 4px;
+          word-break: break-word;
+        }
+
+        .archive-file-meta {
+          color: #64748b;
+          font-size: 0.8rem;
+        }
+
+        .archive-file-link {
+          color: #0f766e;
+          font-weight: 700;
+          text-decoration: none;
+          white-space: nowrap;
+        }
+
+        .archive-file-link:hover {
+          text-decoration: underline;
+        }
+
+        .archive-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 5px 9px;
+          border-radius: 999px;
+          font-size: 0.72rem;
+          font-weight: 800;
+          white-space: nowrap;
+        }
+
+        .archive-pill.warning {
+          background: rgba(245, 158, 11, 0.12);
+          color: #a16207;
+          border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .archive-empty {
+          color: #64748b;
+          font-weight: 500;
+          padding-top: 4px;
+        }
+
+        .archive-scope-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .archive-scope-row {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 10px;
+          align-items: center;
+          padding: 10px 0;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+          color: #334155;
+        }
+
+        .archive-scope-row:last-child {
+          border-bottom: none;
+        }
+
+        .archive-scope-row span {
+          color: #475569;
+          font-weight: 600;
+        }
+
+        .archive-scope-row strong {
+          text-align: right;
+          color: #0f172a;
+          font-weight: 700;
+          font-size: 0.9rem;
         }
 
         .sidebar-footer {
