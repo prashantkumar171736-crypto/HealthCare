@@ -821,14 +821,16 @@ export default function DashboardClient() {
 
   const sidebarGlass = sidebarRgb ? `rgba(${sidebarRgb[0]}, ${sidebarRgb[1]}, ${sidebarRgb[2]}, 0.82)` : theme.sidebarColor;
   const cardGlass = cardRgb ? `rgba(${cardRgb[0]}, ${cardRgb[1]}, ${cardRgb[2]}, 0.78)` : theme.cardColor;
+  const computedTextPrimary = theme.textPrimary || (isLight ? "#0f172a" : "#f8fafc");
+  const computedTextSecondary = theme.textSecondary || (isLight ? "#475569" : "#cbd5e1");
 
   const themeVars = {
     "--admin-bg": theme.bgColor,
     "--admin-sidebar-bg": isLight ? theme.sidebarColor : sidebarGlass,
     "--admin-card-bg": isLight ? theme.cardColor : cardGlass,
     "--admin-accent": theme.accentColor,
-    "--admin-text-primary": theme.textPrimary,
-    "--admin-text-secondary": theme.textSecondary,
+    "--admin-text-primary": computedTextPrimary,
+    "--admin-text-secondary": computedTextSecondary,
     "--admin-health-value": isLightCard ? "#0f172a" : "#f3f4f6",
     "--admin-health-label": isLightCard ? "#475569" : "#9ca3af",
     "--admin-font-family": theme.fontFamily,
@@ -3917,7 +3919,7 @@ export default function DashboardClient() {
           font-size: clamp(2rem, 2.4vw, 3rem);
           line-height: 1.1;
           letter-spacing: -0.03em;
-          color: #0f172a;
+          color: var(--admin-text-primary, #0f172a);
           font-weight: 800;
         }
 
@@ -3931,7 +3933,7 @@ export default function DashboardClient() {
           display: flex;
           align-items: center;
           gap: 10px;
-          color: #475569;
+          color: var(--admin-text-secondary, #475569);
           font-weight: 600;
           font-size: 0.92rem;
         }
@@ -3940,9 +3942,9 @@ export default function DashboardClient() {
           width: 92px;
           padding: 8px 10px;
           border-radius: 10px;
-          border: 1px solid rgba(148, 163, 184, 0.5);
-          background: rgba(255,255,255,0.7);
-          color: #0f172a;
+          border: 1px solid var(--admin-input-border, rgba(148, 163, 184, 0.5));
+          background: var(--admin-input-bg, rgba(255,255,255,0.7));
+          color: var(--admin-text-primary, #0f172a);
           font-weight: 700;
           font-size: 0.95rem;
         }
@@ -3959,7 +3961,7 @@ export default function DashboardClient() {
 
         .archive-panel-loading {
           padding: 16px 0 8px;
-          color: #475569;
+          color: var(--admin-text-secondary, #475569);
           font-weight: 600;
         }
 
@@ -4003,7 +4005,7 @@ export default function DashboardClient() {
           letter-spacing: 0.08em;
           font-size: 0.72rem;
           font-weight: 800;
-          color: #64748b;
+          color: var(--admin-text-secondary, #64748b);
           margin-bottom: 10px;
         }
 
@@ -4043,7 +4045,7 @@ export default function DashboardClient() {
           margin: 0 0 18px;
           font-size: 1.05rem;
           font-weight: 800;
-          color: #1f2937;
+          color: var(--admin-text-primary, #1f2937);
         }
 
         .archive-file-list {
@@ -4065,18 +4067,18 @@ export default function DashboardClient() {
 
         .archive-file-name {
           font-weight: 700;
-          color: #0f172a;
+          color: var(--admin-text-primary, #0f172a);
           margin-bottom: 4px;
           word-break: break-word;
         }
 
         .archive-file-meta {
-          color: #64748b;
+          color: var(--admin-text-secondary, #64748b);
           font-size: 0.8rem;
         }
 
         .archive-file-link {
-          color: #0f766e;
+          color: var(--admin-accent, #0f766e);
           font-weight: 700;
           text-decoration: none;
           white-space: nowrap;
@@ -4104,7 +4106,7 @@ export default function DashboardClient() {
         }
 
         .archive-empty {
-          color: #64748b;
+          color: var(--admin-text-secondary, #64748b);
           font-weight: 500;
           padding-top: 4px;
         }
@@ -4130,13 +4132,13 @@ export default function DashboardClient() {
         }
 
         .archive-scope-row span {
-          color: #475569;
+          color: var(--admin-text-secondary, #475569);
           font-weight: 600;
         }
 
         .archive-scope-row strong {
           text-align: right;
-          color: #0f172a;
+          color: var(--admin-text-primary, #0f172a);
           font-weight: 700;
           font-size: 0.9rem;
         }

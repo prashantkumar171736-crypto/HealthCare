@@ -196,8 +196,8 @@ export function buildAdminThemeCssVariables(theme: AdminTheme): Record<string, s
   const isLight = bgLum > 0.4;
   const border = isLight ? "#e2e8f0" : "rgba(148, 163, 184, 0.18)";
   const surface = theme.cardColor;
-  const textMain = theme.textPrimary;
-  const textMuted = theme.textSecondary;
+  const textMain = theme.textPrimary || bestTextColor(theme.bgColor);
+  const textMuted = theme.textSecondary || mutedTextColor(theme.bgColor);
 
   return {
     "--primary": theme.accentColor,
@@ -208,6 +208,8 @@ export function buildAdminThemeCssVariables(theme: AdminTheme): Record<string, s
     "--text-main": textMain,
     "--text-muted": textMuted,
     "--text-light": textMuted,
+    "--admin-text-primary": textMain,
+    "--admin-text-secondary": textMuted,
     "--border": border,
     "--shadow-sm": isLight
       ? "0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.06)"
