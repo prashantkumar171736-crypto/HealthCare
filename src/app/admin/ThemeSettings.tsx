@@ -430,6 +430,7 @@ export default function ThemeSettings({ theme, onChange }: Props) {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [adminFaviconPreview, setAdminFaviconPreview] = useState<string>(readStoredAdminFavicon());
   const [publicFaviconPreview, setPublicFaviconPreview] = useState<string>(readStoredPublicFavicon());
+  const [pendingFavicons, setPendingFavicons] = useState<Record<string, string>>({});
   const [faviconMessage, setFaviconMessage] = useState("");
 
   useEffect(() => {
@@ -490,12 +491,10 @@ export default function ThemeSettings({ theme, onChange }: Props) {
       }
 
       try {
-        const saved = updateFavicon(result, storageKey);
-        setFaviconMessage(saved
-          ? "Favicon updated. It may take a moment for your browser tab to refresh."
-          : "The image could not be saved in this browser. Try a smaller file (under 512 KB).");
+        setPendingFavicons((current) => ({ ...current, [storageKey]: result }));
+        setFaviconMessage("Image ready to save.");
       } catch {
-        setFaviconMessage("The image could not be saved in this browser. Try a smaller file (under 512 KB).");
+        setFaviconMessage("The image could not be prepared. Try another file.");
       }
     };
     reader.onerror = () => setFaviconMessage("The selected image could not be read. Try exporting it as PNG.");
@@ -503,7 +502,28 @@ export default function ThemeSettings({ theme, onChange }: Props) {
     event.target.value = "";
   };
 
+  const saveFavicon = (storageKey: string, scope: string) => {
+    const pending = pendingFavicons[storageKey];
+    if (!pending) return;
+
+    if (updateFavicon(pending, storageKey)) {
+      setPendingFavicons((current) => {
+        const next = { ...current };
+        delete next[storageKey];
+        return next;
+      });
+      setFaviconMessage(`${scope} favicon saved. It may take a moment for the browser tab to refresh.`);
+    } else {
+      setFaviconMessage("The image could not be saved in this browser. Try a smaller file (under 512 KB).");
+    }
+  };
+
   const resetFavicon = (storageKey: string, scope: string) => {
+    setPendingFavicons((current) => {
+      const next = { ...current };
+      delete next[storageKey];
+      return next;
+    });
     setFaviconMessage(updateFavicon(DEFAULT_FAVICON, storageKey)
       ? `The default Rog Care Hindi icon has been restored for the ${scope}.`
       : "The default could not be saved in this browser. Refresh and try again.");
@@ -581,14 +601,24 @@ export default function ThemeSettings({ theme, onChange }: Props) {
           {faviconSettings.map((setting) => (
             <div key={setting.storageKey} style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
               <div style={{ width: 64, height: 64, borderRadius: 12, overflow: "hidden", border: "1px solid rgba(148, 163, 184, 0.35)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <img src={setting.preview} alt={`${setting.label} favicon preview`} style={{ width: 48, height: 48, objectFit: "contain" }} />
+                <img src={pendingFavicons[setting.storageKey] ?? setting.preview} alt={`${setting.label} favicon preview`} style={{ width: 48, height: 48, objectFit: "contain" }} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <strong>{setting.label}</strong>
-                <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "#0d9488", color: "#fff", padding: "10px 14px", borderRadius: 8, fontWeight: 700 }}>
-                  Upload {setting.label.toLowerCase()} icon
-                  <input type="file" accept=".png,.svg,.webp,.jpg,.jpeg,.gif,image/png,image/svg+xml,image/webp,image/jpeg,image/gif" onChange={(event) => handleFaviconUpload(event, setting.storageKey)} style={{ display: "none" }} />
-                </label>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "#0d9488", color: "#fff", padding: "10px 14px", borderRadius: 8, fontWeight: 700 }}>
+                    Upload {setting.label.toLowerCase()} icon
+                    <input type="file" accept=".png,.svg,.webp,.jpg,.jpeg,.gif,image/png,image/svg+xml,image/webp,image/jpeg,image/gif" onChange={(event) => handleFaviconUpload(event, setting.storageKey)} style={{ display: "none" }} />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => saveFavicon(setting.storageKey, setting.label)}
+                    disabled={!pendingFavicons[setting.storageKey]}
+                    style={{ border: "1px solid #0d9488", background: pendingFavicons[setting.storageKey] ? "#0d9488" : "#e2e8f0", color: pendingFavicons[setting.storageKey] ? "#fff" : "#64748b", padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: pendingFavicons[setting.storageKey] ? "pointer" : "not-allowed" }}
+                  >
+                    Save
+                  </button>
+                </div>
                 <button type="button" className="ts-reset-btn" onClick={() => resetFavicon(setting.storageKey, setting.label)} style={{ width: "fit-content" }}>
                   Reset to default
                 </button>
