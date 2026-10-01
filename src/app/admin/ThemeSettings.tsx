@@ -88,7 +88,9 @@ export function applyDocumentFavicon(href: string) {
   }
 
   iconLinks.forEach((link) => {
-    link.setAttribute("href", nextHref);
+    if (link.getAttribute("href") !== nextHref) {
+      link.setAttribute("href", nextHref);
+    }
     if (link.getAttribute("rel") === "apple-touch-icon") {
       link.setAttribute("sizes", "180x180");
     }
@@ -125,7 +127,18 @@ export function AdminFaviconBridge({ adminLoginPath }: { adminLoginPath: string 
     window.addEventListener("storage", handleStorage);
     window.addEventListener("admin-favicon-change", handleFaviconChange as EventListener);
 
+    const headObserver = new MutationObserver(() => {
+      applyDocumentFavicon(readStoredFavicon(storageKey));
+    });
+    headObserver.observe(document.head, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["href", "rel"],
+    });
+
     return () => {
+      headObserver.disconnect();
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("admin-favicon-change", handleFaviconChange as EventListener);
     };
