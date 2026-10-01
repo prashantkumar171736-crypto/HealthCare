@@ -3871,14 +3871,19 @@ export default function DashboardClient() {
         .archive-badge-inline {
           display: inline-flex;
           align-items: center;
+          justify-content: center;
+          width: fit-content;
+          min-height: 32px;
           border-radius: 999px;
-          background: rgba(15, 118, 110, 0.13);
-          border: 1px solid rgba(13, 148, 136, 0.25);
-          color: #0f766e;
-          font-size: 11px;
+          background: var(--admin-hover-bg, rgba(255, 255, 255, 0.08));
+          border: 1px solid var(--admin-border-strong, rgba(13, 148, 136, 0.4));
+          color: var(--admin-text-primary, #0f766e);
+          font-size: 12px;
           font-weight: 800;
-          letter-spacing: 0.12em;
-          padding: 7px 10px;
+          letter-spacing: 0.08em;
+          line-height: 1;
+          padding: 8px 12px;
+          white-space: nowrap;
           text-transform: uppercase;
         }
 
@@ -3967,14 +3972,14 @@ export default function DashboardClient() {
 
         .archive-metric-grid {
           display: grid;
-          grid-template-columns: repeat(5, minmax(180px, 1fr));
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 14px;
           margin-bottom: 20px;
         }
 
-        @media (max-width: 1200px) {
+        @media (max-width: 900px) {
           .archive-metric-grid {
-            grid-template-columns: repeat(2, minmax(180px, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
 
@@ -4010,7 +4015,7 @@ export default function DashboardClient() {
         }
 
         .archive-metric-value {
-          font-size: clamp(1.2rem, 1.5vw, 2.1rem);
+          font-size: clamp(1rem, 1.2vw, 1.5rem);
           line-height: 1.2;
           font-weight: 800;
           color: #10b981;
