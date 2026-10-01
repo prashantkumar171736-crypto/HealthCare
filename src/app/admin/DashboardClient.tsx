@@ -154,6 +154,16 @@ const PERIOD_OPTIONS = [
   { value: "yearly", label: "Yearly" },
 ];
 
+const ARCHIVE_RETENTION_STORAGE_KEY = "admin_archive_retention_days";
+const ARCHIVE_RETENTION_OPTIONS = [
+  { days: 1, label: "1 day (24 hours)" },
+  { days: 7, label: "Weekly (7 days)" },
+  { days: 30, label: "30 days" },
+  { days: 90, label: "Quarterly (90 days)" },
+  { days: 182, label: "Half yearly (182 days)" },
+  { days: 365, label: "Yearly (365 days)" },
+];
+
 export default function DashboardClient() {
   const [data, setData] = useState<StatsResponse | null>(null);
   const [r2Stats, setR2Stats] = useState<R2Stats | null>(null);
@@ -489,7 +499,6 @@ export default function DashboardClient() {
         throw new Error(data?.error || "Unable to load archive status.");
       }
       setArchiveStatus(data);
-      setArchiveRetention(Number(data?.retentionDays ?? 30));
       setArchiveError("");
     } catch (err) {
       setArchiveError(err instanceof Error ? err.message : "Unable to load archive status.");
@@ -519,6 +528,18 @@ export default function DashboardClient() {
     }
   }, [archiveRetention, loadArchiveStatus]);
 
+  const changeArchiveRetention = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedDays = Number(event.target.value);
+    if (!ARCHIVE_RETENTION_OPTIONS.some((option) => option.days === selectedDays)) return;
+
+    setArchiveRetention(selectedDays);
+    try {
+      window.localStorage.setItem(ARCHIVE_RETENTION_STORAGE_KEY, String(selectedDays));
+    } catch {
+      // Keep the selected value active for this session if browser storage is unavailable.
+    }
+  };
+
   // Initial load + 30-second auto-refresh
   useEffect(() => {
     fetchStats(chartPeriod, logLimit);
@@ -532,6 +553,17 @@ export default function DashboardClient() {
     const interval = setInterval(() => void fetchR2Stats(), 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchR2Stats]);
+
+  useEffect(() => {
+    try {
+      const savedDays = Number(window.localStorage.getItem(ARCHIVE_RETENTION_STORAGE_KEY));
+      if (ARCHIVE_RETENTION_OPTIONS.some((option) => option.days === savedDays)) {
+        setArchiveRetention(savedDays);
+      }
+    } catch {
+      // Use the default retention period when browser storage is unavailable.
+    }
+  }, []);
 
   useEffect(() => {
     void loadArchiveStatus();
@@ -3620,8 +3652,9 @@ export default function DashboardClient() {
         )}
 
         {activeTab === "archive" && (() => {
+          const selectedRetention = ARCHIVE_RETENTION_OPTIONS.find((option) => option.days === archiveRetention) ?? ARCHIVE_RETENTION_OPTIONS[2];
           const archiveScope = [
-            { label: "Analytics", value: `Older than ${archiveStatus?.retentionDays ?? 30} days` },
+            { label: "Analytics", value: `Older than ${selectedRetention.days} days` },
             { label: "IP security", value: "Blocked and failed-attempt history" },
             { label: "Server logs", value: "Exported only when durable logs are captured" },
             { label: "Format", value: "Excel (.xls)" },
@@ -3631,9 +3664,9 @@ export default function DashboardClient() {
           const metricCards = [
             { label: "Archive status", value: archiveStatus?.enabled ? "Enabled" : "Disabled", tone: "success" },
             { label: "Last archive run", value: archiveStatus?.lastRun ? new Date(archiveStatus.lastRun).toLocaleString() : "Never", tone: "warning" },
-            { label: "Next scheduled run", value: archiveStatus?.nextRun || "Monthly (default schedule)", tone: "info" },
+            { label: "Export trigger", value: "Manual run", tone: "info" },
             { label: "Bucket", value: archiveStatus?.bucketName || "healthcare-ip-security", tone: "success" },
-            { label: "Retention", value: `${archiveStatus?.retentionDays ?? 30} days`, tone: "success" },
+            { label: "Retention", value: selectedRetention.label, tone: "success" },
             { label: "Archived files", value: String(archiveStatus?.totalFiles ?? 0), tone: "warning" },
           ];
 
@@ -3657,16 +3690,62 @@ export default function DashboardClient() {
 
               <div className="archive-retention-box">
                 <label className="archive-retention-label">
-                  Retention days
-                  <input
-                    type="number"
-                    min={1}
-                    max={3650}
+                  Retention period
+                  <select
+                    className="archive-retention-select"
                     value={archiveRetention}
-                    onChange={(event) => setArchiveRetention(Number(event.target.value || 30))}
-                  />
+                    onChange={changeArchiveRetention}
+                  >
+                    {ARCHIVE_RETENTION_OPTIONS.map((option) => (
+                      <option key={option.days} value={option.days}>{option.label}</option>
+                    ))}
+                  </select>
+                  <span className="archive-retention-saved" role="status">Saved automatically</span>
                 </label>
               </div>
+
+              <details className="archive-guide">
+                <summary className="archive-guide-toggle">
+                  <span className="archive-guide-icon" aria-hidden="true">?</span>
+                  <span className="archive-guide-title">Archive &amp; retention guide</span>
+                  <span className="archive-guide-chevron" aria-hidden="true" />
+                </summary>
+                <div className="archive-guide-content">
+                  <div className="archive-guide-intro">
+                    <h3>How archiving works</h3>
+                    <p>The selected period is an age cutoff. When you run an export, matching older records are copied into Excel files and uploaded to the configured R2 bucket.</p>
+                  </div>
+                  <div className="archive-guide-steps">
+                    <section className="archive-guide-step">
+                      <span className="archive-guide-step-number">01</span>
+                      <div><h4>Choose a period</h4><p>Your choice saves automatically in this browser and is used for the next manual export.</p></div>
+                    </section>
+                    <section className="archive-guide-step">
+                      <span className="archive-guide-step-number">02</span>
+                      <div><h4>Run the archive</h4><p>Select “Run archive now” to export analytics and IP security records older than the chosen cutoff.</p></div>
+                    </section>
+                    <section className="archive-guide-step">
+                      <span className="archive-guide-step-number">03</span>
+                      <div><h4>Check the result</h4><p>Review the files listed under “Archives in bucket”. Each export is saved as an Excel workbook in the R2 archive bucket.</p></div>
+                    </section>
+                    <section className="archive-guide-step">
+                      <span className="archive-guide-step-number">04</span>
+                      <div><h4>Original data stays intact</h4><p>Exporting does not delete MongoDB records. Server runtime logs are not durably captured by the app, so they are not included as real log history.</p></div>
+                    </section>
+                  </div>
+                  <div className="archive-guide-periods">
+                    <h4>Period cutoffs</h4>
+                    <div className="archive-guide-period-grid">
+                      {ARCHIVE_RETENTION_OPTIONS.map((option) => (
+                        <div className="archive-guide-period" key={option.days}>
+                          <strong>{option.label}</strong>
+                          <span>Exports records older than {option.days} {option.days === 1 ? "day" : "days"}.</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </details>
 
               {archiveError ? <p className="archive-panel-error" role="alert">{archiveError}</p> : null}
 
@@ -3941,17 +4020,175 @@ export default function DashboardClient() {
           color: var(--admin-text-secondary, #475569);
           font-weight: 600;
           font-size: 0.92rem;
+          flex-wrap: wrap;
         }
 
-        .archive-retention-label input {
-          width: 92px;
-          padding: 8px 10px;
+        .archive-retention-select {
+          min-width: 190px;
+          padding: 9px 34px 9px 12px;
           border-radius: 10px;
           border: 1px solid var(--admin-input-border, rgba(148, 163, 184, 0.5));
           background: var(--admin-input-bg, rgba(255,255,255,0.7));
           color: var(--admin-text-primary, #0f172a);
           font-weight: 700;
-          font-size: 0.95rem;
+          font: inherit;
+          cursor: pointer;
+        }
+
+        .archive-retention-select option {
+          background: var(--admin-card-bg, #0d1322);
+          color: var(--admin-text-primary, #0f172a);
+        }
+
+        .archive-retention-saved {
+          color: var(--admin-text-secondary, #64748b);
+          font-size: 0.78rem;
+          font-weight: 500;
+        }
+
+        .archive-guide {
+          margin: 0 0 20px;
+          border: 1px solid var(--admin-border, rgba(148, 163, 184, 0.22));
+          border-radius: 14px;
+          background: var(--admin-card-bg, #0d1322);
+          overflow: hidden;
+        }
+
+        .archive-guide-toggle {
+          display: flex;
+          align-items: center;
+          gap: 11px;
+          min-height: 58px;
+          padding: 12px 16px;
+          color: var(--admin-text-primary, #0f172a);
+          font-weight: 750;
+          cursor: pointer;
+          list-style: none;
+        }
+
+        .archive-guide-toggle::-webkit-details-marker { display: none; }
+
+        .archive-guide-icon {
+          display: inline-grid;
+          place-items: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 9px;
+          background: color-mix(in srgb, var(--admin-accent, #0d9488) 15%, transparent);
+          border: 1px solid color-mix(in srgb, var(--admin-accent, #0d9488) 45%, transparent);
+          color: var(--admin-accent, #0d9488);
+          font-family: Georgia, serif;
+          font-size: 17px;
+          font-weight: 800;
+        }
+
+        .archive-guide-title { flex: 1; }
+
+        .archive-guide-chevron {
+          width: 9px;
+          height: 9px;
+          margin: 0 4px 4px 0;
+          border-right: 2px solid var(--admin-text-secondary, #64748b);
+          border-bottom: 2px solid var(--admin-text-secondary, #64748b);
+          transform: rotate(45deg);
+          transition: transform 0.2s ease;
+        }
+
+        .archive-guide[open] .archive-guide-chevron {
+          transform: rotate(225deg);
+          margin-bottom: -4px;
+        }
+
+        .archive-guide-content {
+          padding: 2px 16px 18px;
+          border-top: 1px solid var(--admin-border, rgba(148, 163, 184, 0.22));
+        }
+
+        .archive-guide-intro h3,
+        .archive-guide-periods h4 {
+          margin: 16px 0 6px;
+          color: var(--admin-text-primary, #0f172a);
+          font-size: 1rem;
+          font-weight: 750;
+        }
+
+        .archive-guide-intro p,
+        .archive-guide-step p {
+          margin: 0;
+          color: var(--admin-text-secondary, #64748b);
+          font-size: 0.88rem;
+          line-height: 1.55;
+        }
+
+        .archive-guide-steps {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          margin-top: 16px;
+        }
+
+        .archive-guide-step {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          min-width: 0;
+          padding: 14px;
+          border: 1px solid var(--admin-border, rgba(148, 163, 184, 0.2));
+          border-radius: 11px;
+          background: var(--admin-hover-bg, rgba(255, 255, 255, 0.04));
+        }
+
+        .archive-guide-step-number {
+          display: grid;
+          place-items: center;
+          flex: 0 0 32px;
+          height: 32px;
+          border-radius: 10px;
+          background: color-mix(in srgb, var(--admin-accent, #0d9488) 15%, transparent);
+          color: var(--admin-accent, #0d9488);
+          font-size: 0.75rem;
+          font-weight: 800;
+        }
+
+        .archive-guide-step h4 {
+          margin: 1px 0 5px;
+          color: var(--admin-text-primary, #0f172a);
+          font-size: 0.9rem;
+          font-weight: 750;
+        }
+
+        .archive-guide-period-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+          margin-top: 10px;
+        }
+
+        .archive-guide-period {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+          padding: 11px 12px;
+          border-left: 2px solid var(--admin-accent, #0d9488);
+          background: var(--admin-hover-bg, rgba(255, 255, 255, 0.04));
+        }
+
+        .archive-guide-period strong {
+          color: var(--admin-text-primary, #0f172a);
+          font-size: 0.82rem;
+        }
+
+        .archive-guide-period span {
+          color: var(--admin-text-secondary, #64748b);
+          font-size: 0.78rem;
+          line-height: 1.4;
+        }
+
+        @media (max-width: 700px) {
+          .archive-guide-steps,
+          .archive-guide-period-grid {
+            grid-template-columns: 1fr;
+          }
         }
 
         .archive-panel-error {

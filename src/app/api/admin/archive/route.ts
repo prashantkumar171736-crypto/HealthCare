@@ -34,7 +34,11 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const category = typeof body.category === "string" ? body.category : "all";
-    const retentionDays = Number(body.retentionDays || 30);
+    const retentionDays = Number(body.retentionDays ?? 30);
+    const allowedRetentionDays = [1, 7, 30, 90, 182, 365];
+    if (!allowedRetentionDays.includes(retentionDays)) {
+      return NextResponse.json({ error: "Choose a supported archive retention period." }, { status: 400 });
+    }
 
     const result = await runArchiveExport(category as "all" | "analytics" | "ip-security" | "server-logs", retentionDays);
     return NextResponse.json({ success: true, ...result }, { status: 200 });
