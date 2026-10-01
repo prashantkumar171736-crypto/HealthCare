@@ -29,7 +29,7 @@ export const DEFAULT_THEME: AdminTheme = {
   autoAdjust: true,
 };
 
-export const DEFAULT_FAVICON = "/vercel.svg";
+export const DEFAULT_FAVICON = "/favicon.svg";
 export const FAVICON_STORAGE_KEY = "admin_panel_favicon";
 
 export function normalizeStoredFavicon(value: unknown): string {
@@ -37,6 +37,7 @@ export function normalizeStoredFavicon(value: unknown): string {
 
   const candidate = value.trim();
   if (!candidate) return DEFAULT_FAVICON;
+  if (candidate === "/vercel.svg") return DEFAULT_FAVICON;
 
   const dangerous = ["javascript:", "data:text/html", "vbscript:"]; 
   if (dangerous.some((prefix) => candidate.toLowerCase().includes(prefix))) {
@@ -489,7 +490,7 @@ export default function ThemeSettings({ theme, onChange }: Props) {
 
   const resetFavicon = () => {
     setFaviconMessage(updateFavicon(DEFAULT_FAVICON)
-      ? "The default Vercel favicon has been restored."
+      ? "The default Rog Care Hindi favicon has been restored."
       : "The default could not be saved in this browser. Refresh and try again.");
   };
 
@@ -571,7 +572,7 @@ export default function ThemeSettings({ theme, onChange }: Props) {
               boxShadow: "0 8px 20px rgba(15, 23, 42, 0.08)",
             }}
           >
-            <img src={faviconPreview} alt="Favicon preview" style={{ width: 40, height: 40, objectFit: "contain" }} />
+            <img src={faviconPreview} alt="Favicon preview" style={{ width: 48, height: 48, objectFit: "contain" }} />
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -580,7 +581,7 @@ export default function ThemeSettings({ theme, onChange }: Props) {
               <input type="file" accept=".png,.svg,.webp,.jpg,.jpeg,.gif,image/png,image/svg+xml,image/webp,image/jpeg,image/gif" onChange={handleFaviconUpload} style={{ display: "none" }} />
             </label>
             <button type="button" className="ts-reset-btn" onClick={resetFavicon} style={{ width: "fit-content" }}>
-              ↺ Reset to default Vercel icon
+              ↺ Reset to default icon
             </button>
             <span style={{ color: "var(--text-muted, #475569)", fontSize: 12 }}>This updates the browser tab icon across all pages.</span>
             <details style={{ position: "relative", maxWidth: 520 }}>

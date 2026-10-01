@@ -197,9 +197,9 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/vercel.svg",
-    shortcut: "/vercel.svg",
-    apple: "/vercel.svg",
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
   },
 };
 
