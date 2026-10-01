@@ -3712,34 +3712,77 @@ export default function DashboardClient() {
                 </summary>
                 <div className="archive-guide-content">
                   <div className="archive-guide-intro">
-                    <h3>How archiving works</h3>
-                    <p>The selected period is an age cutoff. When you run an export, matching older records are copied into Excel files and uploaded to the configured R2 bucket.</p>
+                    <h3>What this setting does</h3>
+                    <p>The selected period is an age threshold, not a deletion rule. Choosing a period saves it in this browser, but does not start an export. Click <strong>Run archive now</strong> to copy matching older records into Excel files and upload them to the configured Cloudflare R2 bucket.</p>
                   </div>
-                  <div className="archive-guide-steps">
-                    <section className="archive-guide-step">
-                      <span className="archive-guide-step-number">01</span>
-                      <div><h4>Choose a period</h4><p>Your choice saves automatically in this browser and is used for the next manual export.</p></div>
+                  <ol className="archive-guide-flow" aria-label="Archive export workflow">
+                    <li className="archive-guide-flow-step">
+                      <span className="archive-guide-flow-number">01</span>
+                      <strong>Select a cutoff</strong>
+                      <span>Choose how old a record must be.</span>
+                    </li>
+                    <li className="archive-guide-flow-step">
+                      <span className="archive-guide-flow-number">02</span>
+                      <strong>Start the export</strong>
+                      <span>Click “Run archive now”.</span>
+                    </li>
+                    <li className="archive-guide-flow-step">
+                      <span className="archive-guide-flow-number">03</span>
+                      <strong>Find matching records</strong>
+                      <span>Older analytics and IP security history is queried.</span>
+                    </li>
+                    <li className="archive-guide-flow-step">
+                      <span className="archive-guide-flow-number">04</span>
+                      <strong>Create Excel files</strong>
+                      <span>Each archive category gets an export file.</span>
+                    </li>
+                    <li className="archive-guide-flow-step">
+                      <span className="archive-guide-flow-number">05</span>
+                      <strong>Upload to R2</strong>
+                      <span>Review available files in “Archives in bucket”.</span>
+                    </li>
+                  </ol>
+                  <div className="archive-guide-data-grid">
+                    <section className="archive-guide-data-card">
+                      <h4>Live Access Logs and analytics</h4>
+                      <p>These come from the same MongoDB <code>analytics</code> collection. The export includes records older than the selected cutoff, not only the latest rows visible in the dashboard.</p>
+                      <ul>
+                        <li>Page path and referrer</li>
+                        <li>Session ID and user agent</li>
+                        <li>Country, region, city, and timestamp</li>
+                      </ul>
                     </section>
-                    <section className="archive-guide-step">
-                      <span className="archive-guide-step-number">02</span>
-                      <div><h4>Run the archive</h4><p>Select “Run archive now” to export analytics and IP security records older than the chosen cutoff.</p></div>
+                    <section className="archive-guide-data-card">
+                      <h4>IP security and IP Tables</h4>
+                      <p>The export includes older history from blocked-IP records and failed admin login attempts. It is a historical export, not an exact copy of the current filtered IP Table view.</p>
+                      <ul>
+                        <li>IP, fingerprint key, country, status, and reason</li>
+                        <li>Block and expiry timestamps, and attempt counts</li>
+                        <li>Failed-login timestamps, attempts, and lock expiry</li>
+                      </ul>
                     </section>
-                    <section className="archive-guide-step">
-                      <span className="archive-guide-step-number">03</span>
-                      <div><h4>Check the result</h4><p>Review the files listed under “Archives in bucket”. Each export is saved as an Excel workbook in the R2 archive bucket.</p></div>
+                  </div>
+                  <div className="archive-guide-notes">
+                    <section>
+                      <h4>Manual only; no automatic schedule</h4>
+                      <p>Exports run only when an administrator clicks the button. No recurring archive cron job is currently configured.</p>
                     </section>
-                    <section className="archive-guide-step">
-                      <span className="archive-guide-step-number">04</span>
-                      <div><h4>Original data stays intact</h4><p>Exporting does not delete MongoDB records. Server runtime logs are not durably captured by the app, so they are not included as real log history.</p></div>
+                    <section>
+                      <h4>Original records are not deleted</h4>
+                      <p>This process copies matching records to R2. MongoDB source records remain unchanged.</p>
+                    </section>
+                    <section>
+                      <h4>Server runtime logs</h4>
+                      <p>The application does not durably collect server runtime logs. The server-log export is a notice, not historical runtime log data.</p>
                     </section>
                   </div>
                   <div className="archive-guide-periods">
-                    <h4>Period cutoffs</h4>
+                    <h4>Available age thresholds</h4>
                     <div className="archive-guide-period-grid">
                       {ARCHIVE_RETENTION_OPTIONS.map((option) => (
                         <div className="archive-guide-period" key={option.days}>
                           <strong>{option.label}</strong>
-                          <span>Exports records older than {option.days} {option.days === 1 ? "day" : "days"}.</span>
+                          <span>Includes records older than {option.days} {option.days === 1 ? "day" : "days"} when an export is run.</span>
                         </div>
                       ))}
                     </div>
@@ -4120,17 +4163,74 @@ export default function DashboardClient() {
           line-height: 1.55;
         }
 
-        .archive-guide-steps {
+        .archive-guide-flow {
+          display: grid;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 10px;
+          margin: 18px 0;
+          padding: 0;
+          list-style: none;
+        }
+
+        .archive-guide-flow-step {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 7px;
+          min-width: 0;
+          padding: 13px 12px;
+          border: 1px solid var(--admin-border, rgba(148, 163, 184, 0.2));
+          border-radius: 11px;
+          background: var(--admin-hover-bg, rgba(255, 255, 255, 0.04));
+        }
+
+        .archive-guide-flow-step:not(:last-child)::after {
+          content: "→";
+          position: absolute;
+          z-index: 1;
+          top: 21px;
+          right: -11px;
+          color: var(--admin-accent, #0d9488);
+          font-size: 16px;
+          font-weight: 800;
+        }
+
+        .archive-guide-flow-number {
+          display: grid;
+          place-items: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 9px;
+          background: color-mix(in srgb, var(--admin-accent, #0d9488) 15%, transparent);
+          color: var(--admin-accent, #0d9488);
+          font-size: 0.75rem;
+          font-weight: 800;
+        }
+
+        .archive-guide-flow-step strong {
+          color: var(--admin-text-primary, #0f172a);
+          font-size: 0.82rem;
+          font-weight: 750;
+        }
+
+        .archive-guide-flow-step > span:last-child,
+        .archive-guide-data-card p,
+        .archive-guide-data-card li,
+        .archive-guide-notes p {
+          color: var(--admin-text-secondary, #64748b);
+          font-size: 0.8rem;
+          line-height: 1.5;
+        }
+
+        .archive-guide-data-grid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 12px;
-          margin-top: 16px;
         }
 
-        .archive-guide-step {
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
+        .archive-guide-data-card,
+        .archive-guide-notes section {
           min-width: 0;
           padding: 14px;
           border: 1px solid var(--admin-border, rgba(148, 163, 184, 0.2));
@@ -4138,23 +4238,35 @@ export default function DashboardClient() {
           background: var(--admin-hover-bg, rgba(255, 255, 255, 0.04));
         }
 
-        .archive-guide-step-number {
-          display: grid;
-          place-items: center;
-          flex: 0 0 32px;
-          height: 32px;
-          border-radius: 10px;
-          background: color-mix(in srgb, var(--admin-accent, #0d9488) 15%, transparent);
-          color: var(--admin-accent, #0d9488);
-          font-size: 0.75rem;
-          font-weight: 800;
-        }
-
-        .archive-guide-step h4 {
-          margin: 1px 0 5px;
+        .archive-guide-data-card h4,
+        .archive-guide-notes h4 {
+          margin: 0 0 7px;
           color: var(--admin-text-primary, #0f172a);
           font-size: 0.9rem;
           font-weight: 750;
+        }
+
+        .archive-guide-data-card p,
+        .archive-guide-notes p { margin: 0; }
+
+        .archive-guide-data-card ul {
+          display: grid;
+          gap: 4px;
+          margin: 10px 0 0;
+          padding-left: 18px;
+        }
+
+        .archive-guide-data-card code {
+          color: var(--admin-accent, #0d9488);
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 0.95em;
+        }
+
+        .archive-guide-notes {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+          margin-top: 12px;
         }
 
         .archive-guide-period-grid {
@@ -4184,10 +4296,24 @@ export default function DashboardClient() {
           line-height: 1.4;
         }
 
+        @media (max-width: 1000px) {
+          .archive-guide-flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+          .archive-guide-flow-step:nth-child(3)::after { display: none; }
+          .archive-guide-notes { grid-template-columns: 1fr; }
+        }
+
         @media (max-width: 700px) {
-          .archive-guide-steps,
+          .archive-guide-flow,
+          .archive-guide-data-grid,
           .archive-guide-period-grid {
             grid-template-columns: 1fr;
+          }
+
+          .archive-guide-flow-step:not(:last-child)::after {
+            content: "↓";
+            top: auto;
+            right: 16px;
+            bottom: -15px;
           }
         }
 
