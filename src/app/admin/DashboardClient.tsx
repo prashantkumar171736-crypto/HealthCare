@@ -831,6 +831,9 @@ export default function DashboardClient() {
           >
             🎨 Appearance
           </button>
+          <Link href="/admin/data-archive" className="nav-item" style={{ textDecoration: "none" }}>
+            🗂️ Data Archive
+          </Link>
           <button
             className="nav-item"
             aria-expanded={securityExpanded}
@@ -842,7 +845,6 @@ export default function DashboardClient() {
             <div className="nav-submenu">
               <Link href="/admin/security/ip-settings">IP Settings</Link>
               <Link href="/admin/security/email-login">Email Login Settings</Link>
-              <Link href="/admin/data-archive">Data Archive</Link>
             </div>
           )}
         </nav>
