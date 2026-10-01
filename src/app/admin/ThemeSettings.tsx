@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { BookOpenText, Globe2, RotateCcw, ShieldCheck, Upload } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────
    Types & Constants
@@ -598,65 +599,90 @@ export default function ThemeSettings({ theme, onChange }: Props) {
           <h2 className="ts-title">🎨 Appearance & Theme</h2>
           <p className="ts-subtitle">Customize the look of your platform and admin panel. Changes are saved automatically.</p>
         </div>
-        <button
-          className="ts-reset-btn"
-          onClick={resetToDefault}
-          title="Restore the original clean white background and theme across all pages"
-        >
-          ↺ Reset theme and background
-        </button>
       </div>
 
       {/* ── Browser Tab Icon ── */}
       <section className="ts-section">
         <h3 className="ts-section-title">Browser tab icons</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
-          {faviconSettings.map((setting) => (
-            <div key={setting.storageKey} style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-              <div style={{ width: 64, height: 64, borderRadius: 12, overflow: "hidden", border: "1px solid rgba(148, 163, 184, 0.35)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <img src={pendingFavicons[setting.storageKey] ?? setting.preview} alt={`${setting.label} favicon preview`} style={{ width: 48, height: 48, objectFit: "contain" }} />
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <strong>{setting.label}</strong>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "#0d9488", color: "#fff", padding: "10px 14px", borderRadius: 8, fontWeight: 700 }}>
-                    Upload {setting.label.toLowerCase()} icon
-                    <input type="file" accept=".png,.svg,.webp,.jpg,.jpeg,.gif,image/png,image/svg+xml,image/webp,image/jpeg,image/gif" onChange={(event) => handleFaviconUpload(event, setting.storageKey)} style={{ display: "none" }} />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => saveFavicon(setting.storageKey, setting.label)}
-                    disabled={!pendingFavicons[setting.storageKey]}
-                    style={{ border: "1px solid #0d9488", background: pendingFavicons[setting.storageKey] ? "#0d9488" : "#e2e8f0", color: pendingFavicons[setting.storageKey] ? "#fff" : "#64748b", padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: pendingFavicons[setting.storageKey] ? "pointer" : "not-allowed" }}
-                  >
-                    Save
-                  </button>
+        <div className="ts-favicon-grid">
+          {faviconSettings.map((setting) => {
+            const ScopeIcon = setting.storageKey === FAVICON_STORAGE_KEY ? ShieldCheck : Globe2;
+
+            return (
+              <div className="ts-favicon-setting" key={setting.storageKey}>
+                <div className="ts-favicon-heading">
+                  <ScopeIcon size={21} strokeWidth={2.2} aria-hidden="true" />
+                  <h4>{setting.label}</h4>
                 </div>
-                <button type="button" className="ts-reset-btn" onClick={() => resetFavicon(setting.storageKey, setting.label)} style={{ width: "fit-content" }}>
-                  Reset to default
-                </button>
+                <div className="ts-favicon-controls">
+                  <div className="ts-favicon-preview">
+                    <img src={pendingFavicons[setting.storageKey] ?? setting.preview} alt={`${setting.label} favicon preview`} />
+                  </div>
+                  <div className="ts-favicon-control-stack">
+                    <div className="ts-favicon-actions">
+                      <label className="ts-upload-btn">
+                        <Upload size={16} strokeWidth={2.2} aria-hidden="true" />
+                        Upload {setting.label.toLowerCase()} icon
+                        <input type="file" accept=".png,.svg,.webp,.jpg,.jpeg,.gif,image/png,image/svg+xml,image/webp,image/jpeg,image/gif" onChange={(event) => handleFaviconUpload(event, setting.storageKey)} />
+                      </label>
+                      <button
+                        className="ts-favicon-save-btn"
+                        type="button"
+                        onClick={() => saveFavicon(setting.storageKey, setting.label)}
+                        disabled={!pendingFavicons[setting.storageKey]}
+                      >
+                        Save
+                      </button>
+                      <button
+                        className="ts-favicon-reset-btn"
+                        type="button"
+                        onClick={() => resetFavicon(setting.storageKey, setting.label)}
+                        title={`Reset ${setting.label.toLowerCase()} favicon to default`}
+                        aria-label={`Reset ${setting.label.toLowerCase()} favicon to default`}
+                      >
+                        <RotateCcw size={15} strokeWidth={2.2} aria-hidden="true" />
+                        <span>Reset to default</span>
+                      </button>
+                    </div>
+                    {setting.storageKey === PUBLIC_FAVICON_STORAGE_KEY ? (
+                      <>
+                        <details className="ts-favicon-guide">
+                          <summary><BookOpenText size={15} aria-hidden="true" /> Favicon image guide</summary>
+                          <div role="note">
+                            <strong>For the clearest browser-tab result:</strong>
+                            <ul>
+                              <li>Use a square PNG or SVG at 32 × 32 or 48 × 48 pixels.</li>
+                              <li>Prefer a simple, centered, high-contrast mark without a large blank border.</li>
+                              <li>Keep the file at or below 512 KB. Icons are saved in this browser and do not transfer to other browsers or devices.</li>
+                            </ul>
+                          </div>
+                        </details>
+                        {faviconMessage ? <span className="ts-favicon-message" role="status">{faviconMessage}</span> : null}
+                      </>
+                    ) : null}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <span style={{ display: "block", marginTop: 12, color: "var(--text-muted, #475569)", fontSize: 12 }}>Admin and public pages use separate icons. Upload square PNG or SVG files up to 512 KB.</span>
-        <details style={{ position: "relative", maxWidth: 520, marginTop: 8 }}>
-          <summary style={{ cursor: "pointer", color: "var(--primary, #0d9488)", fontSize: 13, fontWeight: 700 }}>Favicon image guide</summary>
-          <div role="note" style={{ marginTop: 8, padding: 12, borderRadius: 8, border: "1px solid var(--border, #cbd5e1)", background: "var(--surface, #fff)", color: "var(--text-main, #0f172a)", fontSize: 13, lineHeight: 1.6 }}>
-            <strong>For the clearest browser-tab result:</strong>
-            <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-              <li>Use a square PNG or SVG at 32 × 32 or 48 × 48 pixels.</li>
-              <li>Prefer a simple, centered, high-contrast mark without a large blank border.</li>
-              <li>Keep the file at or below 512 KB. Icons are saved in this browser and do not transfer to other browsers or devices.</li>
-            </ul>
-          </div>
-        </details>
-        {faviconMessage ? <span role="status" style={{ display: "block", marginTop: 8, color: "var(--text-muted, #475569)", fontSize: 12 }}>{faviconMessage}</span> : null}
       </section>
 
       {/* ── Preset Themes ── */}
       <section className="ts-section">
-        <h3 className="ts-section-title">Preset Themes</h3>
+        <div className="ts-section-heading">
+          <h3 className="ts-section-title">Preset Themes</h3>
+          <button
+            className="ts-theme-reset-btn"
+            type="button"
+            onClick={resetToDefault}
+            title="Restore the default theme and background colors"
+          >
+            <RotateCcw size={16} strokeWidth={2.2} aria-hidden="true" />
+            Reset theme and background
+          </button>
+        </div>
         <div className="ts-presets-grid">
           {PRESET_THEMES.map((p, i) => (
             <button
@@ -904,23 +930,6 @@ export default function ThemeSettings({ theme, onChange }: Props) {
           font-size: 0.88rem;
         }
 
-        .ts-reset-btn {
-          padding: 0.55rem 1.1rem;
-          border: 1px solid rgba(255,255,255,0.12);
-          background: rgba(255,255,255,0.05);
-          color: var(--admin-text-secondary, #9ca3af);
-          border-radius: 8px;
-          font-size: 0.85rem;
-          font-weight: 600;
-          cursor: pointer;
-          white-space: nowrap;
-          transition: all 0.2s;
-        }
-        .ts-reset-btn:hover {
-          background: rgba(255,255,255,0.1);
-          color: var(--admin-text-primary, #f3f4f6);
-        }
-
         .ts-section {
           margin-bottom: 2.5rem;
         }
@@ -934,6 +943,237 @@ export default function ThemeSettings({ theme, onChange }: Props) {
           margin-bottom: 1rem;
           padding-bottom: 0.5rem;
           border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .ts-favicon-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+          gap: 1rem;
+        }
+
+        .ts-favicon-setting {
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 0.9rem;
+          padding: 1rem;
+          border: 1px solid var(--admin-border, rgba(148, 163, 184, 0.2));
+          border-radius: 10px;
+          background: var(--admin-hover-bg, rgba(255,255,255,0.03));
+        }
+
+        .ts-favicon-heading {
+          display: flex;
+          align-items: center;
+          gap: 0.65rem;
+          color: var(--admin-accent, #0d9488);
+        }
+
+        .ts-favicon-heading h4 {
+          margin: 0;
+          color: var(--admin-text-primary, #f3f4f6);
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: 1.05rem;
+          font-style: italic;
+          font-weight: 700;
+        }
+
+        .ts-favicon-controls {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.9rem;
+        }
+
+        .ts-favicon-preview {
+          width: 64px;
+          height: 64px;
+          display: grid;
+          place-items: center;
+          flex: 0 0 64px;
+          overflow: hidden;
+          border: 1px solid var(--admin-border, #cbd5e1);
+          border-radius: 12px;
+          background: #ffffff;
+        }
+
+        .ts-favicon-preview img {
+          width: 48px;
+          height: 48px;
+          object-fit: contain;
+        }
+
+        .ts-favicon-control-stack {
+          min-width: 0;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.75rem;
+        }
+
+        .ts-favicon-actions {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+
+        .ts-upload-btn,
+        .ts-favicon-save-btn,
+        .ts-favicon-reset-btn,
+        .ts-theme-reset-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.45rem;
+          border: 1px solid transparent;
+          border-radius: 8px;
+          font-family: var(--admin-font-family, system-ui, sans-serif);
+          font-weight: 700;
+          line-height: 1.2;
+          white-space: nowrap;
+          transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+        }
+
+        .ts-upload-btn {
+          padding: 0.65rem 0.85rem;
+          background: var(--admin-accent, #0d9488);
+          color: #ffffff;
+          cursor: pointer;
+          font-size: 0.82rem;
+          white-space: normal;
+          text-align: left;
+        }
+
+        .ts-upload-btn:hover,
+        .ts-favicon-save-btn:not(:disabled):hover {
+          filter: brightness(1.08);
+          transform: translateY(-1px);
+        }
+
+        .ts-upload-btn input {
+          display: none;
+        }
+
+        .ts-favicon-save-btn {
+          min-height: 36px;
+          padding: 0.5rem 0.8rem;
+          border-color: var(--admin-accent, #0d9488);
+          background: var(--admin-accent, #0d9488);
+          color: #ffffff;
+          cursor: pointer;
+          font-size: 0.8rem;
+        }
+
+        .ts-favicon-save-btn:disabled {
+          border-color: var(--admin-border, #cbd5e1);
+          background: var(--admin-hover-bg, #f1f5f9);
+          color: var(--admin-text-secondary, #64748b);
+          cursor: not-allowed;
+          opacity: 0.8;
+        }
+
+        .ts-favicon-reset-btn {
+          min-height: 36px;
+          padding: 0.45rem 0.65rem;
+          border-color: var(--admin-border, #cbd5e1);
+          background: var(--admin-hover-bg, #f1f5f9);
+          color: var(--admin-text-secondary, #475569);
+          cursor: pointer;
+          font-size: 0.75rem;
+        }
+
+        .ts-favicon-reset-btn:hover {
+          border-color: #f59e0b;
+          background: rgba(245, 158, 11, 0.12);
+          color: #b45309;
+        }
+
+        .ts-favicon-guide {
+          width: 100%;
+          color: var(--admin-text-secondary, #9ca3af);
+          font-size: 0.78rem;
+        }
+
+        .ts-favicon-guide summary {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          color: var(--admin-accent, #0d9488);
+          cursor: pointer;
+          font-weight: 700;
+          list-style: none;
+        }
+
+        .ts-favicon-guide summary::-webkit-details-marker {
+          display: none;
+        }
+
+        .ts-favicon-guide > div {
+          margin-top: 0.6rem;
+          padding: 0.75rem;
+          border: 1px solid var(--admin-border, #cbd5e1);
+          border-radius: 8px;
+          background: var(--admin-card-bg, #ffffff);
+          color: var(--admin-text-secondary, #475569);
+          line-height: 1.55;
+        }
+
+        .ts-favicon-guide ul {
+          margin: 0.4rem 0 0;
+          padding-left: 1.1rem;
+        }
+
+        .ts-favicon-message {
+          color: var(--admin-accent, #0d9488);
+          font-size: 0.78rem;
+          line-height: 1.45;
+        }
+
+        .ts-section-heading {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 1rem;
+          margin-bottom: 1rem;
+          padding-bottom: 0.5rem;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .ts-section-heading .ts-section-title {
+          flex: 1;
+          margin: 0;
+          padding: 0;
+          border: 0;
+        }
+
+        .ts-theme-reset-btn {
+          flex: 0 0 auto;
+          min-height: 38px;
+          padding: 0.6rem 0.85rem;
+          border-color: var(--admin-accent, #0d9488);
+          background: rgba(13, 148, 136, 0.1);
+          color: var(--admin-accent, #0d9488);
+          cursor: pointer;
+          font-size: 0.8rem;
+        }
+
+        .ts-theme-reset-btn:hover {
+          background: var(--admin-accent, #0d9488);
+          color: #ffffff;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
+        }
+
+        @media (max-width: 480px) {
+          .ts-theme-reset-btn {
+            white-space: normal;
+          }
+
+          .ts-favicon-controls {
+            gap: 0.65rem;
+          }
         }
 
         /* Preset Cards */
