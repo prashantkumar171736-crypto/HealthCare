@@ -3985,7 +3985,7 @@ export default function DashboardClient() {
         }
 
         .archive-metric-card {
-          background: linear-gradient(180deg, rgba(255,255,255,0.38), rgba(255,255,255,0.18));
+          background: var(--admin-card-bg, #0d1322);
           border: 1px solid rgba(148, 163, 184, 0.22);
           border-radius: 14px;
           padding: 16px 18px;
@@ -4033,7 +4033,7 @@ export default function DashboardClient() {
         }
 
         .archive-panel-box {
-          background: rgba(255,255,255,0.42);
+          background: var(--admin-card-bg, #0d1322);
           border: 1px solid rgba(148, 163, 184, 0.22);
           border-radius: 16px;
           padding: 18px 18px 14px;
@@ -4059,7 +4059,7 @@ export default function DashboardClient() {
           align-items: center;
           justify-content: space-between;
           gap: 12px;
-          background: rgba(255,255,255,0.22);
+          background: var(--admin-hover-bg, rgba(255,255,255,0.05));
           border: 1px solid rgba(148, 163, 184, 0.18);
           border-radius: 12px;
           padding: 10px 12px;
