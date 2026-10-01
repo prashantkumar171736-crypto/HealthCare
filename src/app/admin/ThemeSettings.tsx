@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 /* ─────────────────────────────────────────────────────────────
    Types & Constants
@@ -31,36 +32,45 @@ export const DEFAULT_THEME: AdminTheme = {
 
 export const DEFAULT_FAVICON = "/favicon.svg";
 export const FAVICON_STORAGE_KEY = "admin_panel_favicon";
+export const PUBLIC_FAVICON_STORAGE_KEY = "public_site_favicon";
 
-export function normalizeStoredFavicon(value: unknown): string {
-  if (typeof value !== "string") return DEFAULT_FAVICON;
+export function normalizeStoredFavicon(value: unknown, fallback = DEFAULT_FAVICON): string {
+  if (typeof value !== "string") return fallback;
 
   const candidate = value.trim();
-  if (!candidate) return DEFAULT_FAVICON;
-  if (candidate === "/vercel.svg") return DEFAULT_FAVICON;
+  if (!candidate) return fallback;
+  if (candidate === "/vercel.svg") return fallback;
 
   const dangerous = ["javascript:", "data:text/html", "vbscript:"]; 
   if (dangerous.some((prefix) => candidate.toLowerCase().includes(prefix))) {
-    return DEFAULT_FAVICON;
+    return fallback;
   }
 
   const isAllowed = /^\s*(?:https?:\/\/|data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,|\/|\.\/|blob:)/i.test(candidate);
   if (!isAllowed) {
-    return DEFAULT_FAVICON;
+    return fallback;
   }
 
   return candidate;
 }
 
-export function readStoredAdminFavicon(): string {
+function readStoredFavicon(storageKey: string): string {
   if (typeof window === "undefined") return DEFAULT_FAVICON;
 
   try {
-    const saved = localStorage.getItem(FAVICON_STORAGE_KEY);
+    const saved = localStorage.getItem(storageKey);
     return normalizeStoredFavicon(saved ?? DEFAULT_FAVICON);
   } catch {
     return DEFAULT_FAVICON;
   }
+}
+
+export function readStoredAdminFavicon(): string {
+  return readStoredFavicon(FAVICON_STORAGE_KEY);
+}
+
+export function readStoredPublicFavicon(): string {
+  return readStoredFavicon(PUBLIC_FAVICON_STORAGE_KEY);
 }
 
 export function applyDocumentFavicon(href: string) {
@@ -85,12 +95,19 @@ export function applyDocumentFavicon(href: string) {
   });
 }
 
-export function AdminFaviconBridge() {
+export function AdminFaviconBridge({ adminLoginPath }: { adminLoginPath: string | null }) {
+  const pathname = usePathname();
+  const isAdminRoute = pathname === "/admin"
+    || pathname.startsWith("/admin/")
+    || pathname === adminLoginPath;
+  const storageKey = isAdminRoute
+    ? FAVICON_STORAGE_KEY
+    : PUBLIC_FAVICON_STORAGE_KEY;
   const [favicon, setFavicon] = useState<string>(DEFAULT_FAVICON);
 
   useEffect(() => {
     const syncFavicon = () => {
-      const saved = readStoredAdminFavicon();
+      const saved = readStoredFavicon(storageKey);
       setFavicon(saved);
       applyDocumentFavicon(saved);
     };
@@ -98,17 +115,12 @@ export function AdminFaviconBridge() {
     syncFavicon();
 
     const handleStorage = (event: StorageEvent) => {
-      if (event.key === FAVICON_STORAGE_KEY) {
+      if (event.key === storageKey) {
         syncFavicon();
       }
     };
 
-    const handleFaviconChange = (event: Event) => {
-      const detail = event && "detail" in event ? (event as CustomEvent<string | null>).detail : null;
-      const next = normalizeStoredFavicon(detail ?? readStoredAdminFavicon());
-      setFavicon(next);
-      applyDocumentFavicon(next);
-    };
+    const handleFaviconChange = () => syncFavicon();
 
     window.addEventListener("storage", handleStorage);
     window.addEventListener("admin-favicon-change", handleFaviconChange as EventListener);
@@ -117,7 +129,7 @@ export function AdminFaviconBridge() {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("admin-favicon-change", handleFaviconChange as EventListener);
     };
-  }, []);
+  }, [storageKey]);
 
   useEffect(() => {
     applyDocumentFavicon(favicon);
@@ -416,15 +428,19 @@ interface Props {
 
 export default function ThemeSettings({ theme, onChange }: Props) {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  const [faviconPreview, setFaviconPreview] = useState<string>(readStoredAdminFavicon());
+  const [adminFaviconPreview, setAdminFaviconPreview] = useState<string>(readStoredAdminFavicon());
+  const [publicFaviconPreview, setPublicFaviconPreview] = useState<string>(readStoredPublicFavicon());
   const [faviconMessage, setFaviconMessage] = useState("");
 
   useEffect(() => {
-    const sync = () => setFaviconPreview(readStoredAdminFavicon());
+    const sync = () => {
+      setAdminFaviconPreview(readStoredAdminFavicon());
+      setPublicFaviconPreview(readStoredPublicFavicon());
+    };
     sync();
 
     const handleStorage = (event: StorageEvent) => {
-      if (event.key === FAVICON_STORAGE_KEY) sync();
+      if (event.key === FAVICON_STORAGE_KEY || event.key === PUBLIC_FAVICON_STORAGE_KEY) sync();
     };
 
     const handleFaviconChange = () => sync();
@@ -437,19 +453,18 @@ export default function ThemeSettings({ theme, onChange }: Props) {
     };
   }, []);
 
-  const updateFavicon = useCallback((href: string) => {
+  const updateFavicon = useCallback((href: string, storageKey: string) => {
     const normalized = normalizeStoredFavicon(href);
-    setFaviconPreview(normalized);
     try {
-      localStorage.setItem(FAVICON_STORAGE_KEY, normalized);
-      window.dispatchEvent(new CustomEvent("admin-favicon-change", { detail: normalized }));
+      localStorage.setItem(storageKey, normalized);
+      window.dispatchEvent(new Event("admin-favicon-change"));
       return true;
     } catch {
       return false;
     }
   }, []);
 
-  const handleFaviconUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFaviconUpload = async (event: React.ChangeEvent<HTMLInputElement>, storageKey: string) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -475,7 +490,7 @@ export default function ThemeSettings({ theme, onChange }: Props) {
       }
 
       try {
-        const saved = updateFavicon(result);
+        const saved = updateFavicon(result, storageKey);
         setFaviconMessage(saved
           ? "Favicon updated. It may take a moment for your browser tab to refresh."
           : "The image could not be saved in this browser. Try a smaller file (under 512 KB).");
@@ -488,11 +503,16 @@ export default function ThemeSettings({ theme, onChange }: Props) {
     event.target.value = "";
   };
 
-  const resetFavicon = () => {
-    setFaviconMessage(updateFavicon(DEFAULT_FAVICON)
-      ? "The default Rog Care Hindi favicon has been restored."
+  const resetFavicon = (storageKey: string, scope: string) => {
+    setFaviconMessage(updateFavicon(DEFAULT_FAVICON, storageKey)
+      ? `The default Rog Care Hindi icon has been restored for the ${scope}.`
       : "The default could not be saved in this browser. Refresh and try again.");
   };
+
+  const faviconSettings = [
+    { storageKey: FAVICON_STORAGE_KEY, label: "Admin dashboard", preview: adminFaviconPreview },
+    { storageKey: PUBLIC_FAVICON_STORAGE_KEY, label: "Public website", preview: publicFaviconPreview },
+  ];
 
   const update = useCallback((partial: Partial<AdminTheme>) => {
     const next = { ...theme, ...partial };
@@ -556,55 +576,39 @@ export default function ThemeSettings({ theme, onChange }: Props) {
 
       {/* ── Browser Tab Icon ── */}
       <section className="ts-section">
-        <h3 className="ts-section-title">Browser tab icon</h3>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 16,
-              overflow: "hidden",
-              border: "1px solid rgba(148, 163, 184, 0.35)",
-              background: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 8px 20px rgba(15, 23, 42, 0.08)",
-            }}
-          >
-            <img src={faviconPreview} alt="Favicon preview" style={{ width: 48, height: 48, objectFit: "contain" }} />
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "#0d9488", color: "#fff", padding: "10px 14px", borderRadius: 10, fontWeight: 700 }}>
-              Upload favicon/logo
-              <input type="file" accept=".png,.svg,.webp,.jpg,.jpeg,.gif,image/png,image/svg+xml,image/webp,image/jpeg,image/gif" onChange={handleFaviconUpload} style={{ display: "none" }} />
-            </label>
-            <button type="button" className="ts-reset-btn" onClick={resetFavicon} style={{ width: "fit-content" }}>
-              ↺ Reset to default icon
-            </button>
-            <span style={{ color: "var(--text-muted, #475569)", fontSize: 12 }}>This updates the browser tab icon across all pages.</span>
-            <details style={{ position: "relative", maxWidth: 520 }}>
-              <summary
-                title="Recommended: square PNG or SVG, 32 × 32 or 48 × 48 pixels, under 512 KB. Use a simple, high-contrast mark with transparent background; keep important details away from the edges."
-                style={{ cursor: "pointer", color: "var(--primary, #0d9488)", fontSize: 13, fontWeight: 700 }}
-              >
-                ⓘ Favicon image guide
-              </summary>
-              <div role="note" style={{ marginTop: 8, padding: 12, borderRadius: 8, border: "1px solid var(--border, #cbd5e1)", background: "var(--surface, #fff)", color: "var(--text-main, #0f172a)", fontSize: 13, lineHeight: 1.6 }}>
-                <strong>For the clearest browser-tab result:</strong>
-                <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-                  <li>Use a square PNG (recommended) or SVG. WebP, JPG, and GIF are also accepted.</li>
-                  <li>Prepare a 32 × 32 or 48 × 48 pixel image; larger square source images are scaled by the browser.</li>
-                  <li>Prefer a simple, centered logo mark with strong contrast. Tiny text and fine detail become hard to see.</li>
-                  <li>Use transparency for a clean edge on different browser themes; avoid a large blank border.</li>
-                  <li>Keep the file at or below 512 KB. The image is saved in this browser, so changing browsers or devices does not transfer it.</li>
-                </ul>
+        <h3 className="ts-section-title">Browser tab icons</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+          {faviconSettings.map((setting) => (
+            <div key={setting.storageKey} style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+              <div style={{ width: 64, height: 64, borderRadius: 12, overflow: "hidden", border: "1px solid rgba(148, 163, 184, 0.35)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <img src={setting.preview} alt={`${setting.label} favicon preview`} style={{ width: 48, height: 48, objectFit: "contain" }} />
               </div>
-            </details>
-            {faviconMessage ? <span role="status" style={{ color: "var(--text-muted, #475569)", fontSize: 12 }}>{faviconMessage}</span> : null}
-          </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <strong>{setting.label}</strong>
+                <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "#0d9488", color: "#fff", padding: "10px 14px", borderRadius: 8, fontWeight: 700 }}>
+                  Upload {setting.label.toLowerCase()} icon
+                  <input type="file" accept=".png,.svg,.webp,.jpg,.jpeg,.gif,image/png,image/svg+xml,image/webp,image/jpeg,image/gif" onChange={(event) => handleFaviconUpload(event, setting.storageKey)} style={{ display: "none" }} />
+                </label>
+                <button type="button" className="ts-reset-btn" onClick={() => resetFavicon(setting.storageKey, setting.label)} style={{ width: "fit-content" }}>
+                  Reset to default
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
+        <span style={{ display: "block", marginTop: 12, color: "var(--text-muted, #475569)", fontSize: 12 }}>Admin and public pages use separate icons. Upload square PNG or SVG files up to 512 KB.</span>
+        <details style={{ position: "relative", maxWidth: 520, marginTop: 8 }}>
+          <summary style={{ cursor: "pointer", color: "var(--primary, #0d9488)", fontSize: 13, fontWeight: 700 }}>Favicon image guide</summary>
+          <div role="note" style={{ marginTop: 8, padding: 12, borderRadius: 8, border: "1px solid var(--border, #cbd5e1)", background: "var(--surface, #fff)", color: "var(--text-main, #0f172a)", fontSize: 13, lineHeight: 1.6 }}>
+            <strong>For the clearest browser-tab result:</strong>
+            <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+              <li>Use a square PNG or SVG at 32 × 32 or 48 × 48 pixels.</li>
+              <li>Prefer a simple, centered, high-contrast mark without a large blank border.</li>
+              <li>Keep the file at or below 512 KB. Icons are saved in this browser and do not transfer to other browsers or devices.</li>
+            </ul>
+          </div>
+        </details>
+        {faviconMessage ? <span role="status" style={{ display: "block", marginTop: 8, color: "var(--text-muted, #475569)", fontSize: 12 }}>{faviconMessage}</span> : null}
       </section>
 
       {/* ── Preset Themes ── */}

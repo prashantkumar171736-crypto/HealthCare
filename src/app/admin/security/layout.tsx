@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { validateSession } from "@/lib/admin-auth";
 import { getAdminLoginPath } from "@/lib/admin-login-path";
-import { AdminFaviconBridge, AdminThemeBridge } from "../ThemeSettings";
+import { AdminThemeBridge } from "../ThemeSettings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +20,6 @@ export default async function SecurityLayout({ children }: Readonly<{ children: 
   return (
     <>
       <AdminThemeBridge />
-      <AdminFaviconBridge />
       <div className="admin-security-shell">
         <aside className="admin-security-sidebar">
           <div className="sidebar-brand">

@@ -8,6 +8,7 @@ import Tracker from "@/components/Tracker";
 import PageTranslator from "@/components/PageTranslator";
 import Script from "next/script";
 import { AdminFaviconBridge } from "./admin/ThemeSettings";
+import { getAdminLoginPath } from "@/lib/admin-login-path";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -213,7 +214,7 @@ export default function RootLayout({
     // defaults are "en" / "ltr" for SSR.
     <html lang="en" dir="ltr" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-        <AdminFaviconBridge />
+        <AdminFaviconBridge adminLoginPath={getAdminLoginPath()} />
         {process.env.NEXT_PUBLIC_GA_ID && (
           <>
             <Script
