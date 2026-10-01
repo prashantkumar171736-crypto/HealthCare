@@ -842,6 +842,7 @@ export default function DashboardClient() {
             <div className="nav-submenu">
               <Link href="/admin/security/ip-settings">IP Settings</Link>
               <Link href="/admin/security/email-login">Email Login Settings</Link>
+              <Link href="/admin/data-archive">Data Archive</Link>
             </div>
           )}
         </nav>

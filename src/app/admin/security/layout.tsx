@@ -32,7 +32,6 @@ export default async function SecurityLayout({ children }: Readonly<{ children: 
             <Link className="nav-item" href="/admin/security/overview">⚙️ Security Overview</Link>
             <Link className="nav-item" href="/admin/security/ip-settings">🛡️ IP Settings</Link>
             <Link className="nav-item" href="/admin/security/email-login">✉️ Email Login Settings</Link>
-            <Link className="nav-item" href="/admin/security/data-archive">🗂️ Data Archive</Link>
           </nav>
         </aside>
 
