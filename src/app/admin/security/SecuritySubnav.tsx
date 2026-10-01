@@ -13,6 +13,9 @@ export default function SecuritySubnav() {
       <Link className={pathname === "/admin/security/email-login" ? "active" : ""} href="/admin/security/email-login">
         Email Login Settings
       </Link>
+      <Link className={pathname === "/admin/security/data-archive" ? "active" : ""} href="/admin/security/data-archive">
+        Data Archive
+      </Link>
     </nav>
   );
 }

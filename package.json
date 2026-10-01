@@ -7,15 +7,18 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "analytics:ip-cleanup": "node scripts/minimize-analytics-ips.js"
+    "analytics:ip-cleanup": "node scripts/minimize-analytics-ips.js",
+    "archive:security": "tsx scripts/archive-security-data.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1141.0",
     "@aws/lambda-invoke-store": "^0.3.0",
     "dotenv": "^18.0.4",
+    "exceljs": "^4.4.0",
     "lucide-react": "^1.49.0",
     "mongodb": "^7.3.0",
     "next": "16.2.9",
+    "node-cron": "^4.6.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
