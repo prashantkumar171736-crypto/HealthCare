@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
 import { validateSession } from "@/lib/admin-auth";
+import { normalizeCountryName, normalizeRegionName } from "@/lib/geo";
 import type { Document } from "mongodb";
 import os from "os";
 
@@ -344,16 +345,25 @@ export async function GET(request: Request) {
 
       if (timeoutHandle) clearTimeout(timeoutHandle);
 
+      const normalizedDailyViews = dailyViews.map((bucket) => ({
+        ...bucket,
+        details: (bucket.details || []).map((detail) => ({
+          ...detail,
+          country: normalizeCountryName(detail.country),
+          region: normalizeRegionName(detail.country, detail.region),
+        })),
+      }));
+
       return NextResponse.json(
         {
           summary: { totalViews, uniqueVisitors },
           charts: {
-            dailyViews,
+            dailyViews: normalizedDailyViews,
             topPages: (topPages as any[]).map((p: any) => ({ path: p._id, count: p.count })),
-            topCountries: (topCountries as any[]).map((c: any) => ({ name: c._id, count: c.count })),
+            topCountries: (topCountries as any[]).map((c: any) => ({ name: normalizeCountryName(c._id), count: c.count })),
             topRegions: (topRegions as any[]).map((r: any) => ({
-              country: r._id.country,
-              region: r._id.region,
+              country: normalizeCountryName(r._id.country),
+              region: normalizeRegionName(r._id.country, r._id.region),
               count: r.count,
             })),
           },
@@ -365,8 +375,8 @@ export async function GET(request: Request) {
               ? log.sessionId.slice(0, 12)
               : "",
             userAgent: log.userAgent,
-            country: log.country,
-            region: log.region,
+            country: normalizeCountryName(log.country),
+            region: normalizeRegionName(log.country, log.region),
             city: log.city,
             timestamp: log.timestamp,
           })),

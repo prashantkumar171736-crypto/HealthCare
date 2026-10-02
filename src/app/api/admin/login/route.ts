@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import crypto from "crypto";
 import { getDb } from "@/lib/db";
+import { normalizeCountryName } from "@/lib/geo";
 import { createAdminSession, SESSION_TTL_SECONDS } from "@/lib/admin-auth";
 import {
   createOtpCode,
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const country = request.headers.get("x-vercel-ip-country") || "Unknown";
+    const country = normalizeCountryName(request.headers.get("x-vercel-ip-country"));
     if (username.length > 254 || password.length > 1024) {
       await recordFailedLogin(db, ipKey, country, true, trustedIp);
       return NextResponse.json({ error: "Invalid username or password." }, { status: 401 });
@@ -269,7 +270,7 @@ export async function POST(request: Request) {
   }
 
   const now = new Date();
-  const country = request.headers.get("x-vercel-ip-country") || "Unknown";
+  const country = normalizeCountryName(request.headers.get("x-vercel-ip-country"));
   await recordFailedLogin(db, ipKey, country, true, trustedIp, now);
 
   await new Promise((resolve) => setTimeout(resolve, crypto.randomInt(50, 151)));

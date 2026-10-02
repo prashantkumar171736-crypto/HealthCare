@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { normalizeCountryName, normalizeRegionName } from "@/lib/geo";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
@@ -44,12 +45,15 @@ export async function POST(request: Request) {
       ? visitorSessionId
       : crypto.randomUUID();
 
+    const rawCountry = request.headers.get("x-vercel-ip-country");
+    const rawRegion = request.headers.get("x-vercel-ip-country-region");
+
     await analyticsCollection.insertOne({
       path,
       referrer: safeReferrer,
       userAgent,
-      country: request.headers.get("x-vercel-ip-country") || "Unknown",
-      region: request.headers.get("x-vercel-ip-country-region") || "Unknown",
+      country: normalizeCountryName(rawCountry),
+      region: normalizeRegionName(rawCountry, rawRegion),
       city: decodeHeader(request.headers.get("x-vercel-ip-city")),
       sessionId,
       timestamp: new Date(),
