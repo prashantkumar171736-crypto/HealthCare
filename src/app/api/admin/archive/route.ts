@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { ObjectId } from "mongodb";
 import { validateSession } from "@/lib/admin-auth";
 import { ARCHIVE_RETENTION_OPTIONS } from "@/lib/archive-config";
 import {
+  clearArchiveJob,
   getArchiveFile,
   getArchiveSettings,
   getArchiveSummary,
@@ -146,5 +148,30 @@ export async function PATCH(request: Request) {
   } catch (error) {
     console.error("Archive settings update failed:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to save archive settings." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    if (!(await ensureAuthorized())) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!isSameOrigin(request)) {
+      return NextResponse.json({ error: "Invalid origin." }, { status: 403 });
+    }
+
+    const jobId = new URL(request.url).searchParams.get("jobId");
+    if (!jobId || !/^[a-f\d]{24}$/i.test(jobId) || !ObjectId.isValid(jobId)) {
+      return NextResponse.json({ error: "A valid archive job ID is required." }, { status: 400 });
+    }
+
+    const deleted = await clearArchiveJob(new ObjectId(jobId));
+    if (!deleted) {
+      return NextResponse.json({ error: "This archive entry was already cleared or does not exist." }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Archive job clear failed:", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to clear the archive entry." }, { status: 500 });
   }
 }

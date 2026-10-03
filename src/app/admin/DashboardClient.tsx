@@ -78,12 +78,22 @@ interface ArchiveStatus {
 }
 
 interface ArchiveRunResult {
+  jobId: string;
   category: string;
   status: "success" | "failed";
-  fileName?: string;
+  fileName: string;
   recordsCount: number;
-  preview: Record<string, unknown>[];
+  archivedAt: string;
   error?: string;
+}
+
+function formatArchiveDateTime(value: string | null | undefined): string {
+  if (!value) return "Not available";
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+    timeZone: "Asia/Kolkata",
+  }).format(new Date(value));
 }
 
 export interface R2Stats {
@@ -559,6 +569,21 @@ export default function DashboardClient() {
       setArchiveSettingsSaving(false);
     }
   }, [archiveStatus]);
+
+  const clearArchiveEntry = useCallback(async (jobId: string, fileName: string) => {
+    if (!window.confirm(`Clear the MongoDB entry for "${fileName}"? This will not delete the file from R2.`)) return;
+
+    try {
+      setArchiveError("");
+      const res = await fetch(`/api/admin/archive?jobId=${encodeURIComponent(jobId)}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Unable to clear the archive entry.");
+      setArchiveResults((current) => current.filter((result) => result.jobId !== jobId));
+      await loadArchiveStatus();
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : "Unable to clear the archive entry.");
+    }
+  }, [loadArchiveStatus]);
 
   const changeArchiveRetention = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedDays = Number(event.target.value);
@@ -3843,48 +3868,45 @@ export default function DashboardClient() {
                     ))}
                   </div>
 
-                  {archiveResults.length > 0 ? (
+                  {archiveResults.length > 0 || archiveStatus?.lastRun ? (
                     <section className="archive-results-panel" aria-live="polite">
-                      <h3>Latest export preview</h3>
+                      <div className="archive-results-header">
+                        <h3>Latest export preview</h3>
+                        <p>Latest run: {formatArchiveDateTime(archiveStatus?.lastRun)}</p>
+                      </div>
                       <div className="archive-result-grid">
                         {archiveResults.map((result) => {
-                          const columns = Object.keys(result.preview[0] ?? {}).slice(0, 6);
                           return (
                             <article className="archive-result-card" key={result.category}>
                               <div className="archive-result-heading">
                                 <strong>{result.category}</strong>
-                                <span>{result.status === "success" ? "Completed" : "Failed"}</span>
                               </div>
-                              <p>{result.recordsCount} records</p>
+                              <div className="archive-result-summary">
+                                <span className="archive-result-file">{result.fileName}</span>
+                                <span className={`archive-result-status ${result.status}`}>
+                                  {result.status === "success" ? "Uploaded to R2" : "Not uploaded"}
+                                </span>
+                                <span>{result.recordsCount} records</span>
+                                <span>Archived: {formatArchiveDateTime(result.archivedAt)}</span>
+                                <button
+                                  type="button"
+                                  className="archive-clear-button"
+                                  onClick={() => void clearArchiveEntry(result.jobId, result.fileName)}
+                                  title="Clear this entry from MongoDB only; the R2 file will remain."
+                                >
+                                  Clear
+                                </button>
+                              </div>
                               {result.fileName && result.status === "success" ? (
                                 <a className="archive-panel-btn archive-panel-btn-secondary" href={`/api/admin/archive?file=${encodeURIComponent(result.fileName)}`}>
                                   Export {result.fileName}
                                 </a>
                               ) : null}
                               {result.error ? <p className="archive-result-error">{result.error}</p> : null}
-                              {columns.length > 0 ? (
-                                <div className="archive-preview-scroll">
-                                  <table className="archive-preview-table">
-                                    <thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
-                                    <tbody>
-                                      {result.preview.map((row, rowIndex) => (
-                                        <tr key={`${result.category}-${rowIndex}`}>
-                                          {columns.map((column) => (
-                                            <td key={column}>
-                                              {typeof row[column] === "string" ? row[column] as string : JSON.stringify(row[column])}
-                                            </td>
-                                          ))}
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              ) : (
-                                <p className="archive-result-empty">No records in this time window.</p>
-                              )}
                             </article>
                           );
                         })}
+                        {archiveResults.length === 0 ? <p className="archive-result-empty">All entries for this run have been cleared from MongoDB. R2 files are unchanged.</p> : null}
                       </div>
                     </section>
                   ) : null}
@@ -4553,6 +4575,21 @@ export default function DashboardClient() {
           color: var(--admin-text-primary, #fff);
         }
 
+        .archive-results-header {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .archive-results-header p {
+          margin: 0 0 12px;
+          color: var(--admin-text-secondary, #94a3b8);
+          font-size: 0.85rem;
+          font-weight: 600;
+        }
+
         .archive-result-grid {
           display: grid;
           gap: 12px;
@@ -4573,6 +4610,36 @@ export default function DashboardClient() {
           color: var(--admin-text-primary, #fff);
           text-transform: capitalize;
         }
+
+        .archive-result-summary {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+          color: var(--admin-text-primary, #e2e8f0);
+          font-size: 0.84rem;
+        }
+
+        .archive-result-file {
+          font-weight: 700;
+          overflow-wrap: anywhere;
+        }
+
+        .archive-result-status { font-weight: 700; }
+        .archive-result-status.success { color: #34d399; }
+        .archive-result-status.failed { color: #fca5a5; }
+
+        .archive-clear-button {
+          padding: 6px 10px;
+          border: 1px solid rgba(248, 113, 113, 0.4);
+          border-radius: 8px;
+          background: transparent;
+          color: #fca5a5;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .archive-clear-button:hover { background: rgba(248, 113, 113, 0.12); }
 
         .archive-result-card > p,
         .archive-result-error,

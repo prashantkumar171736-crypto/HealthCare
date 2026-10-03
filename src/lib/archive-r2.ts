@@ -264,11 +264,10 @@ export async function recordArchiveJob(
   recordsCount: number,
   fileName: string,
   bucketName: string,
-  preview: Record<string, unknown>[],
   error?: string,
 ) {
   const db = await getDb();
-  await db.collection("archive_jobs").insertOne({
+  const result = await db.collection("archive_jobs").insertOne({
     runId,
     jobType,
     startedAt,
@@ -277,10 +276,10 @@ export async function recordArchiveJob(
     recordsCount,
     fileName,
     bucketName,
-    preview,
     error: error ?? null,
     createdAt: new Date(),
   });
+  return result.insertedId.toString();
 }
 
 export async function runArchiveExport(category: ArchiveCategory | "all" = "all", retentionDays = ARCHIVE_RETENTION_DAYS) {
@@ -291,13 +290,20 @@ export async function runArchiveExport(category: ArchiveCategory | "all" = "all"
   const endAt = new Date();
   const startAt = new Date(endAt.getTime() - retentionDays * 24 * 60 * 60 * 1000);
   const runId = randomUUID();
+  const db = await getDb();
+  await db.collection("settings").updateOne(
+    { key: ARCHIVE_SETTINGS_KEY },
+    { $set: { key: ARCHIVE_SETTINGS_KEY, lastRunId: runId, lastRunAt: endAt, updatedAt: endAt } },
+    { upsert: true },
+  );
   const results: Array<{
+    jobId: string;
     category: ArchiveCategory;
     status: "success" | "failed";
     fileName?: string;
     publicUrl?: string;
     recordsCount: number;
-    preview: Record<string, unknown>[];
+    archivedAt: Date;
     error?: string;
   }> = [];
 
@@ -309,24 +315,29 @@ export async function runArchiveExport(category: ArchiveCategory | "all" = "all"
       const workbook = buildWorkbook(rows, item === "ip-security" ? "ip-security" : item === "server-logs" ? "server-logs" : "analytics");
       const buffer = await workbook.xlsx.writeBuffer();
       const archiveFile = await uploadArchiveFile(item, Buffer.from(buffer));
-      await recordArchiveJob(runId, item, startedAt, new Date(), "success", rows.length, archiveFile.fileName, ARCHIVE_BUCKET_NAME, rows.slice(0, 5));
+      const completedAt = new Date();
+      const jobId = await recordArchiveJob(runId, item, startedAt, completedAt, "success", rows.length, archiveFile.fileName, ARCHIVE_BUCKET_NAME);
       results.push({
+        jobId,
         category: item,
         status: "success",
         fileName: archiveFile.fileName,
         publicUrl: archiveFile.publicUrl,
         recordsCount: rows.length,
-        preview: rows.slice(0, 5),
+        archivedAt: completedAt,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown archive export error.";
       const failedAt = new Date();
-      await recordArchiveJob(runId, item, startedAt, failedAt, "failed", rows.length, formatArchiveFileName(item), ARCHIVE_BUCKET_NAME, rows.slice(0, 5), message);
+      const fileName = formatArchiveFileName(item);
+      const jobId = await recordArchiveJob(runId, item, startedAt, failedAt, "failed", rows.length, fileName, ARCHIVE_BUCKET_NAME, message);
       results.push({
+        jobId,
         category: item,
         status: "failed",
+        fileName,
         recordsCount: rows.length,
-        preview: rows.slice(0, 5),
+        archivedAt: failedAt,
         error: message,
       });
     }
@@ -368,9 +379,12 @@ export async function updateArchiveSettings(settings: Partial<ArchiveSettings>):
 
 export async function getArchiveSummary() {
   const db = await getDb();
+  const archiveSettings = await db.collection("settings").findOne({ key: ARCHIVE_SETTINGS_KEY });
   const latestJob = await db.collection("archive_jobs").find({}).sort({ startedAt: -1 }).limit(1).toArray();
-  const lastResults = latestJob[0]?.runId
-    ? await db.collection("archive_jobs").find({ runId: latestJob[0].runId }).sort({ startedAt: 1 }).toArray()
+  const latestRunId = typeof archiveSettings?.lastRunId === "string" ? archiveSettings.lastRunId : latestJob[0]?.runId;
+  const latestRunAt = archiveSettings?.lastRunAt ?? latestJob[0]?.startedAt ?? null;
+  const lastResults = latestRunId
+    ? await db.collection("archive_jobs").find({ runId: latestRunId }).sort({ startedAt: 1 }).toArray()
     : [];
   const [filesResult, settings] = await Promise.allSettled([listArchiveFiles(), getArchiveSettings()]);
   if (settings.status === "rejected") throw settings.reason;
@@ -384,18 +398,25 @@ export async function getArchiveSummary() {
     bucketName: ARCHIVE_BUCKET_NAME,
     retentionDays: settings.value.retentionDays,
     enabled: settings.value.enabled,
-    lastRun: latestJob[0]?.startedAt ?? null,
+    lastRun: latestRunAt,
     nextRun: "Manual only",
     files: files.slice(0, 20),
     totalFiles: files.length,
     filesError,
     lastResults: lastResults.map((job) => ({
+      jobId: job._id.toString(),
       category: job.jobType,
       status: job.status,
       fileName: job.fileName,
       recordsCount: job.recordsCount,
-      preview: job.preview ?? [],
+      archivedAt: job.completedAt ?? job.startedAt,
       error: job.error ?? undefined,
     })),
   };
+}
+
+export async function clearArchiveJob(jobId: import("mongodb").ObjectId): Promise<boolean> {
+  const db = await getDb();
+  const result = await db.collection("archive_jobs").deleteOne({ _id: jobId });
+  return result.deletedCount === 1;
 }

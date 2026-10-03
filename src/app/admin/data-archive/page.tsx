@@ -23,12 +23,22 @@ interface ArchiveStatus {
 }
 
 interface ArchiveRunResult {
+  jobId: string;
   category: string;
   status: "success" | "failed";
-  fileName?: string;
+  fileName: string;
   recordsCount: number;
-  preview: Record<string, unknown>[];
+  archivedAt: string;
   error?: string;
+}
+
+function formatArchiveDateTime(value: string | null | undefined): string {
+  if (!value) return "Not available";
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+    timeZone: "Asia/Kolkata",
+  }).format(new Date(value));
 }
 
 export default function DataArchivePage() {
@@ -107,6 +117,21 @@ export default function DataArchivePage() {
       setError(saveError instanceof Error ? saveError.message : "Unable to save archive settings.");
     } finally {
       setSavingSettings(false);
+    }
+  }
+
+  async function clearArchiveEntry(jobId: string, fileName: string) {
+    if (!window.confirm(`Clear the MongoDB entry for "${fileName}"? This will not delete the file from R2.`)) return;
+
+    try {
+      setError("");
+      const res = await fetch(`/api/admin/archive?jobId=${encodeURIComponent(jobId)}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Unable to clear the archive entry.");
+      setResults((current) => current.filter((result) => result.jobId !== jobId));
+      await loadStatus();
+    } catch (clearError) {
+      setError(clearError instanceof Error ? clearError.message : "Unable to clear the archive entry.");
     }
   }
 
@@ -199,17 +224,34 @@ export default function DataArchivePage() {
                 ))}
               </div>
 
-              {results.length > 0 ? (
+              {results.length > 0 || status?.lastRun ? (
                 <section className="archive-results-panel" aria-live="polite">
-                  <h3>Latest export preview</h3>
+                  <div className="archive-results-header">
+                    <h3>Latest export preview</h3>
+                    <p>Latest run: {formatArchiveDateTime(status?.lastRun)}</p>
+                  </div>
                   <div className="archive-result-list">
                     {results.map((result) => {
-                      const columns = Object.keys(result.preview[0] ?? {}).slice(0, 6);
                       return (
                         <article className="archive-result-card" key={result.category}>
                           <div className="archive-result-heading">
                             <strong>{result.category}</strong>
-                            <span>{result.status === "success" ? "Completed" : "Failed"} · {result.recordsCount} records</span>
+                          </div>
+                          <div className="archive-result-summary">
+                            <span className="archive-result-file">{result.fileName}</span>
+                            <span className={`archive-result-status ${result.status}`}>
+                              {result.status === "success" ? "Uploaded to R2" : "Not uploaded"}
+                            </span>
+                            <span>{result.recordsCount} records</span>
+                            <span>Archived: {formatArchiveDateTime(result.archivedAt)}</span>
+                            <button
+                              type="button"
+                              className="archive-clear-button"
+                              onClick={() => void clearArchiveEntry(result.jobId, result.fileName)}
+                              title="Clear this entry from MongoDB only; the R2 file will remain."
+                            >
+                              Clear
+                            </button>
                           </div>
                           {result.fileName && result.status === "success" ? (
                             <a className="archive-btn archive-btn-secondary" href={`/api/admin/archive?file=${encodeURIComponent(result.fileName)}`}>
@@ -217,25 +259,10 @@ export default function DataArchivePage() {
                             </a>
                           ) : null}
                           {result.error ? <p className="archive-result-error">{result.error}</p> : null}
-                          {columns.length > 0 ? (
-                            <div className="archive-preview-scroll">
-                              <table className="archive-preview-table">
-                                <thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
-                                <tbody>
-                                  {result.preview.map((row, rowIndex) => (
-                                    <tr key={`${result.category}-${rowIndex}`}>
-                                      {columns.map((column) => (
-                                        <td key={column}>{typeof row[column] === "string" ? row[column] as string : JSON.stringify(row[column])}</td>
-                                      ))}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          ) : <p className="archive-result-empty">No records in this time window.</p>}
                         </article>
                       );
                     })}
+                    {results.length === 0 ? <p className="archive-result-empty">All entries for this run have been cleared from MongoDB. R2 files are unchanged.</p> : null}
                   </div>
                 </section>
               ) : null}
@@ -503,6 +530,21 @@ export default function DataArchivePage() {
           margin: 0 0 12px;
         }
 
+        .archive-results-header {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .archive-results-header p {
+          margin: 0 0 12px;
+          color: #64748b;
+          font-size: 0.85rem;
+          font-weight: 600;
+        }
+
         .archive-result-list {
           display: grid;
           gap: 12px;
@@ -523,6 +565,39 @@ export default function DataArchivePage() {
           margin-bottom: 10px;
           text-transform: capitalize;
         }
+
+        .archive-result-summary {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+          color: #334155;
+          font-size: 0.84rem;
+        }
+
+        .archive-result-file {
+          font-weight: 700;
+          overflow-wrap: anywhere;
+        }
+
+        .archive-result-status {
+          font-weight: 700;
+        }
+
+        .archive-result-status.success { color: #047857; }
+        .archive-result-status.failed { color: #b91c1c; }
+
+        .archive-clear-button {
+          padding: 6px 10px;
+          border: 1px solid rgba(220, 38, 38, 0.3);
+          border-radius: 8px;
+          background: #fff;
+          color: #b91c1c;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .archive-clear-button:hover { background: #fef2f2; }
 
         .archive-result-error { color: #b91c1c; }
         .archive-result-empty { color: #64748b; }
