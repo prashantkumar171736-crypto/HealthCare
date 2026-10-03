@@ -43,6 +43,7 @@ export default function Tracker() {
             path: pathname,
             referrer: typeof document !== "undefined" ? document.referrer : "",
             visitorSessionId,
+            browserLanguage: navigator.languages?.[0] || navigator.language || "",
           }),
         });
       } catch (err) {

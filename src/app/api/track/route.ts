@@ -15,6 +15,17 @@ export async function POST(request: Request) {
     const path = typeof body.path === "string" ? body.path : "";
     const referrer = typeof body.referrer === "string" ? body.referrer : "";
     const visitorSessionId = typeof body.visitorSessionId === "string" ? body.visitorSessionId : "";
+    const requestedBrowserLanguage = typeof body.browserLanguage === "string"
+      ? body.browserLanguage.trim().slice(0, 35)
+      : "";
+    let browserLanguage = "Unknown";
+    if (requestedBrowserLanguage) {
+      try {
+        browserLanguage = Intl.getCanonicalLocales(requestedBrowserLanguage)[0] || "Unknown";
+      } catch {
+        browserLanguage = "Unknown";
+      }
+    }
 
     if (!path.startsWith("/") || path.length > 512) {
       return NextResponse.json({ error: "Invalid path" }, { status: 400 });
@@ -52,6 +63,7 @@ export async function POST(request: Request) {
       path,
       referrer: safeReferrer,
       userAgent,
+      browserLanguage,
       country: normalizeCountryName(rawCountry),
       region: normalizeRegionName(rawCountry, rawRegion),
       city: decodeHeader(request.headers.get("x-vercel-ip-city")),

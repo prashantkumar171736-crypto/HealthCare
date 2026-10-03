@@ -81,13 +81,55 @@ function formatArchiveDateTime(value: Date): string {
 
 export interface ArchiveWorkbookSummary {
   category: ArchiveCategory;
-  fileName: string;
   recordsCount: number;
   retentionDays: number;
-  startAt: Date;
-  endAt: Date;
   generatedAt: Date;
-  bucketName: string;
+}
+
+function formatCountBreakdown(counts: Map<string, number>): string {
+  if (counts.size === 0) return "N/A";
+  return [...counts.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([label, count]) => `${label}: ${count}`)
+    .join("; ");
+}
+
+function getDeviceType(userAgent: unknown): string {
+  if (typeof userAgent !== "string" || !userAgent.trim() || userAgent === "Unknown") return "Unknown";
+  if (/iPad|Tablet|PlayBook|Silk/i.test(userAgent) || (/Android/i.test(userAgent) && !/Mobile/i.test(userAgent))) return "Tablet";
+  if (/Mobi|Android|iPhone|iPod|IEMobile|Opera Mini/i.test(userAgent)) return "Mobile";
+  return "Desktop";
+}
+
+function getSummaryCounts(rows: Record<string, unknown>[]) {
+  const countries = new Map<string, number>();
+  const languages = new Map<string, number>();
+  const devices = new Map<string, number>();
+  const hasLanguageData = rows.some((row) => typeof row.browserLanguage === "string");
+  const hasDeviceData = rows.some((row) => typeof row.userAgent === "string");
+
+  for (const row of rows) {
+    const country = typeof row.country === "string" && row.country.trim() ? row.country.trim() : "Unknown";
+    countries.set(country, (countries.get(country) ?? 0) + 1);
+
+    if (hasLanguageData) {
+      const language = typeof row.browserLanguage === "string" && row.browserLanguage.trim()
+        ? row.browserLanguage.trim()
+        : "Not recorded";
+      languages.set(language, (languages.get(language) ?? 0) + 1);
+    }
+
+    if (hasDeviceData) {
+      const device = getDeviceType(row.userAgent);
+      devices.set(device, (devices.get(device) ?? 0) + 1);
+    }
+  }
+
+  return {
+    countries: formatCountBreakdown(countries),
+    languages: hasLanguageData ? formatCountBreakdown(languages) : "N/A",
+    devices: hasDeviceData ? formatCountBreakdown(devices) : "N/A",
+  };
 }
 
 export function buildArchiveWorkbook(
@@ -119,29 +161,29 @@ export function buildArchiveWorkbook(
 
   const summarySheet = workbook.addWorksheet("Summary");
   summarySheet.columns = [
-    { header: "Summary item", key: "item", width: 28 },
-    { header: "Details", key: "details", width: 72 },
+    { header: "Categories", key: "category", width: 20 },
+    { header: "Records Archived", key: "recordsCount", width: 20 },
+    { header: "Retention Window", key: "retentionWindow", width: 24 },
+    { header: "Export Generated (IST)", key: "generatedAt", width: 30 },
+    { header: "Country Count", key: "countries", width: 40 },
+    { header: "Language (Browser Preferred)", key: "languages", width: 40 },
+    { header: "Device Type", key: "devices", width: 32 },
   ];
-  const summaryRows: Array<[string, string]> = [
-    ["Category", summary.category],
-    ["Export file", summary.fileName],
-    ["Upload status", "Successfully uploaded to R2"],
-    ["Records archived", String(summary.recordsCount)],
-    ["Retention window", `Last ${summary.retentionDays} ${summary.retentionDays === 1 ? "day" : "days"}`],
-    ["Window start (India time)", formatArchiveDateTime(summary.startAt)],
-    ["Window end (India time)", formatArchiveDateTime(summary.endAt)],
-    ["Export generated (India time)", formatArchiveDateTime(summary.generatedAt)],
-    ["R2 bucket", summary.bucketName],
-    ["Record fields", keys.join(", ")],
-  ];
-  for (const [item, details] of summaryRows) {
-    summarySheet.addRow({ item, details });
-  }
+  const counts = getSummaryCounts(rows);
+  summarySheet.addRow({
+    category: summary.category,
+    recordsCount: summary.recordsCount,
+    retentionWindow: `Last ${summary.retentionDays} ${summary.retentionDays === 1 ? "day" : "days"}`,
+    generatedAt: formatArchiveDateTime(summary.generatedAt),
+    countries: counts.countries,
+    languages: counts.languages,
+    devices: counts.devices,
+  });
   summarySheet.getRow(1).font = { bold: true };
   summarySheet.views = [{ state: "frozen", ySplit: 1 }];
   summarySheet.autoFilter = {
     from: "A1",
-    to: `B${summarySheet.rowCount}`,
+    to: `G${summarySheet.rowCount}`,
   };
 
   return workbook;
@@ -158,6 +200,7 @@ async function getAnalyticsArchiveRows(startAt: Date, endAt: Date): Promise<Reco
     path: row.path ?? "",
     referrer: row.referrer ?? "",
     userAgent: row.userAgent ?? "",
+    browserLanguage: row.browserLanguage ?? "Not recorded",
     sessionId: row.sessionId ?? "",
     country: row.country ?? "",
     region: row.region ?? "",
@@ -376,13 +419,9 @@ export async function runArchiveExport(category: ArchiveCategory | "all" = "all"
         item === "ip-security" ? "ip-security" : item === "server-logs" ? "server-logs" : "analytics",
         {
           category: item,
-          fileName,
           recordsCount: rows.length,
           retentionDays,
-          startAt,
-          endAt,
           generatedAt,
-          bucketName: ARCHIVE_BUCKET_NAME,
         },
       );
       const buffer = await workbook.xlsx.writeBuffer();
