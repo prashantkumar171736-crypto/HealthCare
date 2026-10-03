@@ -1,5 +1,7 @@
 import "@/lib/env";
+import { randomUUID } from "node:crypto";
 import {
+  GetObjectCommand,
   HeadBucketCommand,
   ListObjectsV2Command,
   PutObjectCommand,
@@ -8,6 +10,7 @@ import {
 import { NodeHttpHandler } from "@smithy/node-http-handler";
 import ExcelJS from "exceljs";
 import { getDb } from "@/lib/db";
+import { ARCHIVE_RETENTION_OPTIONS } from "@/lib/archive-config";
 
 export const ARCHIVE_BUCKET_NAME = process.env.R2_IP_SECURITY_BUCKET_NAME || "healthcare-ip-security";
 export const ARCHIVE_PUBLIC_URL = process.env.R2_IP_SECURITY_PUBLIC_URL || process.env.R2_UPLOADS_PUBLIC_URL || "https://pub-8ded07f2075a43daaa93fc2d473091fb.r2.dev";
@@ -18,6 +21,12 @@ const ARCHIVE_ACCESS_KEY_ID = process.env.R2_UPLOADS_ACCESS_KEY_ID || process.en
 const ARCHIVE_SECRET_ACCESS_KEY = process.env.R2_UPLOADS_SECRET_ACCESS_KEY || process.env.R2_SECRET_ACCESS_KEY;
 
 export type ArchiveCategory = "analytics" | "ip-security" | "server-logs";
+export type ArchiveSettings = {
+  enabled: boolean;
+  retentionDays: number;
+};
+
+const ARCHIVE_SETTINGS_KEY = "data_archive_settings";
 
 let archiveClient: S3Client | null = null;
 
@@ -32,8 +41,8 @@ function getArchiveClient(): S3Client {
       endpoint: `https://${ARCHIVE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
       maxAttempts: 1,
       requestHandler: new NodeHttpHandler({
-        connectionTimeout: 1500,
-        requestTimeout: 2000,
+        connectionTimeout: 3000,
+        requestTimeout: 10000,
       }),
       credentials: {
         accessKeyId: ARCHIVE_ACCESS_KEY_ID,
@@ -47,7 +56,7 @@ function getArchiveClient(): S3Client {
 
 function formatArchiveFileName(category: ArchiveCategory): string {
   const dateStamp = new Date().toISOString().slice(0, 10);
-  return `${category}-archive-${dateStamp}.xls`;
+  return `${category}-archive-${dateStamp}-${Date.now()}.xlsx`;
 }
 
 function safeValue(value: unknown): string {
@@ -87,9 +96,11 @@ function buildWorkbook(rows: Record<string, unknown>[], sheetName: string): Exce
   return workbook;
 }
 
-async function getAnalyticsArchiveRows(cutoff: Date): Promise<Record<string, unknown>[]> {
+async function getAnalyticsArchiveRows(startAt: Date, endAt: Date): Promise<Record<string, unknown>[]> {
   const db = await getDb();
-  const rows = await db.collection("analytics").find({ timestamp: { $lt: cutoff } }).sort({ timestamp: 1 }).toArray();
+  const rows = await db.collection("analytics").find({
+    timestamp: { $gte: startAt, $lte: endAt },
+  }).sort({ timestamp: 1 }).toArray();
 
   return rows.map((row) => ({
     path: row.path ?? "",
@@ -103,12 +114,12 @@ async function getAnalyticsArchiveRows(cutoff: Date): Promise<Record<string, unk
   }));
 }
 
-async function getIpSecurityArchiveRows(cutoff: Date): Promise<Record<string, unknown>[]> {
+async function getIpSecurityArchiveRows(startAt: Date, endAt: Date): Promise<Record<string, unknown>[]> {
   const db = await getDb();
 
   const [blockedIps, failedAttempts] = await Promise.all([
-    db.collection("admin_ip_blocks").find({ blockedAt: { $lt: cutoff } }).sort({ blockedAt: 1 }).toArray(),
-    db.collection("admin_login_attempts").find({ createdAt: { $lt: cutoff } }).sort({ createdAt: 1 }).toArray(),
+    db.collection("admin_ip_blocks").find({ blockedAt: { $gte: startAt, $lte: endAt } }).sort({ blockedAt: 1 }).toArray(),
+    db.collection("admin_login_attempts").find({ createdAt: { $gte: startAt, $lte: endAt } }).sort({ createdAt: 1 }).toArray(),
   ]);
 
   const blockRows = blockedIps.map((row) => ({
@@ -137,19 +148,15 @@ async function getIpSecurityArchiveRows(cutoff: Date): Promise<Record<string, un
 }
 
 async function getServerLogsArchiveRows(): Promise<Record<string, unknown>[]> {
-  return [{
-    timestamp: new Date().toISOString(),
-    level: "info",
-    message: "No persisted server log archive is currently stored by this application. Add a durable log writer if server logs must be archived to R2.",
-  }];
+  return [];
 }
 
-async function getArchiveRowsForCategory(category: ArchiveCategory, cutoff: Date): Promise<Record<string, unknown>[]> {
+async function getArchiveRowsForCategory(category: ArchiveCategory, startAt: Date, endAt: Date): Promise<Record<string, unknown>[]> {
   switch (category) {
     case "analytics":
-      return getAnalyticsArchiveRows(cutoff);
+      return getAnalyticsArchiveRows(startAt, endAt);
     case "ip-security":
-      return getIpSecurityArchiveRows(cutoff);
+      return getIpSecurityArchiveRows(startAt, endAt);
     case "server-logs":
       return getServerLogsArchiveRows();
     default:
@@ -158,20 +165,25 @@ async function getArchiveRowsForCategory(category: ArchiveCategory, cutoff: Date
 }
 
 export async function listArchiveFiles(): Promise<Array<{ key: string; size: number; lastModified: string }>> {
-  try {
-    const response = await getArchiveClient().send(new ListObjectsV2Command({
-      Bucket: ARCHIVE_BUCKET_NAME,
-      MaxKeys: 100,
-    }));
+  const response = await getArchiveClient().send(new ListObjectsV2Command({
+    Bucket: ARCHIVE_BUCKET_NAME,
+    MaxKeys: 100,
+  }));
 
-    return (response.Contents ?? []).map((item) => ({
-      key: item.Key ?? "",
-      size: item.Size ?? 0,
-      lastModified: item.LastModified ? item.LastModified.toISOString() : "",
-    }));
-  } catch (error) {
-    return [];
-  }
+  return (response.Contents ?? []).filter((item) => item.Key && /^(analytics|ip-security|server-logs)-archive-\d{4}-\d{2}-\d{2}(?:-\d{13})?\.xlsx?$/.test(item.Key)).map((item) => ({
+    key: item.Key ?? "",
+    size: item.Size ?? 0,
+    lastModified: item.LastModified ? item.LastModified.toISOString() : "",
+  })).sort((a, b) => b.lastModified.localeCompare(a.lastModified));
+}
+
+export async function getArchiveFile(fileName: string): Promise<Uint8Array> {
+  const response = await getArchiveClient().send(new GetObjectCommand({
+    Bucket: ARCHIVE_BUCKET_NAME,
+    Key: fileName,
+  }));
+  if (!response.Body) throw new Error("The requested archive file has no content.");
+  return response.Body.transformToByteArray();
 }
 
 export async function getArchiveBucketStatus(): Promise<{ status: "Connected" | "Offline"; bucketName: string; message?: string }> {
@@ -197,7 +209,7 @@ export async function uploadArchiveFile(category: ArchiveCategory, buffer: Buffe
     Bucket: ARCHIVE_BUCKET_NAME,
     Key: fileName,
     Body: buffer,
-    ContentType: "application/vnd.ms-excel",
+    ContentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     CacheControl: "private, max-age=3600",
   }));
 
@@ -207,9 +219,21 @@ export async function uploadArchiveFile(category: ArchiveCategory, buffer: Buffe
   };
 }
 
-export async function recordArchiveJob(jobType: ArchiveCategory, startedAt: Date, completedAt: Date, status: "success" | "failed", recordsCount: number, fileName: string, bucketName: string, error?: string) {
+export async function recordArchiveJob(
+  runId: string,
+  jobType: ArchiveCategory,
+  startedAt: Date,
+  completedAt: Date,
+  status: "success" | "failed",
+  recordsCount: number,
+  fileName: string,
+  bucketName: string,
+  preview: Record<string, unknown>[],
+  error?: string,
+) {
   const db = await getDb();
   await db.collection("archive_jobs").insertOne({
+    runId,
     jobType,
     startedAt,
     completedAt,
@@ -217,6 +241,7 @@ export async function recordArchiveJob(jobType: ArchiveCategory, startedAt: Date
     recordsCount,
     fileName,
     bucketName,
+    preview,
     error: error ?? null,
     createdAt: new Date(),
   });
@@ -227,32 +252,45 @@ export async function runArchiveExport(category: ArchiveCategory | "all" = "all"
     ? ["analytics", "ip-security", "server-logs"]
     : [category];
 
-  const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
-  const results: Array<{ category: ArchiveCategory; status: "success" | "failed"; fileName?: string; publicUrl?: string; recordsCount: number; error?: string }> = [];
+  const endAt = new Date();
+  const startAt = new Date(endAt.getTime() - retentionDays * 24 * 60 * 60 * 1000);
+  const runId = randomUUID();
+  const results: Array<{
+    category: ArchiveCategory;
+    status: "success" | "failed";
+    fileName?: string;
+    publicUrl?: string;
+    recordsCount: number;
+    preview: Record<string, unknown>[];
+    error?: string;
+  }> = [];
 
   for (const item of categories) {
     const startedAt = new Date();
+    let rows: Record<string, unknown>[] = [];
     try {
-      const rows = await getArchiveRowsForCategory(item, cutoff);
+      rows = await getArchiveRowsForCategory(item, startAt, endAt);
       const workbook = buildWorkbook(rows, item === "ip-security" ? "ip-security" : item === "server-logs" ? "server-logs" : "analytics");
       const buffer = await workbook.xlsx.writeBuffer();
       const archiveFile = await uploadArchiveFile(item, Buffer.from(buffer));
-      await recordArchiveJob(item, startedAt, new Date(), "success", rows.length, archiveFile.fileName, ARCHIVE_BUCKET_NAME);
+      await recordArchiveJob(runId, item, startedAt, new Date(), "success", rows.length, archiveFile.fileName, ARCHIVE_BUCKET_NAME, rows.slice(0, 5));
       results.push({
         category: item,
         status: "success",
         fileName: archiveFile.fileName,
         publicUrl: archiveFile.publicUrl,
         recordsCount: rows.length,
+        preview: rows.slice(0, 5),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown archive export error.";
       const failedAt = new Date();
-      await recordArchiveJob(item, startedAt, failedAt, "failed", 0, formatArchiveFileName(item), ARCHIVE_BUCKET_NAME, message);
+      await recordArchiveJob(runId, item, startedAt, failedAt, "failed", rows.length, formatArchiveFileName(item), ARCHIVE_BUCKET_NAME, rows.slice(0, 5), message);
       results.push({
         category: item,
         status: "failed",
-        recordsCount: 0,
+        recordsCount: rows.length,
+        preview: rows.slice(0, 5),
         error: message,
       });
     }
@@ -260,23 +298,61 @@ export async function runArchiveExport(category: ArchiveCategory | "all" = "all"
 
   return {
     bucketName: ARCHIVE_BUCKET_NAME,
+    runId,
+    startAt,
+    endAt,
     results,
     retentionDays,
   };
 }
 
+export async function getArchiveSettings(): Promise<ArchiveSettings> {
+  const db = await getDb();
+  const stored = await db.collection("settings").findOne({ key: ARCHIVE_SETTINGS_KEY });
+  const storedRetention = Number(stored?.retentionDays);
+  const retentionDays = ARCHIVE_RETENTION_OPTIONS.some((option) => option.days === storedRetention)
+    ? storedRetention
+    : ARCHIVE_RETENTION_DAYS;
+
+  return {
+    enabled: typeof stored?.enabled === "boolean" ? stored.enabled : true,
+    retentionDays,
+  };
+}
+
+export async function updateArchiveSettings(settings: Partial<ArchiveSettings>): Promise<ArchiveSettings> {
+  const db = await getDb();
+  await db.collection("settings").updateOne(
+    { key: ARCHIVE_SETTINGS_KEY },
+    { $set: { key: ARCHIVE_SETTINGS_KEY, ...settings, updatedAt: new Date() } },
+    { upsert: true },
+  );
+  return getArchiveSettings();
+}
+
 export async function getArchiveSummary() {
   const db = await getDb();
   const latestJob = await db.collection("archive_jobs").find({}).sort({ startedAt: -1 }).limit(1).toArray();
-  const files = await listArchiveFiles();
+  const lastResults = latestJob[0]?.runId
+    ? await db.collection("archive_jobs").find({ runId: latestJob[0].runId }).sort({ startedAt: 1 }).toArray()
+    : [];
+  const [files, settings] = await Promise.all([listArchiveFiles(), getArchiveSettings()]);
 
   return {
     bucketName: ARCHIVE_BUCKET_NAME,
-    retentionDays: ARCHIVE_RETENTION_DAYS,
-    enabled: true,
+    retentionDays: settings.retentionDays,
+    enabled: settings.enabled,
     lastRun: latestJob[0]?.startedAt ?? null,
-    nextRun: "Monthly (default schedule)",
+    nextRun: "Manual only",
     files: files.slice(0, 20),
     totalFiles: files.length,
+    lastResults: lastResults.map((job) => ({
+      category: job.jobType,
+      status: job.status,
+      fileName: job.fileName,
+      recordsCount: job.recordsCount,
+      preview: job.preview ?? [],
+      error: job.error ?? undefined,
+    })),
   };
 }

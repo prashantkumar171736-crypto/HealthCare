@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { validateSession } from "@/lib/admin-auth";
-import { getArchiveSummary, runArchiveExport } from "@/lib/archive-r2";
+import { ARCHIVE_RETENTION_OPTIONS } from "@/lib/archive-config";
+import {
+  getArchiveFile,
+  getArchiveSettings,
+  getArchiveSummary,
+  runArchiveExport,
+  updateArchiveSettings,
+} from "@/lib/archive-r2";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,17 +19,54 @@ async function ensureAuthorized(): Promise<boolean> {
   return validateSession(token);
 }
 
-export async function GET() {
+function isSameOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  try {
+    return Boolean(origin && new URL(origin).origin === new URL(request.url).origin);
+  } catch {
+    return false;
+  }
+}
+
+async function readJsonBody(request: Request): Promise<Record<string, unknown> | null> {
+  try {
+    const body: unknown = await request.json();
+    return body && typeof body === "object" && !Array.isArray(body) ? body as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
+function isValidRetention(value: unknown): value is number {
+  return typeof value === "number" && ARCHIVE_RETENTION_OPTIONS.some((option) => option.days === value);
+}
+
+export async function GET(request: Request) {
   try {
     if (!(await ensureAuthorized())) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const fileName = new URL(request.url).searchParams.get("file");
+    if (fileName !== null) {
+      if (!/^(analytics|ip-security|server-logs)-archive-\d{4}-\d{2}-\d{2}(?:-\d{13})?\.xlsx?$/.test(fileName)) {
+        return NextResponse.json({ error: "Invalid archive file name." }, { status: 400 });
+      }
+      const file = await getArchiveFile(fileName);
+      return new NextResponse(Buffer.from(file), {
+        headers: {
+          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition": `attachment; filename="${fileName}"`,
+          "Cache-Control": "private, no-store, max-age=0",
+        },
+      });
     }
 
     const summary = await getArchiveSummary();
     return NextResponse.json(summary, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     console.error("Archive status fetch failed:", error);
-    return NextResponse.json({ error: "Failed to load archive status." }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to load archive status." }, { status: 500 });
   }
 }
 
@@ -31,19 +75,76 @@ export async function POST(request: Request) {
     if (!(await ensureAuthorized())) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    if (!isSameOrigin(request)) {
+      return NextResponse.json({ error: "Invalid origin." }, { status: 403 });
+    }
 
-    const body = await request.json().catch(() => ({}));
-    const category = typeof body.category === "string" ? body.category : "all";
-    const retentionDays = Number(body.retentionDays ?? 30);
-    const allowedRetentionDays = [1, 7, 30, 90, 182, 365];
-    if (!allowedRetentionDays.includes(retentionDays)) {
+    const body = await readJsonBody(request);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    }
+
+    const category = body.category ?? "all";
+    if (category !== "all" && category !== "analytics" && category !== "ip-security" && category !== "server-logs") {
+      return NextResponse.json({ error: "Choose a supported archive category." }, { status: 400 });
+    }
+
+    const settings = await getArchiveSettings();
+    const retentionDays = body.retentionDays ?? settings.retentionDays;
+    if (!isValidRetention(retentionDays)) {
       return NextResponse.json({ error: "Choose a supported archive retention period." }, { status: 400 });
     }
 
-    const result = await runArchiveExport(category as "all" | "analytics" | "ip-security" | "server-logs", retentionDays);
-    return NextResponse.json({ success: true, ...result }, { status: 200 });
+    if (!settings.enabled) {
+      return NextResponse.json({ error: "Data archiving is disabled. Enable it before starting an export." }, { status: 409 });
+    }
+
+    await updateArchiveSettings({ retentionDays });
+    const result = await runArchiveExport(category, retentionDays);
+    const hasFailures = result.results.some((item) => item.status === "failed");
+    return NextResponse.json({ success: !hasFailures, ...result }, { status: hasFailures ? 502 : 200 });
   } catch (error) {
     console.error("Archive export failed:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Archive export failed." }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    if (!(await ensureAuthorized())) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!isSameOrigin(request)) {
+      return NextResponse.json({ error: "Invalid origin." }, { status: 403 });
+    }
+
+    const body = await readJsonBody(request);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    }
+
+    const updates: { enabled?: boolean; retentionDays?: number } = {};
+    if (Object.hasOwn(body, "enabled")) {
+      if (typeof body.enabled !== "boolean") {
+        return NextResponse.json({ error: "Archive status must be enabled or disabled." }, { status: 400 });
+      }
+      updates.enabled = body.enabled;
+    }
+    if (Object.hasOwn(body, "retentionDays")) {
+      if (!isValidRetention(body.retentionDays)) {
+        return NextResponse.json({ error: "Choose a supported archive retention period." }, { status: 400 });
+      }
+      updates.retentionDays = body.retentionDays;
+    }
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "No valid archive settings were provided." }, { status: 400 });
+    }
+
+    return NextResponse.json(await updateArchiveSettings(updates), {
+      headers: { "Cache-Control": "private, no-store, max-age=0" },
+    });
+  } catch (error) {
+    console.error("Archive settings update failed:", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to save archive settings." }, { status: 500 });
   }
 }

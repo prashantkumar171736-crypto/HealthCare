@@ -9,6 +9,7 @@ import CommentsManager from "./CommentsManager";
 import ThemeSettings, { AdminTheme, AdminThemeBridge, DEFAULT_THEME, hexToRgb, luminance, normalizeStoredTheme } from "./ThemeSettings";
 import { useLanguage } from "@/context/LanguageContext";
 import { LANG_MAP } from "@/lib/detectLanguage";
+import { ARCHIVE_RETENTION_OPTIONS } from "@/lib/archive-config";
 
 const LS_THEME_KEY = "admin_panel_theme";
 
@@ -72,6 +73,16 @@ interface ArchiveStatus {
   nextRun: string;
   files: ArchiveFileItem[];
   totalFiles: number;
+  lastResults: ArchiveRunResult[];
+}
+
+interface ArchiveRunResult {
+  category: string;
+  status: "success" | "failed";
+  fileName?: string;
+  recordsCount: number;
+  preview: Record<string, unknown>[];
+  error?: string;
 }
 
 export interface R2Stats {
@@ -154,16 +165,6 @@ const PERIOD_OPTIONS = [
   { value: "yearly", label: "Yearly" },
 ];
 
-const ARCHIVE_RETENTION_STORAGE_KEY = "admin_archive_retention_days";
-const ARCHIVE_RETENTION_OPTIONS = [
-  { days: 1, label: "1 day (24 hours)" },
-  { days: 7, label: "Weekly (7 days)" },
-  { days: 30, label: "30 days" },
-  { days: 90, label: "Quarterly (90 days)" },
-  { days: 182, label: "Half yearly (182 days)" },
-  { days: 365, label: "Yearly (365 days)" },
-];
-
 export default function DashboardClient() {
   const [data, setData] = useState<StatsResponse | null>(null);
   const [r2Stats, setR2Stats] = useState<R2Stats | null>(null);
@@ -183,6 +184,8 @@ export default function DashboardClient() {
   const [archiveError, setArchiveError] = useState("");
   const [archiveRetention, setArchiveRetention] = useState(30);
   const [archiveRunning, setArchiveRunning] = useState(false);
+  const [archiveResults, setArchiveResults] = useState<ArchiveRunResult[]>([]);
+  const [archiveSettingsSaving, setArchiveSettingsSaving] = useState(false);
 
   // Live Server Request Log filters & controls
   const [logLimit, setLogLimit] = useState<string>("50");
@@ -499,6 +502,8 @@ export default function DashboardClient() {
         throw new Error(data?.error || "Unable to load archive status.");
       }
       setArchiveStatus(data);
+      setArchiveRetention(Number(data.retentionDays ?? 30));
+      setArchiveResults(Array.isArray(data.lastResults) ? data.lastResults : []);
       setArchiveError("");
     } catch (err) {
       setArchiveError(err instanceof Error ? err.message : "Unable to load archive status.");
@@ -517,6 +522,9 @@ export default function DashboardClient() {
         body: JSON.stringify({ category: "all", retentionDays: archiveRetention }),
       });
       const data = await res.json();
+      if (Array.isArray(data?.results)) {
+        setArchiveResults(data.results);
+      }
       if (!res.ok) {
         throw new Error(data?.error || "Archive export failed.");
       }
@@ -528,16 +536,31 @@ export default function DashboardClient() {
     }
   }, [archiveRetention, loadArchiveStatus]);
 
+  const saveArchiveSettings = useCallback(async (updates: { enabled?: boolean; retentionDays?: number }) => {
+    try {
+      setArchiveSettingsSaving(true);
+      setArchiveError("");
+      const res = await fetch("/api/admin/archive", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Unable to save archive settings.");
+      setArchiveStatus((current) => current ? { ...current, ...data } : current);
+      if (typeof data.retentionDays === "number") setArchiveRetention(data.retentionDays);
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : "Unable to save archive settings.");
+    } finally {
+      setArchiveSettingsSaving(false);
+    }
+  }, []);
+
   const changeArchiveRetention = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedDays = Number(event.target.value);
     if (!ARCHIVE_RETENTION_OPTIONS.some((option) => option.days === selectedDays)) return;
 
-    setArchiveRetention(selectedDays);
-    try {
-      window.localStorage.setItem(ARCHIVE_RETENTION_STORAGE_KEY, String(selectedDays));
-    } catch {
-      // Keep the selected value active for this session if browser storage is unavailable.
-    }
+    void saveArchiveSettings({ retentionDays: selectedDays });
   };
 
   // Initial load + 30-second auto-refresh
@@ -553,17 +576,6 @@ export default function DashboardClient() {
     const interval = setInterval(() => void fetchR2Stats(), 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchR2Stats]);
-
-  useEffect(() => {
-    try {
-      const savedDays = Number(window.localStorage.getItem(ARCHIVE_RETENTION_STORAGE_KEY));
-      if (ARCHIVE_RETENTION_OPTIONS.some((option) => option.days === savedDays)) {
-        setArchiveRetention(savedDays);
-      }
-    } catch {
-      // Use the default retention period when browser storage is unavailable.
-    }
-  }, []);
 
   useEffect(() => {
     void loadArchiveStatus();
@@ -3654,10 +3666,10 @@ export default function DashboardClient() {
         {activeTab === "archive" && (() => {
           const selectedRetention = ARCHIVE_RETENTION_OPTIONS.find((option) => option.days === archiveRetention) ?? ARCHIVE_RETENTION_OPTIONS[2];
           const archiveScope = [
-            { label: "Analytics", value: `Older than ${selectedRetention.days} days` },
+            { label: "Live Access Logs", value: `From the last ${selectedRetention.label}` },
             { label: "IP security", value: "Blocked and failed-attempt history" },
             { label: "Server logs", value: "Exported only when durable logs are captured" },
-            { label: "Format", value: "Excel (.xls)" },
+            { label: "Format", value: "Excel (.xlsx)" },
             { label: "Bucket", value: archiveStatus?.bucketName || "healthcare-ip-security" },
           ];
 
@@ -3675,7 +3687,16 @@ export default function DashboardClient() {
               <div className="archive-panel-header">
                 <div className="archive-badge-inline">DATA ARCHIVE</div>
                 <div className="archive-header-actions">
-                  <button type="button" className="archive-panel-btn archive-panel-btn-primary" onClick={() => void runArchiveNow()} disabled={archiveRunning}>
+                  <label className="archive-enabled-toggle">
+                    <input
+                      type="checkbox"
+                      checked={archiveStatus?.enabled ?? false}
+                      disabled={archiveSettingsSaving || archiveLoading}
+                      onChange={(event) => void saveArchiveSettings({ enabled: event.target.checked })}
+                    />
+                    <span>{archiveStatus?.enabled ? "Enabled" : "Disabled"}</span>
+                  </label>
+                  <button type="button" className="archive-panel-btn archive-panel-btn-primary" onClick={() => void runArchiveNow()} disabled={archiveRunning || archiveSettingsSaving || !archiveStatus?.enabled}>
                     {archiveRunning ? "Running…" : "Run archive now"}
                   </button>
                   <button type="button" className="archive-panel-btn archive-panel-btn-secondary" onClick={() => setActiveTab("overview")}>
@@ -3695,12 +3716,13 @@ export default function DashboardClient() {
                     className="archive-retention-select"
                     value={archiveRetention}
                     onChange={changeArchiveRetention}
+                    disabled={archiveSettingsSaving}
                   >
                     {ARCHIVE_RETENTION_OPTIONS.map((option) => (
                       <option key={option.days} value={option.days}>{option.label}</option>
                     ))}
                   </select>
-                  <span className="archive-retention-saved" role="status">Saved automatically</span>
+                  <span className="archive-retention-saved" role="status">Saved to database</span>
                 </label>
               </div>
 
@@ -3713,13 +3735,13 @@ export default function DashboardClient() {
                 <div className="archive-guide-content">
                   <div className="archive-guide-intro">
                     <h3>What this setting does</h3>
-                    <p>The selected period is an age threshold, not a deletion rule. Choosing a period saves it in this browser, but does not start an export. Click <strong>Run archive now</strong> to copy matching older records into Excel files and upload them to the configured Cloudflare R2 bucket.</p>
+                    <p>The selected period is the time window to export, not a deletion rule. Choosing a period saves it to the database but does not start an export. Click <strong>Run archive now</strong> to copy matching recent records into Excel files and upload them to the configured Cloudflare R2 bucket.</p>
                   </div>
                   <ol className="archive-guide-flow" aria-label="Archive export workflow">
                     <li className="archive-guide-flow-step">
                       <span className="archive-guide-flow-number">01</span>
-                      <strong>Select a cutoff</strong>
-                      <span>Choose how old a record must be.</span>
+                      <strong>Select a time window</strong>
+                      <span>Choose how much recent history to export.</span>
                     </li>
                     <li className="archive-guide-flow-step">
                       <span className="archive-guide-flow-number">02</span>
@@ -3729,7 +3751,7 @@ export default function DashboardClient() {
                     <li className="archive-guide-flow-step">
                       <span className="archive-guide-flow-number">03</span>
                       <strong>Find matching records</strong>
-                      <span>Older analytics and IP security history is queried.</span>
+                      <span>Recent analytics and IP security history in the selected window is queried.</span>
                     </li>
                     <li className="archive-guide-flow-step">
                       <span className="archive-guide-flow-number">04</span>
@@ -3745,7 +3767,7 @@ export default function DashboardClient() {
                   <div className="archive-guide-data-grid">
                     <section className="archive-guide-data-card">
                       <h4>Live Access Logs and analytics</h4>
-                      <p>These come from the same MongoDB <code>analytics</code> collection. The export includes records older than the selected cutoff, not only the latest rows visible in the dashboard.</p>
+                      <p>These come from the same MongoDB <code>analytics</code> collection. The export includes access-log records from the selected recent time window.</p>
                       <ul>
                         <li>Page path and referrer</li>
                         <li>Session ID and user agent</li>
@@ -3754,7 +3776,7 @@ export default function DashboardClient() {
                     </section>
                     <section className="archive-guide-data-card">
                       <h4>IP security and IP Tables</h4>
-                      <p>The export includes older history from blocked-IP records and failed admin login attempts. It is a historical export, not an exact copy of the current filtered IP Table view.</p>
+                      <p>The export includes blocked-IP records and failed admin login attempts from the selected time window. It is not an exact copy of the current filtered IP Table view.</p>
                       <ul>
                         <li>IP, fingerprint key, country, status, and reason</li>
                         <li>Block and expiry timestamps, and attempt counts</li>
@@ -3764,7 +3786,7 @@ export default function DashboardClient() {
                   </div>
                   <div className="archive-guide-notes">
                     <section>
-                      <h4>Manual only; no automatic schedule</h4>
+                      <h4>Manual export</h4>
                       <p>Exports run only when an administrator clicks the button. No recurring archive cron job is currently configured.</p>
                     </section>
                     <section>
@@ -3777,12 +3799,12 @@ export default function DashboardClient() {
                     </section>
                   </div>
                   <div className="archive-guide-periods">
-                    <h4>Available age thresholds</h4>
+                    <h4>Available export windows</h4>
                     <div className="archive-guide-period-grid">
                       {ARCHIVE_RETENTION_OPTIONS.map((option) => (
                         <div className="archive-guide-period" key={option.days}>
                           <strong>{option.label}</strong>
-                          <span>Includes records older than {option.days} {option.days === 1 ? "day" : "days"} when an export is run.</span>
+                          <span>Includes records from the last {option.days} {option.days === 1 ? "day" : "days"} when an export is run.</span>
                         </div>
                       ))}
                     </div>
@@ -3805,6 +3827,52 @@ export default function DashboardClient() {
                     ))}
                   </div>
 
+                  {archiveResults.length > 0 ? (
+                    <section className="archive-results-panel" aria-live="polite">
+                      <h3>Latest export preview</h3>
+                      <div className="archive-result-grid">
+                        {archiveResults.map((result) => {
+                          const columns = Object.keys(result.preview[0] ?? {}).slice(0, 6);
+                          return (
+                            <article className="archive-result-card" key={result.category}>
+                              <div className="archive-result-heading">
+                                <strong>{result.category}</strong>
+                                <span>{result.status === "success" ? "Completed" : "Failed"}</span>
+                              </div>
+                              <p>{result.recordsCount} records</p>
+                              {result.fileName && result.status === "success" ? (
+                                <a className="archive-panel-btn archive-panel-btn-secondary" href={`/api/admin/archive?file=${encodeURIComponent(result.fileName)}`}>
+                                  Export {result.fileName}
+                                </a>
+                              ) : null}
+                              {result.error ? <p className="archive-result-error">{result.error}</p> : null}
+                              {columns.length > 0 ? (
+                                <div className="archive-preview-scroll">
+                                  <table className="archive-preview-table">
+                                    <thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
+                                    <tbody>
+                                      {result.preview.map((row, rowIndex) => (
+                                        <tr key={`${result.category}-${rowIndex}`}>
+                                          {columns.map((column) => (
+                                            <td key={column}>
+                                              {typeof row[column] === "string" ? row[column] as string : JSON.stringify(row[column])}
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <p className="archive-result-empty">No records in this time window.</p>
+                              )}
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ) : null}
+
                   <div className="archive-panel-grid">
                     <div className="archive-panel-box">
                       <h3>Archives in bucket</h3>
@@ -3812,9 +3880,6 @@ export default function DashboardClient() {
                       {archiveStatus && archiveStatus.files.length > 0 ? (
                         <div className="archive-file-list">
                           {archiveStatus.files.map((file) => {
-                            const fileUrl = `${archiveStatus.bucketName === "healthcare-ip-security" ? "https://pub-8ded07f2075a43daaa93fc2d473091fb.r2.dev" : ""}/${file.key}`;
-                            const link = fileUrl.startsWith("https://") ? fileUrl : "#";
-
                             return (
                               <div key={file.key} className="archive-file-row">
                                 <div>
@@ -3823,11 +3888,9 @@ export default function DashboardClient() {
                                     {file.size} bytes • {file.lastModified ? new Date(file.lastModified).toLocaleString() : "Unknown time"}
                                   </div>
                                 </div>
-                                {link !== "#" ? (
-                                  <a href={link} target="_blank" rel="noreferrer" className="archive-file-link">Download</a>
-                                ) : (
-                                  <span className="archive-pill warning">Available in bucket</span>
-                                )}
+                                <a href={`/api/admin/archive?file=${encodeURIComponent(file.key)}`} className="archive-file-link" download>
+                                  Export
+                                </a>
                               </div>
                             );
                           })}
@@ -4017,6 +4080,21 @@ export default function DashboardClient() {
           flex-wrap: wrap;
         }
 
+        .archive-enabled-toggle {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          color: var(--admin-text-primary, #fff);
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .archive-enabled-toggle input {
+          width: 18px;
+          height: 18px;
+          accent-color: #0d9488;
+        }
+
         .archive-panel-btn {
           display: inline-flex;
           align-items: center;
@@ -4040,6 +4118,12 @@ export default function DashboardClient() {
           background: #fff;
           color: #334155;
           border-color: rgba(148, 163, 184, 0.45);
+          text-decoration: none;
+        }
+
+        .archive-panel-btn:disabled {
+          cursor: not-allowed;
+          opacity: 0.55;
         }
 
         .archive-section-title-row {
@@ -4382,6 +4466,61 @@ export default function DashboardClient() {
           justify-content: center;
           box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
         }
+
+        .archive-results-panel {
+          margin: 0 0 20px;
+          padding: 16px;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 14px;
+          background: var(--admin-card-bg, #0d1322);
+        }
+
+        .archive-results-panel > h3 {
+          margin: 0 0 12px;
+          color: var(--admin-text-primary, #fff);
+        }
+
+        .archive-result-grid {
+          display: grid;
+          gap: 12px;
+        }
+
+        .archive-result-card {
+          min-width: 0;
+          padding: 12px;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 10px;
+        }
+
+        .archive-result-heading {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          color: var(--admin-text-primary, #fff);
+          text-transform: capitalize;
+        }
+
+        .archive-result-card > p,
+        .archive-result-error,
+        .archive-result-empty {
+          color: var(--admin-text-secondary, #94a3b8);
+        }
+
+        .archive-result-error { color: #fca5a5 !important; }
+        .archive-preview-scroll { overflow-x: auto; margin-top: 12px; }
+        .archive-preview-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+        .archive-preview-table th,
+        .archive-preview-table td {
+          max-width: 260px;
+          padding: 7px 9px;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          color: var(--admin-text-primary, #e2e8f0);
+          text-align: left;
+          overflow-wrap: anywhere;
+        }
+
+        .archive-preview-table th { color: var(--admin-text-secondary, #94a3b8); }
 
         .archive-tone-success { border-color: rgba(16, 185, 129, 0.25); }
         .archive-tone-warning { border-color: rgba(245, 158, 11, 0.25); }

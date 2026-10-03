@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ARCHIVE_RETENTION_OPTIONS } from "@/lib/archive-config";
 
 interface ArchiveFileItem {
   key: string;
@@ -17,6 +18,16 @@ interface ArchiveStatus {
   nextRun: string;
   files: ArchiveFileItem[];
   totalFiles: number;
+  lastResults: ArchiveRunResult[];
+}
+
+interface ArchiveRunResult {
+  category: string;
+  status: "success" | "failed";
+  fileName?: string;
+  recordsCount: number;
+  preview: Record<string, unknown>[];
+  error?: string;
 }
 
 export default function DataArchivePage() {
@@ -24,7 +35,9 @@ export default function DataArchivePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [running, setRunning] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
   const [retentionDays, setRetentionDays] = useState(30);
+  const [results, setResults] = useState<ArchiveRunResult[]>([]);
 
   async function loadStatus() {
     try {
@@ -36,6 +49,7 @@ export default function DataArchivePage() {
       }
       setStatus(data);
       setRetentionDays(Number(data?.retentionDays ?? 30));
+      setResults(Array.isArray(data?.lastResults) ? data.lastResults : []);
       setError("");
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load archive status.");
@@ -58,6 +72,7 @@ export default function DataArchivePage() {
         body: JSON.stringify({ category: "all", retentionDays }),
       });
       const data = await res.json();
+      if (Array.isArray(data?.results)) setResults(data.results);
       if (!res.ok) {
         throw new Error(data?.error || "Archive export failed.");
       }
@@ -71,18 +86,41 @@ export default function DataArchivePage() {
     }
   }
 
+  async function saveSettings(updates: { enabled?: boolean; retentionDays?: number }) {
+    try {
+      setSavingSettings(true);
+      setError("");
+      const res = await fetch("/api/admin/archive", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Unable to save archive settings.");
+      setStatus((current) => current ? { ...current, ...data } : current);
+      if (typeof data.retentionDays === "number") setRetentionDays(data.retentionDays);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Unable to save archive settings.");
+    } finally {
+      setSavingSettings(false);
+    }
+  }
+
   const archiveScope = [
-    { label: "Analytics", value: `Older than ${status?.retentionDays ?? 30} days` },
+    {
+      label: "Live Access Logs",
+      value: `Last ${ARCHIVE_RETENTION_OPTIONS.find((option) => option.days === (status?.retentionDays ?? 30))?.label ?? "30 days"}`,
+    },
     { label: "IP security", value: "Blocked and failed-attempt history" },
     { label: "Server logs", value: "Exported only when durable logs are captured" },
-    { label: "Format", value: "Excel (.xls)" },
+    { label: "Format", value: "Excel (.xlsx)" },
     { label: "Bucket", value: status?.bucketName || "healthcare-ip-security" },
   ];
 
   const metricCards = [
     { label: "Archive status", value: status?.enabled ? "Enabled" : "Disabled", tone: "success" },
     { label: "Last archive run", value: status?.lastRun ? new Date(status.lastRun).toLocaleString() : "Never", tone: "warning" },
-    { label: "Next scheduled run", value: status?.nextRun || "Monthly (default schedule)", tone: "info" },
+    { label: "Export trigger", value: "Manual run", tone: "info" },
     { label: "Bucket", value: status?.bucketName || "healthcare-ip-security", tone: "success" },
     { label: "Retention", value: `${status?.retentionDays ?? 30} days`, tone: "success" },
     { label: "Archived files", value: String(status?.totalFiles ?? 0), tone: "warning" },
@@ -97,7 +135,7 @@ export default function DataArchivePage() {
           <div className="archive-header-row">
             <h1>Archive &amp; retention</h1>
             <div className="archive-actions">
-              <button type="button" className="archive-btn archive-btn-primary" onClick={() => void runArchiveNow()} disabled={running}>
+              <button type="button" className="archive-btn archive-btn-primary" onClick={() => void runArchiveNow()} disabled={running || savingSettings || !status?.enabled}>
                 {running ? "Running…" : "Run archive now"}
               </button>
               <Link href="/admin" className="archive-btn archive-btn-secondary">
@@ -108,14 +146,25 @@ export default function DataArchivePage() {
 
           <div className="archive-controls">
             <label className="archive-retention-label">
-              Retention days
-              <input
-                type="number"
-                min={1}
-                max={3650}
+              Export time window
+              <select
                 value={retentionDays}
-                onChange={(event) => setRetentionDays(Number(event.target.value || 30))}
+                disabled={savingSettings}
+                onChange={(event) => void saveSettings({ retentionDays: Number(event.target.value) })}
+              >
+                {ARCHIVE_RETENTION_OPTIONS.map((option) => (
+                  <option key={option.days} value={option.days}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="archive-enabled-toggle">
+              <input
+                type="checkbox"
+                checked={status?.enabled ?? false}
+                disabled={savingSettings || loading}
+                onChange={(event) => void saveSettings({ enabled: event.target.checked })}
               />
+              <span>Archive {status?.enabled ? "Enabled" : "Disabled"}</span>
             </label>
           </div>
 
@@ -134,6 +183,47 @@ export default function DataArchivePage() {
                 ))}
               </div>
 
+              {results.length > 0 ? (
+                <section className="archive-results-panel" aria-live="polite">
+                  <h3>Latest export preview</h3>
+                  <div className="archive-result-list">
+                    {results.map((result) => {
+                      const columns = Object.keys(result.preview[0] ?? {}).slice(0, 6);
+                      return (
+                        <article className="archive-result-card" key={result.category}>
+                          <div className="archive-result-heading">
+                            <strong>{result.category}</strong>
+                            <span>{result.status === "success" ? "Completed" : "Failed"} · {result.recordsCount} records</span>
+                          </div>
+                          {result.fileName && result.status === "success" ? (
+                            <a className="archive-btn archive-btn-secondary" href={`/api/admin/archive?file=${encodeURIComponent(result.fileName)}`}>
+                              Export {result.fileName}
+                            </a>
+                          ) : null}
+                          {result.error ? <p className="archive-result-error">{result.error}</p> : null}
+                          {columns.length > 0 ? (
+                            <div className="archive-preview-scroll">
+                              <table className="archive-preview-table">
+                                <thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
+                                <tbody>
+                                  {result.preview.map((row, rowIndex) => (
+                                    <tr key={`${result.category}-${rowIndex}`}>
+                                      {columns.map((column) => (
+                                        <td key={column}>{typeof row[column] === "string" ? row[column] as string : JSON.stringify(row[column])}</td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : <p className="archive-result-empty">No records in this time window.</p>}
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : null}
+
               <div className="archive-panels-grid">
                 <div className="archive-panel-box">
                   <h3>Archives in bucket</h3>
@@ -141,9 +231,6 @@ export default function DataArchivePage() {
                   {status && status.files.length > 0 ? (
                     <div className="archive-file-list">
                       {status.files.map((file) => {
-                        const fileUrl = `${status.bucketName === "healthcare-ip-security" ? "https://pub-8ded07f2075a43daaa93fc2d473091fb.r2.dev" : ""}/${file.key}`;
-                        const link = fileUrl.startsWith("https://") ? fileUrl : "#";
-
                         return (
                           <div key={file.key} className="archive-file-row">
                             <div>
@@ -152,11 +239,7 @@ export default function DataArchivePage() {
                                 {file.size} bytes • {file.lastModified ? new Date(file.lastModified).toLocaleString() : "Unknown time"}
                               </div>
                             </div>
-                            {link !== "#" ? (
-                              <a href={link} target="_blank" rel="noreferrer" className="archive-link">Download</a>
-                            ) : (
-                              <span className="archive-pill warning">Available in bucket</span>
-                            )}
+                            <a href={`/api/admin/archive?file=${encodeURIComponent(file.key)}`} className="archive-link" download>Export</a>
                           </div>
                         );
                       })}
@@ -264,6 +347,11 @@ export default function DataArchivePage() {
           filter: brightness(1.04);
         }
 
+        .archive-btn:disabled {
+          cursor: not-allowed;
+          opacity: 0.55;
+        }
+
         .archive-btn-secondary {
           background: #ffffff;
           color: #334155;
@@ -298,6 +386,82 @@ export default function DataArchivePage() {
           color: #0f172a;
           font-weight: 700;
           font-size: 0.95rem;
+        }
+
+        .archive-retention-label select {
+          padding: 8px 10px;
+          border-radius: 10px;
+          border: 1px solid rgba(148, 163, 184, 0.5);
+          background: #fff;
+          color: #0f172a;
+          font-weight: 700;
+          font-size: 0.95rem;
+        }
+
+        .archive-enabled-toggle {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          color: #334155;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .archive-enabled-toggle input {
+          width: 18px;
+          height: 18px;
+          accent-color: #0d9488;
+        }
+
+        .archive-controls {
+          gap: 20px;
+          flex-wrap: wrap;
+        }
+
+        .archive-results-panel {
+          margin-bottom: 20px;
+          padding: 16px;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 14px;
+          background: rgba(255,255,255,0.46);
+        }
+
+        .archive-results-panel > h3 {
+          margin: 0 0 12px;
+        }
+
+        .archive-result-list {
+          display: grid;
+          gap: 12px;
+        }
+
+        .archive-result-card {
+          min-width: 0;
+          padding: 12px;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 10px;
+        }
+
+        .archive-result-heading {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 10px;
+          text-transform: capitalize;
+        }
+
+        .archive-result-error { color: #b91c1c; }
+        .archive-result-empty { color: #64748b; }
+        .archive-preview-scroll { overflow-x: auto; margin-top: 12px; }
+        .archive-preview-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+        .archive-preview-table th,
+        .archive-preview-table td {
+          max-width: 260px;
+          padding: 7px 9px;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          text-align: left;
+          overflow-wrap: anywhere;
         }
 
         .archive-error {
