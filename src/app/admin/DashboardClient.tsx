@@ -3926,7 +3926,7 @@ export default function DashboardClient() {
                     <li className="archive-guide-flow-step">
                       <span className="archive-guide-flow-number">05</span>
                       <strong>Upload to R2</strong>
-                      <span>Review available files in “Archives in bucket”.</span>
+                      <span>Review and download exports in “Export Preview”.</span>
                     </li>
                   </ol>
                   <div className="archive-guide-data-grid">
@@ -3996,7 +3996,7 @@ export default function DashboardClient() {
                   {archiveResults.length > 0 || archiveStatus?.lastRun ? (
                     <section className="archive-results-panel" aria-live="polite">
                       <div className="archive-results-header">
-                        <h3>Latest export preview</h3>
+                        <h3 className="archive-results-title">Export Preview</h3>
                         <p>Latest run: {formatArchiveDateTime(archiveStatus?.lastRun)}</p>
                       </div>
                       {ARCHIVE_PREVIEW_CATEGORIES.map((category) => {
@@ -4050,7 +4050,7 @@ export default function DashboardClient() {
                                     </tr>
                                   ))}
                                   {categoryResults.length === 0 ? (
-                                    <tr><td colSpan={7} className="archive-category-empty">No export entry in this run.</td></tr>
+                                    <tr><td colSpan={7} className="archive-category-empty">No export entries recorded.</td></tr>
                                   ) : null}
                                 </tbody>
                               </table>
@@ -4058,47 +4058,19 @@ export default function DashboardClient() {
                           </div>
                         );
                       })}
-                      {archiveResults.length === 0 ? <p className="archive-result-empty">All entries for this run have been cleared from MongoDB. R2 files are unchanged.</p> : null}
+                      {archiveResults.length === 0 ? <p className="archive-result-empty">No archive entries are currently recorded in MongoDB. Clearing entries does not delete R2 files.</p> : null}
                     </section>
                   ) : null}
 
-                  <div className="archive-panel-grid">
-                    <div className="archive-panel-box">
-                      <h3>Archives in bucket</h3>
-
-                      {archiveStatus && archiveStatus.files.length > 0 ? (
-                        <div className="archive-file-list">
-                          {archiveStatus.files.map((file) => {
-                            return (
-                              <div key={file.key} className="archive-file-row">
-                                <div>
-                                  <div className="archive-file-name">{file.key}</div>
-                                  <div className="archive-file-meta">
-                                    {file.size} bytes • {file.lastModified ? new Date(file.lastModified).toLocaleString() : "Unknown time"}
-                                  </div>
-                                </div>
-                                <a href={`/api/admin/archive?file=${encodeURIComponent(file.key)}`} className="archive-file-link" download>
-                                  Export
-                                </a>
-                              </div>
-                            );
-                          })}
+                  <div className="archive-panel-box archive-scope-panel">
+                    <h3>Archive scope</h3>
+                    <div className="archive-scope-list">
+                      {archiveScope.map((item) => (
+                        <div key={item.label} className="archive-scope-row">
+                          <span>{item.label}</span>
+                          <strong>{item.value}</strong>
                         </div>
-                      ) : (
-                        <div className="archive-empty">No archived Excel files have been uploaded yet.</div>
-                      )}
-                    </div>
-
-                    <div className="archive-panel-box">
-                      <h3>Archive scope</h3>
-                      <div className="archive-scope-list">
-                        {archiveScope.map((item) => (
-                          <div key={item.label} className="archive-scope-row">
-                            <span>{item.label}</span>
-                            <strong>{item.value}</strong>
-                          </div>
-                        ))}
-                      </div>
+                      ))}
                     </div>
                   </div>
                 </>
@@ -4945,6 +4917,15 @@ export default function DashboardClient() {
           color: var(--admin-text-secondary, #94a3b8);
           font-size: 0.85rem;
           font-weight: 600;
+        }
+
+        .archive-results-title {
+          margin: 0 0 12px;
+          color: #f472b6;
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: 1.3rem;
+          font-weight: 700;
+          letter-spacing: 0.015em;
         }
 
         .archive-result-grid {

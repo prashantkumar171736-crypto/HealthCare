@@ -350,7 +350,7 @@ export default function DataArchivePage() {
               {results.length > 0 || status?.lastRun ? (
                 <section className="archive-results-panel" aria-live="polite">
                   <div className="archive-results-header">
-                    <h3>Latest export preview</h3>
+                    <h3 className="archive-results-title">Export Preview</h3>
                     <p>Latest run: {formatArchiveDateTime(status?.lastRun)}</p>
                   </div>
                   {ARCHIVE_PREVIEW_CATEGORIES.map((category) => {
@@ -404,7 +404,7 @@ export default function DataArchivePage() {
                                 </tr>
                               ))}
                               {categoryResults.length === 0 ? (
-                                <tr><td colSpan={7} className="archive-category-empty">No export entry in this run.</td></tr>
+                                <tr><td colSpan={7} className="archive-category-empty">No export entries recorded.</td></tr>
                               ) : null}
                             </tbody>
                           </table>
@@ -412,45 +412,19 @@ export default function DataArchivePage() {
                       </div>
                     );
                   })}
-                    {results.length === 0 ? <p className="archive-result-empty">All entries for this run have been cleared from MongoDB. R2 files are unchanged.</p> : null}
+                  {results.length === 0 ? <p className="archive-result-empty">No archive entries are currently recorded in MongoDB. Clearing entries does not delete R2 files.</p> : null}
                 </section>
               ) : null}
 
-              <div className="archive-panels-grid">
-                <div className="archive-panel-box">
-                  <h3>Archives in bucket</h3>
-
-                  {status && status.files.length > 0 ? (
-                    <div className="archive-file-list">
-                      {status.files.map((file) => {
-                        return (
-                          <div key={file.key} className="archive-file-row">
-                            <div>
-                              <div className="archive-file-name">{file.key}</div>
-                              <div className="archive-file-meta">
-                                {file.size} bytes • {file.lastModified ? new Date(file.lastModified).toLocaleString() : "Unknown time"}
-                              </div>
-                            </div>
-                            <a href={`/api/admin/archive?file=${encodeURIComponent(file.key)}`} className="archive-link" download>Export</a>
-                          </div>
-                        );
-                      })}
+              <div className="archive-panel-box archive-scope-panel">
+                <h3>Archive scope</h3>
+                <div className="archive-scope-list">
+                  {archiveScope.map((item) => (
+                    <div key={item.label} className="archive-scope-row">
+                      <span>{item.label}</span>
+                      <strong>{item.value}</strong>
                     </div>
-                  ) : (
-                    <div className="archive-empty">No archived Excel files have been uploaded yet.</div>
-                  )}
-                </div>
-
-                <div className="archive-panel-box">
-                  <h3>Archive scope</h3>
-                  <div className="archive-scope-list">
-                    {archiveScope.map((item) => (
-                      <div key={item.label} className="archive-scope-row">
-                        <span>{item.label}</span>
-                        <strong>{item.value}</strong>
-                      </div>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               </div>
             </>
@@ -893,6 +867,15 @@ export default function DataArchivePage() {
           color: #64748b;
           font-size: 0.85rem;
           font-weight: 600;
+        }
+
+        .archive-results-title {
+          margin: 0 0 12px;
+          color: #e11d74;
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: 1.3rem;
+          font-weight: 700;
+          letter-spacing: 0.015em;
         }
 
         .archive-result-list {

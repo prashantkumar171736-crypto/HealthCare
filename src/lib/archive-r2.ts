@@ -510,12 +510,9 @@ export async function updateArchiveSettings(settings: Partial<ArchiveSettings>):
 export async function getArchiveSummary() {
   const db = await getDb();
   const archiveSettings = await db.collection("settings").findOne({ key: ARCHIVE_SETTINGS_KEY });
-  const latestJob = await db.collection("archive_jobs").find({}).sort({ startedAt: -1 }).limit(1).toArray();
-  const latestRunId = typeof archiveSettings?.lastRunId === "string" ? archiveSettings.lastRunId : latestJob[0]?.runId;
-  const latestRunAt = archiveSettings?.lastRunAt ?? latestJob[0]?.startedAt ?? null;
-  const lastResults = latestRunId
-    ? await db.collection("archive_jobs").find({ runId: latestRunId }).sort({ startedAt: 1 }).toArray()
-    : [];
+  const archiveJobs = await db.collection("archive_jobs").find({}).sort({ startedAt: -1 }).toArray();
+  const latestJob = archiveJobs[0];
+  const latestRunAt = archiveSettings?.lastRunAt ?? latestJob?.startedAt ?? null;
   const [filesResult, settings] = await Promise.allSettled([listArchiveFiles(), getArchiveSettings()]);
   if (settings.status === "rejected") throw settings.reason;
   const files = filesResult.status === "fulfilled" ? filesResult.value : [];
@@ -534,7 +531,7 @@ export async function getArchiveSummary() {
     files: files.slice(0, 20),
     totalFiles: files.length,
     filesError,
-    lastResults: lastResults.map((job) => ({
+    lastResults: archiveJobs.map((job) => ({
       jobId: job._id.toString(),
       category: job.jobType,
       status: job.status,
