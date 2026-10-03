@@ -107,6 +107,12 @@ export default function DataArchivePage() {
   const [results, setResults] = useState<ArchiveRunResult[]>([]);
   const [runFeedback, setRunFeedback] = useState<ArchiveRunFeedback | null>(null);
 
+  useEffect(() => {
+    if (!runFeedback || running) return;
+    const timeoutId = window.setTimeout(() => setRunFeedback(null), 5000);
+    return () => window.clearTimeout(timeoutId);
+  }, [runFeedback, running]);
+
   async function loadStatus(showLoading = false) {
     try {
       if (showLoading) setLoading(true);
@@ -255,7 +261,10 @@ export default function DataArchivePage() {
                     role="status"
                     aria-live="polite"
                   >
-                    {runFeedback.message}
+                    <span className="archive-run-feedback-icon" aria-hidden="true">
+                      {runFeedback.status === "success" ? "✓" : "×"}
+                    </span>
+                    <span>{runFeedback.message}</span>
                   </div>
                 ) : <span className="archive-run-feedback-placeholder" aria-hidden="true" />}
               </div>
@@ -570,28 +579,60 @@ export default function DataArchivePage() {
         .archive-run-feedback {
           display: flex;
           align-items: center;
+          gap: 14px;
           width: 100%;
-          min-height: 76px;
+          min-height: 88px;
           box-sizing: border-box;
-          padding: 8px 12px;
-          border: 1px solid;
-          border-radius: 10px;
-          font-size: 0.76rem;
+          padding: 12px 16px;
+          border: 2px solid;
+          border-radius: 16px;
+          font-size: 0.84rem;
           font-weight: 750;
-          line-height: 1.35;
+          line-height: 1.45;
           overflow-wrap: anywhere;
+          box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
         }
 
         .archive-run-feedback.success {
-          border-color: rgba(22, 163, 74, 0.25);
-          background: #f0fdf4;
-          color: #15803d;
+          border-color: #34d399;
+          background: linear-gradient(135deg, #ecfdf5, #f0fdfa);
+          color: #064e3b;
         }
 
         .archive-run-feedback.failed {
-          border-color: rgba(220, 38, 38, 0.25);
-          background: #fef2f2;
-          color: #b91c1c;
+          border-color: #fb7185;
+          background: linear-gradient(135deg, #fff1f2, #fef2f2);
+          color: #881337;
+        }
+
+        .archive-run-feedback-icon {
+          display: grid;
+          flex: 0 0 42px;
+          width: 42px;
+          height: 42px;
+          place-items: center;
+          border-radius: 50%;
+          color: #fff;
+          font-size: 1.8rem;
+          font-weight: 800;
+          line-height: 1;
+        }
+
+        .archive-run-feedback.success .archive-run-feedback-icon {
+          background: linear-gradient(135deg, #10b981, #059669);
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+        }
+
+        .archive-run-feedback.failed .archive-run-feedback-icon {
+          background: linear-gradient(135deg, #f43f5e, #dc2626);
+          box-shadow: 0 4px 12px rgba(244, 63, 94, 0.22);
+        }
+
+        @media (max-width: 640px) {
+          .archive-run-feedback-slot {
+            width: 100%;
+            flex-basis: 100%;
+          }
         }
 
         @keyframes archive-progress-slide {

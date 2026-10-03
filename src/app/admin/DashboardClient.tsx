@@ -253,6 +253,12 @@ export default function DashboardClient() {
   const [archiveRunning, setArchiveRunning] = useState(false);
   const [archiveResults, setArchiveResults] = useState<ArchiveRunResult[]>([]);
   const [archiveRunFeedback, setArchiveRunFeedback] = useState<ArchiveRunFeedback | null>(null);
+
+  useEffect(() => {
+    if (!archiveRunFeedback || archiveRunning) return;
+    const timeoutId = window.setTimeout(() => setArchiveRunFeedback(null), 5000);
+    return () => window.clearTimeout(timeoutId);
+  }, [archiveRunFeedback, archiveRunning]);
   const [archiveSettingsSaving, setArchiveSettingsSaving] = useState(false);
 
   // Live Server Request Log filters & controls
@@ -3819,7 +3825,10 @@ export default function DashboardClient() {
                         role="status"
                         aria-live="polite"
                       >
-                        {archiveRunFeedback.message}
+                        <span className="archive-run-feedback-icon" aria-hidden="true">
+                          {archiveRunFeedback.status === "success" ? "✓" : "×"}
+                        </span>
+                        <span>{archiveRunFeedback.message}</span>
                       </div>
                     ) : <span className="archive-run-feedback-placeholder" aria-hidden="true" />}
                   </div>
@@ -4381,28 +4390,60 @@ export default function DashboardClient() {
         .archive-run-feedback {
           display: flex;
           align-items: center;
+          gap: 14px;
           width: 100%;
-          min-height: 76px;
+          min-height: 88px;
           box-sizing: border-box;
-          padding: 8px 12px;
-          border: 1px solid;
-          border-radius: 10px;
-          font-size: 0.76rem;
+          padding: 12px 16px;
+          border: 2px solid;
+          border-radius: 16px;
+          font-size: 0.84rem;
           font-weight: 750;
-          line-height: 1.35;
+          line-height: 1.45;
           overflow-wrap: anywhere;
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
         }
 
         .archive-run-feedback.success {
-          border-color: rgba(22, 163, 74, 0.35);
-          background: rgba(22, 163, 74, 0.12);
-          color: #4ade80;
+          border-color: #34d399;
+          background: linear-gradient(135deg, rgba(16, 185, 129, 0.16), rgba(13, 148, 136, 0.12));
+          color: #a7f3d0;
         }
 
         .archive-run-feedback.failed {
-          border-color: rgba(248, 113, 113, 0.35);
-          background: rgba(220, 38, 38, 0.12);
-          color: #fca5a5;
+          border-color: #fb7185;
+          background: linear-gradient(135deg, rgba(244, 63, 94, 0.16), rgba(220, 38, 38, 0.12));
+          color: #fecdd3;
+        }
+
+        .archive-run-feedback-icon {
+          display: grid;
+          flex: 0 0 42px;
+          width: 42px;
+          height: 42px;
+          place-items: center;
+          border-radius: 50%;
+          color: #fff;
+          font-size: 1.8rem;
+          font-weight: 800;
+          line-height: 1;
+        }
+
+        .archive-run-feedback.success .archive-run-feedback-icon {
+          background: linear-gradient(135deg, #10b981, #059669);
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+        }
+
+        .archive-run-feedback.failed .archive-run-feedback-icon {
+          background: linear-gradient(135deg, #f43f5e, #dc2626);
+          box-shadow: 0 4px 12px rgba(244, 63, 94, 0.22);
+        }
+
+        @media (max-width: 640px) {
+          .archive-run-feedback-slot {
+            width: 100%;
+            flex-basis: 100%;
+          }
         }
 
         @keyframes archive-progress-slide {
