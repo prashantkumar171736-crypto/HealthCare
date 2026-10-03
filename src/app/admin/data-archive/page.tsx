@@ -33,6 +33,11 @@ interface ArchiveRunResult {
   error?: string;
 }
 
+interface ArchiveRunFeedback {
+  status: "success" | "failed";
+  message: string;
+}
+
 const ARCHIVE_PREVIEW_CATEGORIES = [
   { key: "analytics", label: "Analytics" },
   { key: "ip-security", label: "IP Security" },
@@ -76,6 +81,22 @@ function getArchiveStatusLabel(status: ArchiveRunResult["status"]): string {
   return status === "processing" ? "Processing" : "Pending";
 }
 
+function getArchiveRunFeedback(results: ArchiveRunResult[], bucketName: string): ArchiveRunFeedback {
+  const failedCategories = results.filter((result) => result.status === "failed");
+  if (results.length > 0 && failedCategories.length === 0) {
+    return {
+      status: "success",
+      message: `Export file generated and uploaded on R2 ${bucketName} Bucket successfully.`,
+    };
+  }
+
+  const categoryNames = failedCategories.map((result) => result.category).join(", ");
+  return {
+    status: "failed",
+    message: `Export processing failed. File not uploaded on R2 ${bucketName} Bucket for: ${categoryNames}.`,
+  };
+}
+
 export default function DataArchivePage() {
   const [status, setStatus] = useState<ArchiveStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,6 +105,7 @@ export default function DataArchivePage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [retentionDays, setRetentionDays] = useState(30);
   const [results, setResults] = useState<ArchiveRunResult[]>([]);
+  const [runFeedback, setRunFeedback] = useState<ArchiveRunFeedback | null>(null);
 
   async function loadStatus() {
     try {
@@ -111,6 +133,7 @@ export default function DataArchivePage() {
   async function runArchiveNow() {
     try {
       setRunning(true);
+      setRunFeedback(null);
       setError("");
       const res = await fetch("/api/admin/archive", {
         method: "POST",
@@ -118,13 +141,25 @@ export default function DataArchivePage() {
         body: JSON.stringify({ category: "all", retentionDays }),
       });
       const data = await res.json();
-      if (Array.isArray(data?.results)) setResults(data.results);
+      if (Array.isArray(data?.results)) {
+        setResults(data.results);
+        setRunFeedback(getArchiveRunFeedback(data.results, data.bucketName || status?.bucketName || "archive"));
+      } else {
+        setRunFeedback({
+          status: "failed",
+          message: `Export processing failed. File not uploaded on R2 ${status?.bucketName || "archive"} Bucket.`,
+        });
+      }
       if (!res.ok) {
         throw new Error(data?.error || "Archive export failed.");
       }
       await loadStatus();
       return data;
     } catch (runError) {
+      setRunFeedback((current) => current ?? {
+        status: "failed",
+        message: `Export processing failed. File not uploaded on R2 ${status?.bucketName || "archive"} Bucket.`,
+      });
       setError(runError instanceof Error ? runError.message : "Archive export failed.");
       return null;
     } finally {
@@ -207,6 +242,23 @@ export default function DataArchivePage() {
                   {running ? "Running…" : "Run archive now"}
                 </button>
               </span>
+              {running ? (
+                <div className="archive-run-progress" role="status" aria-live="polite" aria-busy="true">
+                  <span>Processing…</span>
+                  <span className="archive-run-progress-track" aria-hidden="true"><span /></span>
+                </div>
+              ) : runFeedback ? (
+                <span
+                  className={`archive-run-feedback ${runFeedback.status}`}
+                  title={runFeedback.message}
+                  data-tooltip={runFeedback.message}
+                  role="status"
+                  aria-label={runFeedback.message}
+                  tabIndex={0}
+                >
+                  {runFeedback.status === "success" ? "Upload complete" : "Upload failed"}
+                </span>
+              ) : null}
               <Link href="/admin" className="archive-btn archive-btn-secondary">
                 Back to dashboard
               </Link>
@@ -280,7 +332,7 @@ export default function DataArchivePage() {
                                 <th scope="col">Status</th>
                                 <th scope="col">Records</th>
                                 <th scope="col">Archived At</th>
-                                <th scope="col">Clear Button</th>
+                                <th scope="col">Action</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -466,6 +518,100 @@ export default function DataArchivePage() {
 
         .archive-run-disabled > button:disabled {
           pointer-events: none;
+        }
+
+        .archive-run-progress {
+          display: grid;
+          gap: 8px;
+          width: min(240px, 100%);
+          padding: 10px 13px;
+          border: 1px solid rgba(148, 163, 184, 0.2);
+          border-radius: 12px;
+          background: #fff;
+          box-shadow: 0 5px 14px rgba(15, 23, 42, 0.1);
+          color: #334155;
+          font-size: 0.82rem;
+          font-weight: 750;
+        }
+
+        .archive-run-progress-track {
+          display: block;
+          height: 9px;
+          overflow: hidden;
+          border-radius: 999px;
+          background: #e5e7eb;
+        }
+
+        .archive-run-progress-track > span {
+          display: block;
+          width: 38%;
+          height: 100%;
+          border-radius: inherit;
+          background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80);
+          animation: archive-progress-slide 1.15s ease-in-out infinite;
+        }
+
+        .archive-run-feedback {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          min-height: 38px;
+          padding: 8px 12px;
+          border: 1px solid;
+          border-radius: 10px;
+          font-size: 0.82rem;
+          font-weight: 750;
+          cursor: help;
+        }
+
+        .archive-run-feedback.success {
+          border-color: rgba(22, 163, 74, 0.25);
+          background: #f0fdf4;
+          color: #15803d;
+        }
+
+        .archive-run-feedback.failed {
+          border-color: rgba(220, 38, 38, 0.25);
+          background: #fef2f2;
+          color: #b91c1c;
+        }
+
+        .archive-run-feedback::after {
+          position: absolute;
+          z-index: 20;
+          top: calc(100% + 8px);
+          right: 0;
+          width: max-content;
+          max-width: min(360px, 80vw);
+          padding: 9px 12px;
+          border-radius: 8px;
+          background: #0f172a;
+          color: #fff;
+          content: attr(data-tooltip);
+          font-size: 0.78rem;
+          font-weight: 600;
+          line-height: 1.45;
+          white-space: normal;
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+          opacity: 0;
+          pointer-events: none;
+          transform: translateY(-3px);
+          transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+
+        .archive-run-feedback:hover::after,
+        .archive-run-feedback:focus-visible::after {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        @keyframes archive-progress-slide {
+          from { transform: translateX(-115%); }
+          to { transform: translateX(270%); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .archive-run-progress-track > span { animation-duration: 2.5s; }
         }
 
         .archive-btn-secondary {

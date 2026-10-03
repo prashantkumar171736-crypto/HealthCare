@@ -88,6 +88,11 @@ interface ArchiveRunResult {
   error?: string;
 }
 
+interface ArchiveRunFeedback {
+  status: "success" | "failed";
+  message: string;
+}
+
 const ARCHIVE_PREVIEW_CATEGORIES = [
   { key: "analytics", label: "Analytics" },
   { key: "ip-security", label: "IP Security" },
@@ -129,6 +134,22 @@ function getArchiveStatusLabel(status: ArchiveRunResult["status"]): string {
   if (status === "success") return "Completed";
   if (status === "failed") return "Failed";
   return status === "processing" ? "Processing" : "Pending";
+}
+
+function getArchiveRunFeedback(results: ArchiveRunResult[], bucketName: string): ArchiveRunFeedback {
+  const failedCategories = results.filter((result) => result.status === "failed");
+  if (results.length > 0 && failedCategories.length === 0) {
+    return {
+      status: "success",
+      message: `Export file generated and uploaded on R2 ${bucketName} Bucket successfully.`,
+    };
+  }
+
+  const categoryNames = failedCategories.map((result) => result.category).join(", ");
+  return {
+    status: "failed",
+    message: `Export processing failed. File not uploaded on R2 ${bucketName} Bucket for: ${categoryNames}.`,
+  };
 }
 
 export interface R2Stats {
@@ -231,6 +252,7 @@ export default function DashboardClient() {
   const [archiveRetention, setArchiveRetention] = useState(30);
   const [archiveRunning, setArchiveRunning] = useState(false);
   const [archiveResults, setArchiveResults] = useState<ArchiveRunResult[]>([]);
+  const [archiveRunFeedback, setArchiveRunFeedback] = useState<ArchiveRunFeedback | null>(null);
   const [archiveSettingsSaving, setArchiveSettingsSaving] = useState(false);
 
   // Live Server Request Log filters & controls
@@ -561,6 +583,7 @@ export default function DashboardClient() {
   const runArchiveNow = useCallback(async () => {
     try {
       setArchiveRunning(true);
+      setArchiveRunFeedback(null);
       setArchiveError("");
       const res = await fetch("/api/admin/archive", {
         method: "POST",
@@ -570,17 +593,27 @@ export default function DashboardClient() {
       const data = await res.json();
       if (Array.isArray(data?.results)) {
         setArchiveResults(data.results);
+        setArchiveRunFeedback(getArchiveRunFeedback(data.results, data.bucketName || archiveStatus?.bucketName || "archive"));
+      } else {
+        setArchiveRunFeedback({
+          status: "failed",
+          message: `Export processing failed. File not uploaded on R2 ${archiveStatus?.bucketName || "archive"} Bucket.`,
+        });
       }
       if (!res.ok) {
         throw new Error(data?.error || "Archive export failed.");
       }
       await loadArchiveStatus();
     } catch (err) {
+      setArchiveRunFeedback((current) => current ?? {
+        status: "failed",
+        message: `Export processing failed. File not uploaded on R2 ${archiveStatus?.bucketName || "archive"} Bucket.`,
+      });
       setArchiveError(err instanceof Error ? err.message : "Archive export failed.");
     } finally {
       setArchiveRunning(false);
     }
-  }, [archiveRetention, loadArchiveStatus]);
+  }, [archiveRetention, archiveStatus, loadArchiveStatus]);
 
   const saveArchiveSettings = useCallback(async (updates: { enabled?: boolean; retentionDays?: number }) => {
     const previousStatus = archiveStatus;
@@ -3774,6 +3807,23 @@ export default function DashboardClient() {
                       {archiveRunning ? "Running…" : "Run archive now"}
                     </button>
                   </span>
+                  {archiveRunning ? (
+                    <div className="archive-run-progress" role="status" aria-live="polite" aria-busy="true">
+                      <span>Processing…</span>
+                      <span className="archive-run-progress-track" aria-hidden="true"><span /></span>
+                    </div>
+                  ) : archiveRunFeedback ? (
+                    <span
+                      className={`archive-run-feedback ${archiveRunFeedback.status}`}
+                      title={archiveRunFeedback.message}
+                      data-tooltip={archiveRunFeedback.message}
+                      role="status"
+                      aria-label={archiveRunFeedback.message}
+                      tabIndex={0}
+                    >
+                      {archiveRunFeedback.status === "success" ? "Upload complete" : "Upload failed"}
+                    </span>
+                  ) : null}
                   <button type="button" className="archive-panel-btn archive-panel-btn-secondary" onClick={() => setActiveTab("overview")}>
                     Back to dashboard
                   </button>
@@ -3924,7 +3974,7 @@ export default function DashboardClient() {
                                     <th scope="col">Status</th>
                                     <th scope="col">Records</th>
                                     <th scope="col">Archived At</th>
-                                    <th scope="col">Clear Button</th>
+                                    <th scope="col">Action</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -4280,6 +4330,100 @@ export default function DashboardClient() {
 
         .archive-run-disabled > button:disabled {
           pointer-events: none;
+        }
+
+        .archive-run-progress {
+          display: grid;
+          gap: 8px;
+          width: min(240px, 100%);
+          padding: 10px 13px;
+          border: 1px solid var(--admin-border, rgba(148, 163, 184, 0.2));
+          border-radius: 12px;
+          background: var(--admin-card-bg, #0d1322);
+          box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18);
+          color: var(--admin-text-primary, #e2e8f0);
+          font-size: 0.82rem;
+          font-weight: 750;
+        }
+
+        .archive-run-progress-track {
+          display: block;
+          height: 9px;
+          overflow: hidden;
+          border-radius: 999px;
+          background: var(--admin-hover-bg, rgba(148, 163, 184, 0.2));
+        }
+
+        .archive-run-progress-track > span {
+          display: block;
+          width: 38%;
+          height: 100%;
+          border-radius: inherit;
+          background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80);
+          animation: archive-progress-slide 1.15s ease-in-out infinite;
+        }
+
+        .archive-run-feedback {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          min-height: 38px;
+          padding: 8px 12px;
+          border: 1px solid;
+          border-radius: 10px;
+          font-size: 0.82rem;
+          font-weight: 750;
+          cursor: help;
+        }
+
+        .archive-run-feedback.success {
+          border-color: rgba(22, 163, 74, 0.35);
+          background: rgba(22, 163, 74, 0.12);
+          color: #4ade80;
+        }
+
+        .archive-run-feedback.failed {
+          border-color: rgba(248, 113, 113, 0.35);
+          background: rgba(220, 38, 38, 0.12);
+          color: #fca5a5;
+        }
+
+        .archive-run-feedback::after {
+          position: absolute;
+          z-index: 20;
+          top: calc(100% + 8px);
+          right: 0;
+          width: max-content;
+          max-width: min(360px, 80vw);
+          padding: 9px 12px;
+          border-radius: 8px;
+          background: #0f172a;
+          color: #fff;
+          content: attr(data-tooltip);
+          font-size: 0.78rem;
+          font-weight: 600;
+          line-height: 1.45;
+          white-space: normal;
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+          opacity: 0;
+          pointer-events: none;
+          transform: translateY(-3px);
+          transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+
+        .archive-run-feedback:hover::after,
+        .archive-run-feedback:focus-visible::after {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        @keyframes archive-progress-slide {
+          from { transform: translateX(-115%); }
+          to { transform: translateX(270%); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .archive-run-progress-track > span { animation-duration: 2.5s; }
         }
 
         .archive-section-title-row {
