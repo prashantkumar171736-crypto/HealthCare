@@ -71,12 +71,35 @@ function safeValue(value: unknown): string {
   }
 }
 
-function buildWorkbook(rows: Record<string, unknown>[], sheetName: string): ExcelJS.Workbook {
+function formatArchiveDateTime(value: Date): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+    timeZone: "Asia/Kolkata",
+  }).format(value);
+}
+
+export interface ArchiveWorkbookSummary {
+  category: ArchiveCategory;
+  fileName: string;
+  recordsCount: number;
+  retentionDays: number;
+  startAt: Date;
+  endAt: Date;
+  generatedAt: Date;
+  bucketName: string;
+}
+
+export function buildArchiveWorkbook(
+  rows: Record<string, unknown>[],
+  sheetName: string,
+  summary: ArchiveWorkbookSummary,
+): ExcelJS.Workbook {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet(sheetName);
 
   const firstRow = rows[0] ?? {};
-  const keys = Object.keys(firstRow).length > 0 ? Object.keys(firstRow) : ["message"];
+  const keys = Object.keys(firstRow).length > 0 ? Object.keys(firstRow) : ["ID", "message"];
 
   sheet.columns = keys.map((key) => ({
     header: key,
@@ -93,6 +116,34 @@ function buildWorkbook(rows: Record<string, unknown>[], sheetName: string): Exce
   }
 
   sheet.getRow(1).font = { bold: true };
+
+  const summarySheet = workbook.addWorksheet("Summary");
+  summarySheet.columns = [
+    { header: "Summary item", key: "item", width: 28 },
+    { header: "Details", key: "details", width: 72 },
+  ];
+  const summaryRows: Array<[string, string]> = [
+    ["Category", summary.category],
+    ["Export file", summary.fileName],
+    ["Upload status", "Successfully uploaded to R2"],
+    ["Records archived", String(summary.recordsCount)],
+    ["Retention window", `Last ${summary.retentionDays} ${summary.retentionDays === 1 ? "day" : "days"}`],
+    ["Window start (India time)", formatArchiveDateTime(summary.startAt)],
+    ["Window end (India time)", formatArchiveDateTime(summary.endAt)],
+    ["Export generated (India time)", formatArchiveDateTime(summary.generatedAt)],
+    ["R2 bucket", summary.bucketName],
+    ["Record fields", keys.join(", ")],
+  ];
+  for (const [item, details] of summaryRows) {
+    summarySheet.addRow({ item, details });
+  }
+  summarySheet.getRow(1).font = { bold: true };
+  summarySheet.views = [{ state: "frozen", ySplit: 1 }];
+  summarySheet.autoFilter = {
+    from: "A1",
+    to: `B${summarySheet.rowCount}`,
+  };
+
   return workbook;
 }
 
@@ -103,6 +154,7 @@ async function getAnalyticsArchiveRows(startAt: Date, endAt: Date): Promise<Reco
   }).sort({ timestamp: 1 }).toArray();
 
   return rows.map((row) => ({
+    ID: row._id.toString(),
     path: row.path ?? "",
     referrer: row.referrer ?? "",
     userAgent: row.userAgent ?? "",
@@ -123,6 +175,7 @@ async function getIpSecurityArchiveRows(startAt: Date, endAt: Date): Promise<Rec
   ]);
 
   const blockRows = blockedIps.map((row) => ({
+    ID: row._id.toString(),
     ip: row.ip ?? "",
     ipKey: row.ipKey ?? "",
     country: row.country ?? "",
@@ -134,6 +187,7 @@ async function getIpSecurityArchiveRows(startAt: Date, endAt: Date): Promise<Rec
   }));
 
   const attemptRows = failedAttempts.map((row) => ({
+    ID: row._id.toString(),
     ip: row.ip ?? "",
     ipKey: row.ipKey ?? "",
     country: row.country ?? "",
@@ -211,8 +265,11 @@ export async function getArchiveBucketStatus(): Promise<{ status: "Connected" | 
   }
 }
 
-export async function uploadArchiveFile(category: ArchiveCategory, buffer: Buffer): Promise<{ fileName: string; publicUrl: string }> {
-  const fileName = formatArchiveFileName(category);
+export async function uploadArchiveFile(
+  category: ArchiveCategory,
+  buffer: Buffer,
+  fileName = formatArchiveFileName(category),
+): Promise<{ fileName: string; publicUrl: string }> {
 
   try {
     await getArchiveClient().send(new PutObjectCommand({
@@ -312,9 +369,24 @@ export async function runArchiveExport(category: ArchiveCategory | "all" = "all"
     let rows: Record<string, unknown>[] = [];
     try {
       rows = await getArchiveRowsForCategory(item, startAt, endAt);
-      const workbook = buildWorkbook(rows, item === "ip-security" ? "ip-security" : item === "server-logs" ? "server-logs" : "analytics");
+      const fileName = formatArchiveFileName(item);
+      const generatedAt = new Date();
+      const workbook = buildArchiveWorkbook(
+        rows,
+        item === "ip-security" ? "ip-security" : item === "server-logs" ? "server-logs" : "analytics",
+        {
+          category: item,
+          fileName,
+          recordsCount: rows.length,
+          retentionDays,
+          startAt,
+          endAt,
+          generatedAt,
+          bucketName: ARCHIVE_BUCKET_NAME,
+        },
+      );
       const buffer = await workbook.xlsx.writeBuffer();
-      const archiveFile = await uploadArchiveFile(item, Buffer.from(buffer));
+      const archiveFile = await uploadArchiveFile(item, Buffer.from(buffer), fileName);
       const completedAt = new Date();
       const jobId = await recordArchiveJob(runId, item, startedAt, completedAt, "success", rows.length, archiveFile.fileName, ARCHIVE_BUCKET_NAME);
       results.push({
