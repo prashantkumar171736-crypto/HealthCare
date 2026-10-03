@@ -135,9 +135,14 @@ export default function DataArchivePage() {
           <div className="archive-header-row">
             <h1>Archive &amp; retention</h1>
             <div className="archive-actions">
-              <button type="button" className="archive-btn archive-btn-primary" onClick={() => void runArchiveNow()} disabled={running || savingSettings || !status?.enabled}>
-                {running ? "Running…" : "Run archive now"}
-              </button>
+              <span
+                className={`archive-run-button-wrap${!status?.enabled ? " archive-run-disabled" : ""}`}
+                title={!status?.enabled ? "Enable the archive switch before starting an export." : undefined}
+              >
+                <button type="button" className="archive-btn archive-btn-primary" onClick={() => void runArchiveNow()} disabled={running || savingSettings || !status?.enabled}>
+                  {running ? "Running…" : "Run archive now"}
+                </button>
+              </span>
               <Link href="/admin" className="archive-btn archive-btn-secondary">
                 Back to dashboard
               </Link>
@@ -157,14 +162,16 @@ export default function DataArchivePage() {
                 ))}
               </select>
             </label>
-            <label className="archive-enabled-toggle">
+            <label className="archive-switch">
               <input
                 type="checkbox"
+                role="switch"
                 checked={status?.enabled ?? false}
                 disabled={savingSettings || loading}
                 onChange={(event) => void saveSettings({ enabled: event.target.checked })}
               />
-              <span>Archive {status?.enabled ? "Enabled" : "Disabled"}</span>
+              <span className="archive-switch-track" aria-hidden="true"><span /></span>
+              <span className="archive-switch-label">{status?.enabled ? "Enabled" : "Disabled"}</span>
             </label>
           </div>
 
@@ -352,6 +359,18 @@ export default function DataArchivePage() {
           opacity: 0.55;
         }
 
+        .archive-run-button-wrap {
+          display: inline-flex;
+        }
+
+        .archive-run-disabled {
+          cursor: not-allowed;
+        }
+
+        .archive-run-disabled > button:disabled {
+          pointer-events: none;
+        }
+
         .archive-btn-secondary {
           background: #ffffff;
           color: #334155;
@@ -398,7 +417,8 @@ export default function DataArchivePage() {
           font-size: 0.95rem;
         }
 
-        .archive-enabled-toggle {
+        .archive-switch {
+          position: relative;
           display: inline-flex;
           align-items: center;
           gap: 8px;
@@ -407,10 +427,49 @@ export default function DataArchivePage() {
           cursor: pointer;
         }
 
-        .archive-enabled-toggle input {
+        .archive-switch input {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          opacity: 0;
+        }
+
+        .archive-switch-track {
+          position: relative;
+          width: 42px;
+          height: 24px;
+          border-radius: 999px;
+          background: #94a3b8;
+          transition: background 0.2s ease;
+        }
+
+        .archive-switch-track > span {
+          position: absolute;
+          top: 3px;
+          left: 3px;
           width: 18px;
           height: 18px;
-          accent-color: #0d9488;
+          border-radius: 50%;
+          background: #fff;
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
+          transition: transform 0.2s ease;
+        }
+
+        .archive-switch input:checked + .archive-switch-track {
+          background: #0d9488;
+        }
+
+        .archive-switch input:checked + .archive-switch-track > span {
+          transform: translateX(18px);
+        }
+
+        .archive-switch input:focus-visible + .archive-switch-track {
+          outline: 3px solid rgba(13, 148, 136, 0.3);
+          outline-offset: 2px;
+        }
+
+        .archive-switch input:disabled ~ .archive-switch-label {
+          opacity: 0.6;
         }
 
         .archive-controls {

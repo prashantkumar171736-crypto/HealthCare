@@ -3687,18 +3687,25 @@ export default function DashboardClient() {
               <div className="archive-panel-header">
                 <div className="archive-badge-inline">DATA ARCHIVE</div>
                 <div className="archive-header-actions">
-                  <label className="archive-enabled-toggle">
+                  <label className="archive-switch">
                     <input
                       type="checkbox"
+                      role="switch"
                       checked={archiveStatus?.enabled ?? false}
                       disabled={archiveSettingsSaving || archiveLoading}
                       onChange={(event) => void saveArchiveSettings({ enabled: event.target.checked })}
                     />
-                    <span>{archiveStatus?.enabled ? "Enabled" : "Disabled"}</span>
+                    <span className="archive-switch-track" aria-hidden="true"><span /></span>
+                    <span className="archive-switch-label">{archiveStatus?.enabled ? "Enabled" : "Disabled"}</span>
                   </label>
-                  <button type="button" className="archive-panel-btn archive-panel-btn-primary" onClick={() => void runArchiveNow()} disabled={archiveRunning || archiveSettingsSaving || !archiveStatus?.enabled}>
-                    {archiveRunning ? "Running…" : "Run archive now"}
-                  </button>
+                  <span
+                    className={`archive-run-button-wrap${!archiveStatus?.enabled ? " archive-run-disabled" : ""}`}
+                    title={!archiveStatus?.enabled ? "Enable the archive switch before starting an export." : undefined}
+                  >
+                    <button type="button" className="archive-panel-btn archive-panel-btn-primary" onClick={() => void runArchiveNow()} disabled={archiveRunning || archiveSettingsSaving || !archiveStatus?.enabled}>
+                      {archiveRunning ? "Running…" : "Run archive now"}
+                    </button>
+                  </span>
                   <button type="button" className="archive-panel-btn archive-panel-btn-secondary" onClick={() => setActiveTab("overview")}>
                     Back to dashboard
                   </button>
@@ -4080,7 +4087,8 @@ export default function DashboardClient() {
           flex-wrap: wrap;
         }
 
-        .archive-enabled-toggle {
+        .archive-switch {
+          position: relative;
           display: inline-flex;
           align-items: center;
           gap: 8px;
@@ -4089,10 +4097,49 @@ export default function DashboardClient() {
           cursor: pointer;
         }
 
-        .archive-enabled-toggle input {
+        .archive-switch input {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          opacity: 0;
+        }
+
+        .archive-switch-track {
+          position: relative;
+          width: 42px;
+          height: 24px;
+          border-radius: 999px;
+          background: #94a3b8;
+          transition: background 0.2s ease;
+        }
+
+        .archive-switch-track > span {
+          position: absolute;
+          top: 3px;
+          left: 3px;
           width: 18px;
           height: 18px;
-          accent-color: #0d9488;
+          border-radius: 50%;
+          background: #fff;
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
+          transition: transform 0.2s ease;
+        }
+
+        .archive-switch input:checked + .archive-switch-track {
+          background: #0d9488;
+        }
+
+        .archive-switch input:checked + .archive-switch-track > span {
+          transform: translateX(18px);
+        }
+
+        .archive-switch input:focus-visible + .archive-switch-track {
+          outline: 3px solid rgba(13, 148, 136, 0.3);
+          outline-offset: 2px;
+        }
+
+        .archive-switch input:disabled ~ .archive-switch-label {
+          opacity: 0.6;
         }
 
         .archive-panel-btn {
@@ -4124,6 +4171,18 @@ export default function DashboardClient() {
         .archive-panel-btn:disabled {
           cursor: not-allowed;
           opacity: 0.55;
+        }
+
+        .archive-run-button-wrap {
+          display: inline-flex;
+        }
+
+        .archive-run-disabled {
+          cursor: not-allowed;
+        }
+
+        .archive-run-disabled > button:disabled {
+          pointer-events: none;
         }
 
         .archive-section-title-row {
