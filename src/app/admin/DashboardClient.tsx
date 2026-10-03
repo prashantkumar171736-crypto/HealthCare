@@ -3787,7 +3787,12 @@ export default function DashboardClient() {
           return (
             <div className="panel-card full-panel archive-panel-shell">
               <div className="archive-panel-header">
-                <div className="archive-badge-inline">DATA ARCHIVE</div>
+                <div className="archive-panel-identity">
+                  <button type="button" className="archive-back-link" onClick={() => setActiveTab("overview")}>
+                    <span aria-hidden="true">←</span> Admin dashboard
+                  </button>
+                  <div className="archive-badge-inline">DATA ARCHIVE</div>
+                </div>
                 <div className="archive-header-actions">
                   <div className="archive-switch">
                     <button
@@ -3832,9 +3837,6 @@ export default function DashboardClient() {
                       </div>
                     ) : <span className="archive-run-feedback-placeholder" aria-hidden="true" />}
                   </div>
-                  <button type="button" className="archive-panel-btn archive-panel-btn-secondary" onClick={() => setActiveTab("overview")}>
-                    Back to dashboard
-                  </button>
                 </div>
               </div>
 
@@ -4228,6 +4230,41 @@ export default function DashboardClient() {
           padding: 8px 12px;
           white-space: nowrap;
           text-transform: uppercase;
+        }
+
+        .archive-panel-identity {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          flex-wrap: wrap;
+        }
+
+        .archive-back-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          min-height: 32px;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          color: var(--admin-text-secondary, #94a3b8);
+          font: inherit;
+          font-size: 0.9rem;
+          font-weight: 600;
+          text-decoration: none;
+          cursor: pointer;
+          transition: color 0.18s ease, transform 0.18s ease;
+        }
+
+        .archive-back-link:hover {
+          color: var(--admin-accent, #34d399);
+          transform: translateX(-2px);
+        }
+
+        .archive-back-link:focus-visible {
+          outline: 2px solid var(--admin-accent, #34d399);
+          outline-offset: 3px;
+          border-radius: 4px;
         }
 
         .archive-header-actions {

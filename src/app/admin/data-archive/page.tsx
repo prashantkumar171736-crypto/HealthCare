@@ -235,7 +235,12 @@ export default function DataArchivePage() {
     <>
       <section className="archive-admin-root">
         <div className="archive-admin-shell">
-          <div className="archive-badge">DATA ARCHIVE</div>
+          <div className="archive-identity-row">
+            <Link href="/admin" className="archive-back-link">
+              <span aria-hidden="true">←</span> Admin dashboard
+            </Link>
+            <div className="archive-badge">DATA ARCHIVE</div>
+          </div>
 
           <div className="archive-header-row">
             <h1>Archive &amp; retention</h1>
@@ -268,9 +273,6 @@ export default function DataArchivePage() {
                   </div>
                 ) : <span className="archive-run-feedback-placeholder" aria-hidden="true" />}
               </div>
-              <Link href="/admin" className="archive-btn archive-btn-secondary">
-                Back to dashboard
-              </Link>
             </div>
           </div>
 
@@ -460,7 +462,38 @@ export default function DataArchivePage() {
           letter-spacing: 0.12em;
           padding: 7px 10px;
           text-transform: uppercase;
+          margin-bottom: 0;
+        }
+
+        .archive-identity-row {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          flex-wrap: wrap;
           margin-bottom: 14px;
+        }
+
+        .archive-back-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          min-height: 32px;
+          color: #64748b;
+          font-size: 0.9rem;
+          font-weight: 600;
+          text-decoration: none;
+          transition: color 0.18s ease, transform 0.18s ease;
+        }
+
+        .archive-back-link:hover {
+          color: #0f766e;
+          transform: translateX(-2px);
+        }
+
+        .archive-back-link:focus-visible {
+          outline: 2px solid #0f766e;
+          outline-offset: 3px;
+          border-radius: 4px;
         }
 
         .archive-header-row {
