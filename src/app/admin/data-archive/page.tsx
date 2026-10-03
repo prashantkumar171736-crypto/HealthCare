@@ -91,9 +91,13 @@ function getArchiveRunFeedback(results: ArchiveRunResult[], bucketName: string):
   }
 
   const categoryNames = failedCategories.map((result) => result.category).join(", ");
+  const errorDetails = failedCategories
+    .map((result) => result.error)
+    .filter((message): message is string => Boolean(message))
+    .join(" ");
   return {
     status: "failed",
-    message: `Export processing failed. File not uploaded on R2 ${bucketName} Bucket for: ${categoryNames}.`,
+    message: `Export processing failed. File not uploaded on R2 ${bucketName} Bucket for: ${categoryNames}.${errorDetails ? ` ${errorDetails}` : ""}`,
   };
 }
 
@@ -153,7 +157,7 @@ export default function DataArchivePage() {
       } else {
         setRunFeedback({
           status: "failed",
-          message: `Export processing failed. File not uploaded on R2 ${status?.bucketName || "archive"} Bucket.`,
+          message: `Export processing failed. File not uploaded on R2 ${data?.bucketName || status?.bucketName || "archive"} Bucket. ${data?.error || "The server did not return export details."}`,
         });
       }
       if (!res.ok) {
@@ -162,11 +166,12 @@ export default function DataArchivePage() {
       await loadStatus();
       return data;
     } catch (runError) {
-      setRunFeedback((current) => current ?? {
+      const message = runError instanceof Error ? runError.message : "Archive export failed.";
+      setRunFeedback({
         status: "failed",
-        message: `Export processing failed. File not uploaded on R2 ${status?.bucketName || "archive"} Bucket.`,
+        message: `Export processing failed. File not uploaded on R2 ${status?.bucketName || "archive"} Bucket. ${message}`,
       });
-      setError(runError instanceof Error ? runError.message : "Archive export failed.");
+      setError(message);
       return null;
     } finally {
       setRunning(false);
@@ -253,28 +258,28 @@ export default function DataArchivePage() {
                   {running ? "Running…" : "Run archive now"}
                 </button>
               </span>
+              {running ? (
+                <div className="archive-run-progress" role="status" aria-live="polite" aria-busy="true">
+                  <span>Processing…</span>
+                  <span className="archive-run-progress-track" aria-hidden="true"><span /></span>
+                </div>
+              ) : runFeedback ? (
+                <div
+                  className={`archive-run-toast ${runFeedback.status}`}
+                  role={runFeedback.status === "success" ? "status" : "alert"}
+                  aria-live={runFeedback.status === "success" ? "polite" : "assertive"}
+                >
+                  <span className="archive-run-feedback-icon" aria-hidden="true">
+                    {runFeedback.status === "success" ? "✓" : "×"}
+                  </span>
+                  <span className="archive-run-toast-message">{runFeedback.message}</span>
+                  <button type="button" className="archive-run-toast-close" onClick={() => setRunFeedback(null)} aria-label="Dismiss archive result message">
+                    ×
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
-          <div className="archive-run-progress-row" aria-hidden={!running}>
-            {running ? (
-              <div className="archive-run-progress" role="status" aria-live="polite" aria-busy="true">
-                <span>Processing…</span>
-                <span className="archive-run-progress-track" aria-hidden="true"><span /></span>
-              </div>
-            ) : null}
-          </div>
-          {runFeedback && !running ? (
-            <div
-              className={`archive-run-toast ${runFeedback.status}`}
-              role="status"
-              aria-live="polite"
-            >
-              <span className="archive-run-feedback-icon" aria-hidden="true">
-                {runFeedback.status === "success" ? "✓" : "×"}
-              </span>
-              <span>{runFeedback.message}</span>
-            </div>
-          ) : null}
 
           <div className="archive-controls">
             <label className="archive-retention-label">
@@ -448,6 +453,7 @@ export default function DataArchivePage() {
           background: rgba(255,255,255,0.2);
           border-radius: 18px;
           padding: 20px 16px 12px;
+          overflow: visible;
         }
 
         .archive-badge {
@@ -503,6 +509,7 @@ export default function DataArchivePage() {
           gap: 16px;
           margin-bottom: 18px;
           flex-wrap: wrap;
+          overflow: visible;
         }
 
         .archive-header-row h1 {
@@ -515,11 +522,13 @@ export default function DataArchivePage() {
         }
 
         .archive-actions {
+          position: relative;
           display: flex;
           align-items: center;
           flex: 0 0 auto;
           gap: 12px;
           flex-wrap: nowrap;
+          overflow: visible;
         }
 
         .archive-btn {
@@ -565,14 +574,11 @@ export default function DataArchivePage() {
           pointer-events: none;
         }
 
-        .archive-run-progress-row {
-          display: flex;
-          justify-content: flex-end;
-          min-height: 88px;
-          margin: 0 0 14px;
-        }
-
         .archive-run-progress {
+          position: absolute;
+          z-index: 20;
+          top: calc(100% + 8px);
+          right: 0;
           display: grid;
           gap: 8px;
           width: min(280px, 100%);
@@ -606,25 +612,47 @@ export default function DataArchivePage() {
         }
 
         .archive-run-toast {
-          position: fixed;
-          z-index: 1000;
-          top: 20px;
-          right: 20px;
+          position: absolute;
+          z-index: 20;
+          top: calc(100% + 8px);
+          right: 0;
           display: flex;
           align-items: center;
-          gap: 14px;
-          width: min(560px, calc(100vw - 40px));
-          min-height: 88px;
+          gap: 10px;
+          width: max-content;
+          max-width: 360px;
+          min-height: 64px;
           box-sizing: border-box;
-          padding: 12px 16px;
+          padding: 10px 12px;
           border: 2px solid;
-          border-radius: 16px;
+          border-radius: 14px;
           font-size: 0.84rem;
           font-weight: 750;
           line-height: 1.45;
           overflow-wrap: anywhere;
           box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
           animation: archive-toast-enter 0.2s ease-out;
+        }
+
+        .archive-run-toast-message {
+          min-width: 0;
+        }
+
+        .archive-run-toast-close {
+          display: grid;
+          flex: 0 0 24px;
+          width: 24px;
+          height: 24px;
+          padding: 0;
+          place-items: center;
+          border: 0;
+          border-radius: 50%;
+          background: rgba(148, 163, 184, 0.18);
+          color: inherit;
+          font: inherit;
+          font-size: 1.15rem;
+          line-height: 1;
+          cursor: pointer;
         }
 
         .archive-run-toast.success {
@@ -669,16 +697,20 @@ export default function DataArchivePage() {
 
         @media (max-width: 640px) {
           .archive-actions {
+            width: 100%;
             max-width: 100%;
             gap: 8px;
+            justify-content: flex-end;
           }
 
           .archive-btn-primary { min-width: 148px; }
 
-          .archive-run-toast {
-            top: 12px;
-            right: 12px;
-            width: calc(100vw - 24px);
+          .archive-run-toast,
+          .archive-run-progress {
+            left: 0;
+            right: 0;
+            width: auto;
+            max-width: none;
           }
         }
 
