@@ -12,13 +12,13 @@ import ExcelJS from "exceljs";
 import { getDb } from "@/lib/db";
 import { ARCHIVE_RETENTION_OPTIONS } from "@/lib/archive-config";
 
-export const ARCHIVE_BUCKET_NAME = process.env.R2_IP_SECURITY_BUCKET_NAME || "healthcare-ip-security";
-export const ARCHIVE_PUBLIC_URL = process.env.R2_IP_SECURITY_PUBLIC_URL || process.env.R2_UPLOADS_PUBLIC_URL || "https://pub-8ded07f2075a43daaa93fc2d473091fb.r2.dev";
+export const ARCHIVE_BUCKET_NAME = process.env.R2_SECURITY_BUCKET_NAME || process.env.R2_IP_SECURITY_BUCKET_NAME || "healthcare-ip-security";
+export const ARCHIVE_PUBLIC_URL = process.env.R2_SECURITY_PUBLIC_URL || process.env.R2_IP_SECURITY_PUBLIC_URL || "";
 export const ARCHIVE_RETENTION_DAYS = Number(process.env.ARCHIVE_RETENTION_DAYS || "30");
 
-const ARCHIVE_ACCOUNT_ID = process.env.R2_UPLOADS_ACCOUNT_ID || process.env.R2_ACCOUNT_ID;
-const ARCHIVE_ACCESS_KEY_ID = process.env.R2_UPLOADS_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID;
-const ARCHIVE_SECRET_ACCESS_KEY = process.env.R2_UPLOADS_SECRET_ACCESS_KEY || process.env.R2_SECRET_ACCESS_KEY;
+const ARCHIVE_ACCOUNT_ID = process.env.R2_SECURITY_ACCOUNT_ID || process.env.R2_IP_SECURITY_ACCOUNT_ID;
+const ARCHIVE_ACCESS_KEY_ID = process.env.R2_SECURITY_ACCESS_KEY_ID || process.env.R2_IP_SECURITY_ACCESS_KEY_ID;
+const ARCHIVE_SECRET_ACCESS_KEY = process.env.R2_SECURITY_SECRET_ACCESS_KEY || process.env.R2_IP_SECURITY_SECRET_ACCESS_KEY;
 
 export type ArchiveCategory = "analytics" | "ip-security" | "server-logs";
 export type ArchiveSettings = {
@@ -32,7 +32,7 @@ let archiveClient: S3Client | null = null;
 
 function getArchiveClient(): S3Client {
   if (!ARCHIVE_ACCOUNT_ID || !ARCHIVE_ACCESS_KEY_ID || !ARCHIVE_SECRET_ACCESS_KEY) {
-    throw new Error("R2_UPLOADS_ACCOUNT_ID, R2_UPLOADS_ACCESS_KEY_ID, and R2_UPLOADS_SECRET_ACCESS_KEY must be configured for archive export.");
+    throw new Error("Configure R2_SECURITY_ACCOUNT_ID, R2_SECURITY_ACCESS_KEY_ID, and R2_SECURITY_SECRET_ACCESS_KEY for the private archive bucket. Upload-bucket credentials are not used for archive exports.");
   }
 
   if (!archiveClient) {
@@ -165,10 +165,15 @@ async function getArchiveRowsForCategory(category: ArchiveCategory, startAt: Dat
 }
 
 export async function listArchiveFiles(): Promise<Array<{ key: string; size: number; lastModified: string }>> {
-  const response = await getArchiveClient().send(new ListObjectsV2Command({
-    Bucket: ARCHIVE_BUCKET_NAME,
-    MaxKeys: 100,
-  }));
+  let response;
+  try {
+    response = await getArchiveClient().send(new ListObjectsV2Command({
+      Bucket: ARCHIVE_BUCKET_NAME,
+      MaxKeys: 100,
+    }));
+  } catch (error) {
+    throw describeArchiveR2Error(error, "list archive objects");
+  }
 
   return (response.Contents ?? []).filter((item) => item.Key && /^(analytics|ip-security|server-logs)-archive-\d{4}-\d{2}-\d{2}(?:-\d{13})?\.xlsx?$/.test(item.Key)).map((item) => ({
     key: item.Key ?? "",
@@ -178,12 +183,16 @@ export async function listArchiveFiles(): Promise<Array<{ key: string; size: num
 }
 
 export async function getArchiveFile(fileName: string): Promise<Uint8Array> {
-  const response = await getArchiveClient().send(new GetObjectCommand({
-    Bucket: ARCHIVE_BUCKET_NAME,
-    Key: fileName,
-  }));
-  if (!response.Body) throw new Error("The requested archive file has no content.");
-  return response.Body.transformToByteArray();
+  try {
+    const response = await getArchiveClient().send(new GetObjectCommand({
+      Bucket: ARCHIVE_BUCKET_NAME,
+      Key: fileName,
+    }));
+    if (!response.Body) throw new Error("The requested archive file has no content.");
+    return response.Body.transformToByteArray();
+  } catch (error) {
+    throw describeArchiveR2Error(error, "download archive object");
+  }
 }
 
 export async function getArchiveBucketStatus(): Promise<{ status: "Connected" | "Offline"; bucketName: string; message?: string }> {
@@ -205,18 +214,45 @@ export async function getArchiveBucketStatus(): Promise<{ status: "Connected" | 
 export async function uploadArchiveFile(category: ArchiveCategory, buffer: Buffer): Promise<{ fileName: string; publicUrl: string }> {
   const fileName = formatArchiveFileName(category);
 
-  await getArchiveClient().send(new PutObjectCommand({
-    Bucket: ARCHIVE_BUCKET_NAME,
-    Key: fileName,
-    Body: buffer,
-    ContentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    CacheControl: "private, max-age=3600",
-  }));
+  try {
+    await getArchiveClient().send(new PutObjectCommand({
+      Bucket: ARCHIVE_BUCKET_NAME,
+      Key: fileName,
+      Body: buffer,
+      ContentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      CacheControl: "private, max-age=3600",
+    }));
+  } catch (error) {
+    throw describeArchiveR2Error(error, "upload archive object");
+  }
 
   return {
     fileName,
     publicUrl: `${ARCHIVE_PUBLIC_URL}/${fileName}`,
   };
+}
+
+function describeArchiveR2Error(error: unknown, operation: string): Error {
+  const err = error as {
+    name?: string;
+    Code?: string;
+    code?: string;
+    message?: string;
+    $metadata?: { httpStatusCode?: number };
+  };
+  const code = err?.Code || err?.code || err?.name || "UnknownError";
+  const statusCode = err?.$metadata?.httpStatusCode;
+
+  if (code === "AccessDenied" || statusCode === 403) {
+    return new Error(`R2 denied the request to ${operation} in bucket "${ARCHIVE_BUCKET_NAME}". Configure an R2 token for this bucket with Object Read and Object Write permissions.`);
+  }
+  if (code === "NoSuchBucket" || statusCode === 404) {
+    return new Error(`R2 archive bucket "${ARCHIVE_BUCKET_NAME}" was not found in the configured account.`);
+  }
+  if (code === "InvalidAccessKeyId" || code === "SignatureDoesNotMatch" || statusCode === 401) {
+    return new Error("R2 rejected the archive credentials. Confirm the archive access key and secret belong to the configured account.");
+  }
+  return new Error(`R2 ${operation} failed (${statusCode ? `HTTP ${statusCode}, ` : ""}${code})${err.message ? `: ${err.message}` : ""}.`);
 }
 
 export async function recordArchiveJob(
