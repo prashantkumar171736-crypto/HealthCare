@@ -253,28 +253,28 @@ export default function DataArchivePage() {
                   {running ? "Running…" : "Run archive now"}
                 </button>
               </span>
-              <div className="archive-run-feedback-slot">
-                {running ? (
-                  <div className="archive-run-progress" role="status" aria-live="polite" aria-busy="true">
-                    <span>Processing…</span>
-                    <span className="archive-run-progress-track" aria-hidden="true"><span /></span>
-                  </div>
-                ) : runFeedback ? (
-                  <div
-                    className={`archive-run-feedback ${runFeedback.status}`}
-                    title={runFeedback.message}
-                    role="status"
-                    aria-live="polite"
-                  >
-                    <span className="archive-run-feedback-icon" aria-hidden="true">
-                      {runFeedback.status === "success" ? "✓" : "×"}
-                    </span>
-                    <span>{runFeedback.message}</span>
-                  </div>
-                ) : <span className="archive-run-feedback-placeholder" aria-hidden="true" />}
-              </div>
             </div>
           </div>
+          <div className="archive-run-progress-row" aria-hidden={!running}>
+            {running ? (
+              <div className="archive-run-progress" role="status" aria-live="polite" aria-busy="true">
+                <span>Processing…</span>
+                <span className="archive-run-progress-track" aria-hidden="true"><span /></span>
+              </div>
+            ) : null}
+          </div>
+          {runFeedback && !running ? (
+            <div
+              className={`archive-run-toast ${runFeedback.status}`}
+              role="status"
+              aria-live="polite"
+            >
+              <span className="archive-run-feedback-icon" aria-hidden="true">
+                {runFeedback.status === "success" ? "✓" : "×"}
+              </span>
+              <span>{runFeedback.message}</span>
+            </div>
+          ) : null}
 
           <div className="archive-controls">
             <label className="archive-retention-label">
@@ -517,8 +517,9 @@ export default function DataArchivePage() {
         .archive-actions {
           display: flex;
           align-items: center;
+          flex: 0 0 auto;
           gap: 12px;
-          flex-wrap: wrap;
+          flex-wrap: nowrap;
         }
 
         .archive-btn {
@@ -539,6 +540,8 @@ export default function DataArchivePage() {
           background: linear-gradient(135deg, #14b8a6, #0ea5a4);
           color: white;
           box-shadow: 0 10px 18px rgba(20, 184, 166, 0.22);
+          min-width: 154px;
+          box-sizing: border-box;
         }
 
         .archive-btn-primary:hover {
@@ -562,24 +565,17 @@ export default function DataArchivePage() {
           pointer-events: none;
         }
 
-        .archive-run-feedback-slot {
-          width: min(280px, 100%);
-          min-height: 76px;
-          flex: 0 0 min(280px, 100%);
+        .archive-run-progress-row {
           display: flex;
-          align-items: stretch;
-        }
-
-        .archive-run-feedback-placeholder {
-          display: block;
-          width: 100%;
-          min-height: 76px;
+          justify-content: flex-end;
+          min-height: 88px;
+          margin: 0 0 14px;
         }
 
         .archive-run-progress {
           display: grid;
           gap: 8px;
-          width: 100%;
+          width: min(280px, 100%);
           min-height: 76px;
           box-sizing: border-box;
           padding: 10px 13px;
@@ -609,11 +605,15 @@ export default function DataArchivePage() {
           animation: archive-progress-slide 1.15s ease-in-out infinite;
         }
 
-        .archive-run-feedback {
+        .archive-run-toast {
+          position: fixed;
+          z-index: 1000;
+          top: 20px;
+          right: 20px;
           display: flex;
           align-items: center;
           gap: 14px;
-          width: 100%;
+          width: min(560px, calc(100vw - 40px));
           min-height: 88px;
           box-sizing: border-box;
           padding: 12px 16px;
@@ -624,15 +624,16 @@ export default function DataArchivePage() {
           line-height: 1.45;
           overflow-wrap: anywhere;
           box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+          animation: archive-toast-enter 0.2s ease-out;
         }
 
-        .archive-run-feedback.success {
+        .archive-run-toast.success {
           border-color: #34d399;
           background: linear-gradient(135deg, #ecfdf5, #f0fdfa);
           color: #064e3b;
         }
 
-        .archive-run-feedback.failed {
+        .archive-run-toast.failed {
           border-color: #fb7185;
           background: linear-gradient(135deg, #fff1f2, #fef2f2);
           color: #881337;
@@ -651,21 +652,38 @@ export default function DataArchivePage() {
           line-height: 1;
         }
 
-        .archive-run-feedback.success .archive-run-feedback-icon {
+        .archive-run-toast.success .archive-run-feedback-icon {
           background: linear-gradient(135deg, #10b981, #059669);
           box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
         }
 
-        .archive-run-feedback.failed .archive-run-feedback-icon {
+        .archive-run-toast.failed .archive-run-feedback-icon {
           background: linear-gradient(135deg, #f43f5e, #dc2626);
           box-shadow: 0 4px 12px rgba(244, 63, 94, 0.22);
         }
 
+        @keyframes archive-toast-enter {
+          from { opacity: 0; transform: translateY(-8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
         @media (max-width: 640px) {
-          .archive-run-feedback-slot {
-            width: 100%;
-            flex-basis: 100%;
+          .archive-actions {
+            max-width: 100%;
+            gap: 8px;
           }
+
+          .archive-btn-primary { min-width: 148px; }
+
+          .archive-run-toast {
+            top: 12px;
+            right: 12px;
+            width: calc(100vw - 24px);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .archive-run-toast { animation: none; }
         }
 
         @keyframes archive-progress-slide {
