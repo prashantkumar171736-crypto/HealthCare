@@ -33,6 +33,12 @@ interface ArchiveRunResult {
   error?: string;
 }
 
+const ARCHIVE_PREVIEW_CATEGORIES = [
+  { key: "analytics", label: "Analytics" },
+  { key: "ip-security", label: "IP Security" },
+  { key: "server-logs", label: "Server Logs" },
+] as const;
+
 function formatArchiveDateTime(value: string | null | undefined): string {
   if (!value) return "Not available";
   return new Intl.DateTimeFormat("en-IN", {
@@ -259,54 +265,65 @@ export default function DataArchivePage() {
                     <h3>Latest export preview</h3>
                     <p>Latest run: {formatArchiveDateTime(status?.lastRun)}</p>
                   </div>
-                  <div className="archive-run-table-scroll">
-                    <table className="archive-run-table">
-                      <thead>
-                        <tr>
-                          <th scope="col">Record ID</th>
-                          <th scope="col">Name</th>
-                          <th scope="col">File Size</th>
-                          <th scope="col">Status</th>
-                          <th scope="col">Records</th>
-                          <th scope="col">Archived At</th>
-                          <th scope="col">Clear Button</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {results.map((result) => (
-                          <tr key={result.jobId}>
-                            <td className="archive-run-id">{result.jobId}</td>
-                            <td>
-                              {result.fileName && result.status === "success" ? (
-                                <a href={`/api/admin/archive?file=${encodeURIComponent(result.fileName)}`} download>
-                                  {result.fileName}
-                                </a>
-                              ) : result.fileName}
-                              {result.error ? <span className="archive-run-error">{result.error}</span> : null}
-                            </td>
-                            <td>{formatFileSize(result.fileSizeBytes)}</td>
-                            <td>
-                              <span className={`archive-run-status ${result.status}`}>
-                                {getArchiveStatusLabel(result.status)}
-                              </span>
-                            </td>
-                            <td>{result.recordsCount}</td>
-                            <td>{formatArchivedAt(result.archivedAt)}</td>
-                            <td>
-                              <button
-                                type="button"
-                                className="archive-clear-button"
-                                onClick={() => void clearArchiveEntry(result.jobId, result.fileName)}
-                                title="Clear this MongoDB entry only; the R2 file will remain."
-                              >
-                                Clear
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  {ARCHIVE_PREVIEW_CATEGORIES.map((category) => {
+                    const categoryResults = results.filter((result) => result.category === category.key);
+                    return (
+                      <div className="archive-run-category" key={category.key}>
+                        <h4>{category.label}</h4>
+                        <div className="archive-run-table-scroll">
+                          <table className="archive-run-table">
+                            <thead>
+                              <tr>
+                                <th scope="col">Record ID</th>
+                                <th scope="col">Name</th>
+                                <th scope="col">File Size</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Records</th>
+                                <th scope="col">Archived At</th>
+                                <th scope="col">Clear Button</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {categoryResults.map((result) => (
+                                <tr key={result.jobId}>
+                                  <td className="archive-run-id">{result.jobId}</td>
+                                  <td>
+                                    {result.fileName && result.status === "success" ? (
+                                      <a href={`/api/admin/archive?file=${encodeURIComponent(result.fileName)}`} download>
+                                        {result.fileName}
+                                      </a>
+                                    ) : result.fileName}
+                                    {result.error ? <span className="archive-run-error">{result.error}</span> : null}
+                                  </td>
+                                  <td>{formatFileSize(result.fileSizeBytes)}</td>
+                                  <td>
+                                    <span className={`archive-run-status ${result.status}`}>
+                                      {getArchiveStatusLabel(result.status)}
+                                    </span>
+                                  </td>
+                                  <td>{result.recordsCount}</td>
+                                  <td>{formatArchivedAt(result.archivedAt)}</td>
+                                  <td>
+                                    <button
+                                      type="button"
+                                      className="archive-clear-button"
+                                      onClick={() => void clearArchiveEntry(result.jobId, result.fileName)}
+                                      title="Clear this MongoDB entry only; the R2 file will remain."
+                                    >
+                                      Clear
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                              {categoryResults.length === 0 ? (
+                                <tr><td colSpan={7} className="archive-category-empty">No export entry in this run.</td></tr>
+                              ) : null}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })}
                     {results.length === 0 ? <p className="archive-result-empty">All entries for this run have been cleared from MongoDB. R2 files are unchanged.</p> : null}
                 </section>
               ) : null}
@@ -643,6 +660,8 @@ export default function DataArchivePage() {
 
         .archive-clear-button:hover { background: #fef2f2; }
 
+        .archive-run-category { margin-top: 18px; }
+        .archive-run-category h4 { margin: 0 0 8px; color: #1f2937; font-size: 0.95rem; font-weight: 800; }
         .archive-run-table-scroll { overflow-x: auto; }
         .archive-run-table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 0.82rem; }
         .archive-run-table th,
@@ -662,6 +681,7 @@ export default function DataArchivePage() {
         .archive-run-status.processing { color: #b45309; }
         .archive-run-status.pending { color: #64748b; }
         .archive-run-error { display: block; max-width: 280px; color: #b91c1c; font-size: 0.76rem; }
+        .archive-category-empty { color: #64748b !important; font-style: italic; }
 
         .archive-result-error { color: #b91c1c; }
         .archive-result-empty { color: #64748b; }
