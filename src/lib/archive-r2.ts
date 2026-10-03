@@ -10,7 +10,7 @@ import {
 import { NodeHttpHandler } from "@smithy/node-http-handler";
 import ExcelJS from "exceljs";
 import { getDb } from "@/lib/db";
-import { ARCHIVE_RETENTION_OPTIONS } from "@/lib/archive-config";
+import { ARCHIVE_CATEGORY_OPTIONS, ARCHIVE_RETENTION_OPTIONS, type ArchiveCategorySelection } from "@/lib/archive-config";
 
 export const ARCHIVE_BUCKET_NAME = process.env.R2_SECURITY_BUCKET_NAME || process.env.R2_IP_SECURITY_BUCKET_NAME || "healthcare-ip-security";
 export const ARCHIVE_PUBLIC_URL = process.env.R2_SECURITY_PUBLIC_URL || process.env.R2_IP_SECURITY_PUBLIC_URL || "";
@@ -24,6 +24,7 @@ export type ArchiveCategory = "analytics" | "ip-security" | "server-logs";
 export type ArchiveSettings = {
   enabled: boolean;
   retentionDays: number;
+  category: ArchiveCategorySelection;
 };
 
 const ARCHIVE_SETTINGS_KEY = "data_archive_settings";
@@ -487,10 +488,12 @@ export async function getArchiveSettings(): Promise<ArchiveSettings> {
   const retentionDays = ARCHIVE_RETENTION_OPTIONS.some((option) => option.days === storedRetention)
     ? storedRetention
     : ARCHIVE_RETENTION_DAYS;
+  const category = ARCHIVE_CATEGORY_OPTIONS.find((option) => option.value === stored?.category)?.value ?? "all";
 
   return {
     enabled: typeof stored?.enabled === "boolean" ? stored.enabled : true,
     retentionDays,
+    category,
   };
 }
 
@@ -524,6 +527,7 @@ export async function getArchiveSummary() {
   return {
     bucketName: ARCHIVE_BUCKET_NAME,
     retentionDays: settings.value.retentionDays,
+    category: settings.value.category,
     enabled: settings.value.enabled,
     lastRun: latestRunAt,
     nextRun: "Manual only",

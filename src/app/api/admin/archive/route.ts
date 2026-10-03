@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 import { validateSession } from "@/lib/admin-auth";
-import { ARCHIVE_RETENTION_OPTIONS } from "@/lib/archive-config";
+import { ARCHIVE_CATEGORY_OPTIONS, ARCHIVE_RETENTION_OPTIONS, type ArchiveCategorySelection } from "@/lib/archive-config";
 import {
   clearArchiveJob,
   getArchiveFile,
@@ -41,6 +41,10 @@ async function readJsonBody(request: Request): Promise<Record<string, unknown> |
 
 function isValidRetention(value: unknown): value is number {
   return typeof value === "number" && ARCHIVE_RETENTION_OPTIONS.some((option) => option.days === value);
+}
+
+function isValidArchiveCategory(value: unknown): value is ArchiveCategorySelection {
+  return ARCHIVE_CATEGORY_OPTIONS.some((option) => option.value === value);
 }
 
 export async function GET(request: Request) {
@@ -86,12 +90,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
     }
 
-    const category = body.category ?? "all";
-    if (category !== "all" && category !== "analytics" && category !== "ip-security" && category !== "server-logs") {
+    const settings = await getArchiveSettings();
+    const category = body.category ?? settings.category;
+    if (!isValidArchiveCategory(category)) {
       return NextResponse.json({ error: "Choose a supported archive category." }, { status: 400 });
     }
 
-    const settings = await getArchiveSettings();
     const retentionDays = body.retentionDays ?? settings.retentionDays;
     if (!isValidRetention(retentionDays)) {
       return NextResponse.json({ error: "Choose a supported archive retention period." }, { status: 400 });
@@ -101,7 +105,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Data archiving is disabled. Enable it before starting an export." }, { status: 409 });
     }
 
-    await updateArchiveSettings({ retentionDays });
+    await updateArchiveSettings({ retentionDays, category });
     const result = await runArchiveExport(category, retentionDays);
     const hasFailures = result.results.some((item) => item.status === "failed");
     return NextResponse.json({ success: !hasFailures, ...result }, { status: hasFailures ? 502 : 200 });
@@ -125,7 +129,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
     }
 
-    const updates: { enabled?: boolean; retentionDays?: number } = {};
+    const updates: { enabled?: boolean; retentionDays?: number; category?: ArchiveCategorySelection } = {};
     if (Object.hasOwn(body, "enabled")) {
       if (typeof body.enabled !== "boolean") {
         return NextResponse.json({ error: "Archive status must be enabled or disabled." }, { status: 400 });
@@ -137,6 +141,12 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: "Choose a supported archive retention period." }, { status: 400 });
       }
       updates.retentionDays = body.retentionDays;
+    }
+    if (Object.hasOwn(body, "category")) {
+      if (!isValidArchiveCategory(body.category)) {
+        return NextResponse.json({ error: "Choose a supported archive category." }, { status: 400 });
+      }
+      updates.category = body.category;
     }
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "No valid archive settings were provided." }, { status: 400 });

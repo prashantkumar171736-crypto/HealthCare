@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ARCHIVE_RETENTION_OPTIONS } from "@/lib/archive-config";
+import { ARCHIVE_CATEGORY_OPTIONS, ARCHIVE_RETENTION_OPTIONS, type ArchiveCategorySelection } from "@/lib/archive-config";
 
 interface ArchiveFileItem {
   key: string;
@@ -14,6 +14,7 @@ interface ArchiveStatus {
   enabled: boolean;
   bucketName: string;
   retentionDays: number;
+  category: ArchiveCategorySelection;
   lastRun: string | null;
   nextRun: string;
   files: ArchiveFileItem[];
@@ -108,6 +109,7 @@ export default function DataArchivePage() {
   const [running, setRunning] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [retentionDays, setRetentionDays] = useState(30);
+  const [retentionCategory, setRetentionCategory] = useState<ArchiveCategorySelection>("all");
   const [results, setResults] = useState<ArchiveRunResult[]>([]);
   const [runFeedback, setRunFeedback] = useState<ArchiveRunFeedback | null>(null);
 
@@ -127,6 +129,7 @@ export default function DataArchivePage() {
       }
       setStatus(data);
       setRetentionDays(Number(data?.retentionDays ?? 30));
+      setRetentionCategory(data?.category ?? "all");
       setResults(Array.isArray(data?.lastResults) ? data.lastResults : []);
       setError("");
     } catch (loadError) {
@@ -148,7 +151,7 @@ export default function DataArchivePage() {
       const res = await fetch("/api/admin/archive", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: "all", retentionDays }),
+        body: JSON.stringify({ category: retentionCategory, retentionDays }),
       });
       const data = await res.json();
       if (Array.isArray(data?.results)) {
@@ -178,7 +181,7 @@ export default function DataArchivePage() {
     }
   }
 
-  async function saveSettings(updates: { enabled?: boolean; retentionDays?: number }) {
+  async function saveSettings(updates: { enabled?: boolean; retentionDays?: number; category?: ArchiveCategorySelection }) {
     const previousStatus = status;
     if (previousStatus) setStatus({ ...previousStatus, ...updates });
     try {
@@ -193,6 +196,7 @@ export default function DataArchivePage() {
       if (!res.ok) throw new Error(data?.error || "Unable to save archive settings.");
       setStatus((current) => current ? { ...current, ...data } : current);
       if (typeof data.retentionDays === "number") setRetentionDays(data.retentionDays);
+      if (data.category) setRetentionCategory(data.category);
     } catch (saveError) {
       if (previousStatus) setStatus(previousStatus);
       setError(saveError instanceof Error ? saveError.message : "Unable to save archive settings.");
@@ -291,6 +295,22 @@ export default function DataArchivePage() {
               >
                 {ARCHIVE_RETENTION_OPTIONS.map((option) => (
                   <option key={option.days} value={option.days}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="archive-retention-label archive-category-label">
+              Retention Categories
+              <select
+                className="archive-category-select"
+                value={retentionCategory}
+                disabled={savingSettings}
+                onChange={(event) => {
+                  const selectedCategory = ARCHIVE_CATEGORY_OPTIONS.find((option) => option.value === event.target.value)?.value;
+                  if (selectedCategory) void saveSettings({ category: selectedCategory });
+                }}
+              >
+                {ARCHIVE_CATEGORY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
             </label>
@@ -740,7 +760,9 @@ export default function DataArchivePage() {
         .archive-controls {
           display: flex;
           align-items: center;
+          gap: 18px;
           margin-bottom: 18px;
+          flex-wrap: wrap;
         }
 
         .archive-retention-label {
@@ -750,6 +772,10 @@ export default function DataArchivePage() {
           color: #475569;
           font-weight: 600;
           font-size: 0.92rem;
+        }
+
+        .archive-category-label {
+          white-space: nowrap;
         }
 
         .archive-retention-label input {
@@ -771,6 +797,10 @@ export default function DataArchivePage() {
           color: #0f172a;
           font-weight: 700;
           font-size: 0.95rem;
+        }
+
+        .archive-category-select {
+          min-width: 174px;
         }
 
         .archive-switch {

@@ -9,7 +9,7 @@ import CommentsManager from "./CommentsManager";
 import ThemeSettings, { AdminTheme, AdminThemeBridge, DEFAULT_THEME, hexToRgb, luminance, normalizeStoredTheme } from "./ThemeSettings";
 import { useLanguage } from "@/context/LanguageContext";
 import { LANG_MAP } from "@/lib/detectLanguage";
-import { ARCHIVE_RETENTION_OPTIONS } from "@/lib/archive-config";
+import { ARCHIVE_CATEGORY_OPTIONS, ARCHIVE_RETENTION_OPTIONS, type ArchiveCategorySelection } from "@/lib/archive-config";
 
 const LS_THEME_KEY = "admin_panel_theme";
 
@@ -69,6 +69,7 @@ interface ArchiveStatus {
   enabled: boolean;
   bucketName: string;
   retentionDays: number;
+  category: ArchiveCategorySelection;
   lastRun: string | null;
   nextRun: string;
   files: ArchiveFileItem[];
@@ -254,6 +255,7 @@ export default function DashboardClient() {
   const [archiveLoading, setArchiveLoading] = useState(true);
   const [archiveError, setArchiveError] = useState("");
   const [archiveRetention, setArchiveRetention] = useState(30);
+  const [archiveCategory, setArchiveCategory] = useState<ArchiveCategorySelection>("all");
   const [archiveRunning, setArchiveRunning] = useState(false);
   const [archiveResults, setArchiveResults] = useState<ArchiveRunResult[]>([]);
   const [archiveRunFeedback, setArchiveRunFeedback] = useState<ArchiveRunFeedback | null>(null);
@@ -580,6 +582,7 @@ export default function DashboardClient() {
       }
       setArchiveStatus(data);
       setArchiveRetention(Number(data.retentionDays ?? 30));
+      setArchiveCategory(data.category ?? "all");
       setArchiveResults(Array.isArray(data.lastResults) ? data.lastResults : []);
       setArchiveError("");
     } catch (err) {
@@ -597,7 +600,7 @@ export default function DashboardClient() {
       const res = await fetch("/api/admin/archive", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: "all", retentionDays: archiveRetention }),
+        body: JSON.stringify({ category: archiveCategory, retentionDays: archiveRetention }),
       });
       const data = await res.json();
       if (Array.isArray(data?.results)) {
@@ -623,9 +626,9 @@ export default function DashboardClient() {
     } finally {
       setArchiveRunning(false);
     }
-  }, [archiveRetention, archiveStatus, loadArchiveStatus]);
+  }, [archiveCategory, archiveRetention, archiveStatus, loadArchiveStatus]);
 
-  const saveArchiveSettings = useCallback(async (updates: { enabled?: boolean; retentionDays?: number }) => {
+  const saveArchiveSettings = useCallback(async (updates: { enabled?: boolean; retentionDays?: number; category?: ArchiveCategorySelection }) => {
     const previousStatus = archiveStatus;
     if (previousStatus) setArchiveStatus({ ...previousStatus, ...updates });
     try {
@@ -640,6 +643,7 @@ export default function DashboardClient() {
       if (!res.ok) throw new Error(data?.error || "Unable to save archive settings.");
       setArchiveStatus((current) => current ? { ...current, ...data } : current);
       if (typeof data.retentionDays === "number") setArchiveRetention(data.retentionDays);
+      if (data.category) setArchiveCategory(data.category);
     } catch (err) {
       if (previousStatus) setArchiveStatus(previousStatus);
       setArchiveError(err instanceof Error ? err.message : "Unable to save archive settings.");
@@ -668,6 +672,13 @@ export default function DashboardClient() {
     if (!ARCHIVE_RETENTION_OPTIONS.some((option) => option.days === selectedDays)) return;
 
     void saveArchiveSettings({ retentionDays: selectedDays });
+  };
+
+  const changeArchiveCategory = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedCategory = ARCHIVE_CATEGORY_OPTIONS.find((option) => option.value === event.target.value)?.value;
+    if (!selectedCategory) return;
+
+    void saveArchiveSettings({ category: selectedCategory });
   };
 
   // Initial load + 30-second auto-refresh
@@ -3862,6 +3873,20 @@ export default function DashboardClient() {
                       <option key={option.days} value={option.days}>{option.label}</option>
                     ))}
                   </select>
+                  <span className="archive-retention-category-label">
+                    Retention Categories
+                    <select
+                      className="archive-retention-select archive-category-select"
+                      value={archiveCategory}
+                      onChange={changeArchiveCategory}
+                      disabled={archiveSettingsSaving}
+                      aria-label="Retention Categories"
+                    >
+                      {ARCHIVE_CATEGORY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </span>
                   <span className="archive-retention-saved" role="status">Saved to database</span>
                 </label>
               </div>
@@ -4585,6 +4610,13 @@ export default function DashboardClient() {
           flex-wrap: wrap;
         }
 
+        .archive-retention-category-label {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          white-space: nowrap;
+        }
+
         .archive-retention-select {
           min-width: 190px;
           padding: 9px 34px 9px 12px;
@@ -4600,6 +4632,10 @@ export default function DashboardClient() {
         .archive-retention-select option {
           background: var(--admin-card-bg, #0d1322);
           color: var(--admin-text-primary, #0f172a);
+        }
+
+        .archive-category-select {
+          min-width: 174px;
         }
 
         .archive-retention-saved {
