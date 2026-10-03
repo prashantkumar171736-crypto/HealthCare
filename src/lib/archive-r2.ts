@@ -365,6 +365,7 @@ export async function recordArchiveJob(
   fileName: string,
   bucketName: string,
   error?: string,
+  fileSizeBytes?: number | null,
 ) {
   const db = await getDb();
   const result = await db.collection("archive_jobs").insertOne({
@@ -376,6 +377,7 @@ export async function recordArchiveJob(
     recordsCount,
     fileName,
     bucketName,
+    fileSizeBytes: fileSizeBytes ?? null,
     error: error ?? null,
     createdAt: new Date(),
   });
@@ -402,6 +404,7 @@ export async function runArchiveExport(category: ArchiveCategory | "all" = "all"
     status: "success" | "failed";
     fileName?: string;
     publicUrl?: string;
+    fileSizeBytes: number | null;
     recordsCount: number;
     archivedAt: Date;
     error?: string;
@@ -427,13 +430,25 @@ export async function runArchiveExport(category: ArchiveCategory | "all" = "all"
       const buffer = await workbook.xlsx.writeBuffer();
       const archiveFile = await uploadArchiveFile(item, Buffer.from(buffer), fileName);
       const completedAt = new Date();
-      const jobId = await recordArchiveJob(runId, item, startedAt, completedAt, "success", rows.length, archiveFile.fileName, ARCHIVE_BUCKET_NAME);
+      const jobId = await recordArchiveJob(
+        runId,
+        item,
+        startedAt,
+        completedAt,
+        "success",
+        rows.length,
+        archiveFile.fileName,
+        ARCHIVE_BUCKET_NAME,
+        undefined,
+        Buffer.byteLength(buffer),
+      );
       results.push({
         jobId,
         category: item,
         status: "success",
         fileName: archiveFile.fileName,
         publicUrl: archiveFile.publicUrl,
+        fileSizeBytes: Buffer.byteLength(buffer),
         recordsCount: rows.length,
         archivedAt: completedAt,
       });
@@ -447,6 +462,7 @@ export async function runArchiveExport(category: ArchiveCategory | "all" = "all"
         category: item,
         status: "failed",
         fileName,
+        fileSizeBytes: null,
         recordsCount: rows.length,
         archivedAt: failedAt,
         error: message,
@@ -519,6 +535,9 @@ export async function getArchiveSummary() {
       category: job.jobType,
       status: job.status,
       fileName: job.fileName,
+      fileSizeBytes: typeof job.fileSizeBytes === "number"
+        ? job.fileSizeBytes
+        : files.find((file) => file.key === job.fileName)?.size ?? null,
       recordsCount: job.recordsCount,
       archivedAt: job.completedAt ?? job.startedAt,
       error: job.error ?? undefined,

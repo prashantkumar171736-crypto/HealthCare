@@ -80,8 +80,9 @@ interface ArchiveStatus {
 interface ArchiveRunResult {
   jobId: string;
   category: string;
-  status: "success" | "failed";
+  status: "success" | "failed" | "processing" | "pending";
   fileName: string;
+  fileSizeBytes: number | null;
   recordsCount: number;
   archivedAt: string;
   error?: string;
@@ -94,6 +95,34 @@ function formatArchiveDateTime(value: string | null | undefined): string {
     timeStyle: "medium",
     timeZone: "Asia/Kolkata",
   }).format(new Date(value));
+}
+
+function formatArchivedAt(value: string | null | undefined): string {
+  if (!value) return "Not available";
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "Asia/Kolkata",
+  }).formatToParts(new Date(value));
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("day")}/${part("month")}/${part("year")} ${part("hour")}:${part("minute")}`;
+}
+
+function formatArchiveFileSize(size: number | null | undefined): string {
+  if (typeof size !== "number" || !Number.isFinite(size) || size < 0) return "Not available";
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(2)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function getArchiveStatusLabel(status: ArchiveRunResult["status"]): string {
+  if (status === "success") return "Completed";
+  if (status === "failed") return "Failed";
+  return status === "processing" ? "Processing" : "Pending";
 }
 
 export interface R2Stats {
@@ -3874,40 +3903,55 @@ export default function DashboardClient() {
                         <h3>Latest export preview</h3>
                         <p>Latest run: {formatArchiveDateTime(archiveStatus?.lastRun)}</p>
                       </div>
-                      <div className="archive-result-grid">
-                        {archiveResults.map((result) => {
-                          return (
-                            <article className="archive-result-card" key={result.category}>
-                              <div className="archive-result-heading">
-                                <strong>{result.category}</strong>
-                              </div>
-                              <div className="archive-result-summary">
-                                <span className="archive-result-file">{result.fileName}</span>
-                                <span className={`archive-result-status ${result.status}`}>
-                                  {result.status === "success" ? "Uploaded to R2" : "Not uploaded"}
-                                </span>
-                                <span>{result.recordsCount} records</span>
-                                <span>Archived: {formatArchiveDateTime(result.archivedAt)}</span>
-                                <button
-                                  type="button"
-                                  className="archive-clear-button"
-                                  onClick={() => void clearArchiveEntry(result.jobId, result.fileName)}
-                                  title="Clear this entry from MongoDB only; the R2 file will remain."
-                                >
-                                  Clear
-                                </button>
-                              </div>
-                              {result.fileName && result.status === "success" ? (
-                                <a className="archive-panel-btn archive-panel-btn-secondary" href={`/api/admin/archive?file=${encodeURIComponent(result.fileName)}`}>
-                                  Export {result.fileName}
-                                </a>
-                              ) : null}
-                              {result.error ? <p className="archive-result-error">{result.error}</p> : null}
-                            </article>
-                          );
-                        })}
-                        {archiveResults.length === 0 ? <p className="archive-result-empty">All entries for this run have been cleared from MongoDB. R2 files are unchanged.</p> : null}
+                      <div className="archive-run-table-scroll">
+                        <table className="archive-run-table">
+                          <thead>
+                            <tr>
+                              <th scope="col">Record ID</th>
+                              <th scope="col">Name</th>
+                              <th scope="col">File Size</th>
+                              <th scope="col">Status</th>
+                              <th scope="col">Records</th>
+                              <th scope="col">Archived At</th>
+                              <th scope="col">Clear Button</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {archiveResults.map((result) => (
+                              <tr key={result.jobId}>
+                                <td className="archive-run-id">{result.jobId}</td>
+                                <td>
+                                  {result.fileName && result.status === "success" ? (
+                                    <a href={`/api/admin/archive?file=${encodeURIComponent(result.fileName)}`} download>
+                                      {result.fileName}
+                                    </a>
+                                  ) : result.fileName}
+                                  {result.error ? <span className="archive-run-error">{result.error}</span> : null}
+                                </td>
+                                <td>{formatArchiveFileSize(result.fileSizeBytes)}</td>
+                                <td>
+                                  <span className={`archive-run-status ${result.status}`}>
+                                    {getArchiveStatusLabel(result.status)}
+                                  </span>
+                                </td>
+                                <td>{result.recordsCount}</td>
+                                <td>{formatArchivedAt(result.archivedAt)}</td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="archive-clear-button"
+                                    onClick={() => void clearArchiveEntry(result.jobId, result.fileName)}
+                                    title="Clear this MongoDB entry only; the R2 file will remain."
+                                  >
+                                    Clear
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
+                      {archiveResults.length === 0 ? <p className="archive-result-empty">All entries for this run have been cleared from MongoDB. R2 files are unchanged.</p> : null}
                     </section>
                   ) : null}
 
@@ -4640,6 +4684,26 @@ export default function DashboardClient() {
         }
 
         .archive-clear-button:hover { background: rgba(248, 113, 113, 0.12); }
+
+        .archive-run-table-scroll { overflow-x: auto; }
+        .archive-run-table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 0.82rem; }
+        .archive-run-table th,
+        .archive-run-table td {
+          padding: 10px 9px;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+          text-align: left;
+          vertical-align: middle;
+        }
+        .archive-run-table th { color: var(--admin-text-secondary, #94a3b8); font-weight: 800; white-space: nowrap; }
+        .archive-run-table td { color: var(--admin-text-primary, #e2e8f0); }
+        .archive-run-table td a { color: var(--admin-accent, #34d399); font-weight: 700; overflow-wrap: anywhere; }
+        .archive-run-id { max-width: 180px; overflow-wrap: anywhere; font-family: ui-monospace, monospace; font-size: 0.75rem; }
+        .archive-run-status { font-weight: 800; white-space: nowrap; }
+        .archive-run-status.success { color: #34d399; }
+        .archive-run-status.failed { color: #fca5a5; }
+        .archive-run-status.processing { color: #fbbf24; }
+        .archive-run-status.pending { color: var(--admin-text-secondary, #94a3b8); }
+        .archive-run-error { display: block; max-width: 280px; color: #fca5a5; font-size: 0.76rem; }
 
         .archive-result-card > p,
         .archive-result-error,
