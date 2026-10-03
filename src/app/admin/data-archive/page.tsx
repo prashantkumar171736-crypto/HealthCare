@@ -18,6 +18,7 @@ interface ArchiveStatus {
   nextRun: string;
   files: ArchiveFileItem[];
   totalFiles: number;
+  filesError?: string;
   lastResults: ArchiveRunResult[];
 }
 
@@ -87,6 +88,8 @@ export default function DataArchivePage() {
   }
 
   async function saveSettings(updates: { enabled?: boolean; retentionDays?: number }) {
+    const previousStatus = status;
+    if (previousStatus) setStatus({ ...previousStatus, ...updates });
     try {
       setSavingSettings(true);
       setError("");
@@ -100,6 +103,7 @@ export default function DataArchivePage() {
       setStatus((current) => current ? { ...current, ...data } : current);
       if (typeof data.retentionDays === "number") setRetentionDays(data.retentionDays);
     } catch (saveError) {
+      if (previousStatus) setStatus(previousStatus);
       setError(saveError instanceof Error ? saveError.message : "Unable to save archive settings.");
     } finally {
       setSavingSettings(false);
@@ -162,20 +166,25 @@ export default function DataArchivePage() {
                 ))}
               </select>
             </label>
-            <label className="archive-switch">
-              <input
-                type="checkbox"
+            <div className="archive-switch">
+              <button
+                type="button"
                 role="switch"
-                checked={status?.enabled ?? false}
-                disabled={savingSettings || loading}
-                onChange={(event) => void saveSettings({ enabled: event.target.checked })}
-              />
-              <span className="archive-switch-track" aria-hidden="true"><span /></span>
+                aria-checked={status?.enabled ?? false}
+                aria-label="Enable data archive exports"
+                disabled={savingSettings || loading || !status}
+                onClick={() => {
+                  if (status) void saveSettings({ enabled: !status.enabled });
+                }}
+              >
+                <span className="archive-switch-track" aria-hidden="true"><span /></span>
+              </button>
               <span className="archive-switch-label">{status?.enabled ? "Enabled" : "Disabled"}</span>
-            </label>
+            </div>
           </div>
 
           {error ? <p className="archive-error" role="alert">{error}</p> : null}
+          {status?.filesError ? <p className="archive-error" role="status">Archive file listing unavailable: {status.filesError}</p> : null}
 
           {loading ? (
             <div className="archive-loading">Loading archive status…</div>
@@ -418,7 +427,6 @@ export default function DataArchivePage() {
         }
 
         .archive-switch {
-          position: relative;
           display: inline-flex;
           align-items: center;
           gap: 8px;
@@ -427,11 +435,17 @@ export default function DataArchivePage() {
           cursor: pointer;
         }
 
-        .archive-switch input {
-          position: absolute;
-          width: 1px;
-          height: 1px;
-          opacity: 0;
+        .archive-switch > button {
+          display: inline-flex;
+          padding: 0;
+          border: 0;
+          border-radius: 999px;
+          background: transparent;
+          cursor: pointer;
+        }
+
+        .archive-switch > button:disabled {
+          cursor: not-allowed;
         }
 
         .archive-switch-track {
@@ -455,20 +469,20 @@ export default function DataArchivePage() {
           transition: transform 0.2s ease;
         }
 
-        .archive-switch input:checked + .archive-switch-track {
+        .archive-switch > button[aria-checked="true"] .archive-switch-track {
           background: #0d9488;
         }
 
-        .archive-switch input:checked + .archive-switch-track > span {
+        .archive-switch > button[aria-checked="true"] .archive-switch-track > span {
           transform: translateX(18px);
         }
 
-        .archive-switch input:focus-visible + .archive-switch-track {
+        .archive-switch > button:focus-visible .archive-switch-track {
           outline: 3px solid rgba(13, 148, 136, 0.3);
           outline-offset: 2px;
         }
 
-        .archive-switch input:disabled ~ .archive-switch-label {
+        .archive-switch > button:disabled ~ .archive-switch-label {
           opacity: 0.6;
         }
 

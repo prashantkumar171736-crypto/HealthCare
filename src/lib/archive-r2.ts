@@ -336,16 +336,23 @@ export async function getArchiveSummary() {
   const lastResults = latestJob[0]?.runId
     ? await db.collection("archive_jobs").find({ runId: latestJob[0].runId }).sort({ startedAt: 1 }).toArray()
     : [];
-  const [files, settings] = await Promise.all([listArchiveFiles(), getArchiveSettings()]);
+  const [filesResult, settings] = await Promise.allSettled([listArchiveFiles(), getArchiveSettings()]);
+  if (settings.status === "rejected") throw settings.reason;
+  const files = filesResult.status === "fulfilled" ? filesResult.value : [];
+  const filesError = filesResult.status === "rejected"
+    ? filesResult.reason instanceof Error ? filesResult.reason.message : "Unable to list archive files from the configured bucket."
+    : undefined;
+  if (filesError) console.error("Archive file listing failed:", filesError);
 
   return {
     bucketName: ARCHIVE_BUCKET_NAME,
-    retentionDays: settings.retentionDays,
-    enabled: settings.enabled,
+    retentionDays: settings.value.retentionDays,
+    enabled: settings.value.enabled,
     lastRun: latestJob[0]?.startedAt ?? null,
     nextRun: "Manual only",
     files: files.slice(0, 20),
     totalFiles: files.length,
+    filesError,
     lastResults: lastResults.map((job) => ({
       category: job.jobType,
       status: job.status,

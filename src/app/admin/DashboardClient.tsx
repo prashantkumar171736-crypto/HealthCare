@@ -73,6 +73,7 @@ interface ArchiveStatus {
   nextRun: string;
   files: ArchiveFileItem[];
   totalFiles: number;
+  filesError?: string;
   lastResults: ArchiveRunResult[];
 }
 
@@ -537,6 +538,8 @@ export default function DashboardClient() {
   }, [archiveRetention, loadArchiveStatus]);
 
   const saveArchiveSettings = useCallback(async (updates: { enabled?: boolean; retentionDays?: number }) => {
+    const previousStatus = archiveStatus;
+    if (previousStatus) setArchiveStatus({ ...previousStatus, ...updates });
     try {
       setArchiveSettingsSaving(true);
       setArchiveError("");
@@ -550,11 +553,12 @@ export default function DashboardClient() {
       setArchiveStatus((current) => current ? { ...current, ...data } : current);
       if (typeof data.retentionDays === "number") setArchiveRetention(data.retentionDays);
     } catch (err) {
+      if (previousStatus) setArchiveStatus(previousStatus);
       setArchiveError(err instanceof Error ? err.message : "Unable to save archive settings.");
     } finally {
       setArchiveSettingsSaving(false);
     }
-  }, []);
+  }, [archiveStatus]);
 
   const changeArchiveRetention = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedDays = Number(event.target.value);
@@ -3687,17 +3691,21 @@ export default function DashboardClient() {
               <div className="archive-panel-header">
                 <div className="archive-badge-inline">DATA ARCHIVE</div>
                 <div className="archive-header-actions">
-                  <label className="archive-switch">
-                    <input
-                      type="checkbox"
+                  <div className="archive-switch">
+                    <button
+                      type="button"
                       role="switch"
-                      checked={archiveStatus?.enabled ?? false}
-                      disabled={archiveSettingsSaving || archiveLoading}
-                      onChange={(event) => void saveArchiveSettings({ enabled: event.target.checked })}
-                    />
-                    <span className="archive-switch-track" aria-hidden="true"><span /></span>
+                      aria-checked={archiveStatus?.enabled ?? false}
+                      aria-label="Enable data archive exports"
+                      disabled={archiveSettingsSaving || archiveLoading || !archiveStatus}
+                      onClick={() => {
+                        if (archiveStatus) void saveArchiveSettings({ enabled: !archiveStatus.enabled });
+                      }}
+                    >
+                      <span className="archive-switch-track" aria-hidden="true"><span /></span>
+                    </button>
                     <span className="archive-switch-label">{archiveStatus?.enabled ? "Enabled" : "Disabled"}</span>
-                  </label>
+                  </div>
                   <span
                     className={`archive-run-button-wrap${!archiveStatus?.enabled ? " archive-run-disabled" : ""}`}
                     title={!archiveStatus?.enabled ? "Enable the archive switch before starting an export." : undefined}
@@ -3820,6 +3828,7 @@ export default function DashboardClient() {
               </details>
 
               {archiveError ? <p className="archive-panel-error" role="alert">{archiveError}</p> : null}
+              {archiveStatus?.filesError ? <p className="archive-panel-error" role="status">Archive file listing unavailable: {archiveStatus.filesError}</p> : null}
 
               {archiveLoading ? (
                 <div className="archive-panel-loading">Loading archive status…</div>
@@ -4088,7 +4097,6 @@ export default function DashboardClient() {
         }
 
         .archive-switch {
-          position: relative;
           display: inline-flex;
           align-items: center;
           gap: 8px;
@@ -4097,11 +4105,17 @@ export default function DashboardClient() {
           cursor: pointer;
         }
 
-        .archive-switch input {
-          position: absolute;
-          width: 1px;
-          height: 1px;
-          opacity: 0;
+        .archive-switch > button {
+          display: inline-flex;
+          padding: 0;
+          border: 0;
+          border-radius: 999px;
+          background: transparent;
+          cursor: pointer;
+        }
+
+        .archive-switch > button:disabled {
+          cursor: not-allowed;
         }
 
         .archive-switch-track {
@@ -4125,20 +4139,20 @@ export default function DashboardClient() {
           transition: transform 0.2s ease;
         }
 
-        .archive-switch input:checked + .archive-switch-track {
+        .archive-switch > button[aria-checked="true"] .archive-switch-track {
           background: #0d9488;
         }
 
-        .archive-switch input:checked + .archive-switch-track > span {
+        .archive-switch > button[aria-checked="true"] .archive-switch-track > span {
           transform: translateX(18px);
         }
 
-        .archive-switch input:focus-visible + .archive-switch-track {
+        .archive-switch > button:focus-visible .archive-switch-track {
           outline: 3px solid rgba(13, 148, 136, 0.3);
           outline-offset: 2px;
         }
 
-        .archive-switch input:disabled ~ .archive-switch-label {
+        .archive-switch > button:disabled ~ .archive-switch-label {
           opacity: 0.6;
         }
 
