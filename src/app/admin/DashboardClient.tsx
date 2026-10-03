@@ -563,7 +563,6 @@ export default function DashboardClient() {
 
   const loadArchiveStatus = useCallback(async () => {
     try {
-      setArchiveLoading(true);
       const res = await fetch("/api/admin/archive", { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) {
@@ -3807,23 +3806,23 @@ export default function DashboardClient() {
                       {archiveRunning ? "Running…" : "Run archive now"}
                     </button>
                   </span>
-                  {archiveRunning ? (
-                    <div className="archive-run-progress" role="status" aria-live="polite" aria-busy="true">
-                      <span>Processing…</span>
-                      <span className="archive-run-progress-track" aria-hidden="true"><span /></span>
-                    </div>
-                  ) : archiveRunFeedback ? (
-                    <span
-                      className={`archive-run-feedback ${archiveRunFeedback.status}`}
-                      title={archiveRunFeedback.message}
-                      data-tooltip={archiveRunFeedback.message}
-                      role="status"
-                      aria-label={archiveRunFeedback.message}
-                      tabIndex={0}
-                    >
-                      {archiveRunFeedback.status === "success" ? "Upload complete" : "Upload failed"}
-                    </span>
-                  ) : null}
+                  <div className="archive-run-feedback-slot">
+                    {archiveRunning ? (
+                      <div className="archive-run-progress" role="status" aria-live="polite" aria-busy="true">
+                        <span>Processing…</span>
+                        <span className="archive-run-progress-track" aria-hidden="true"><span /></span>
+                      </div>
+                    ) : archiveRunFeedback ? (
+                      <div
+                        className={`archive-run-feedback ${archiveRunFeedback.status}`}
+                        title={archiveRunFeedback.message}
+                        role="status"
+                        aria-live="polite"
+                      >
+                        {archiveRunFeedback.message}
+                      </div>
+                    ) : <span className="archive-run-feedback-placeholder" aria-hidden="true" />}
+                  </div>
                   <button type="button" className="archive-panel-btn archive-panel-btn-secondary" onClick={() => setActiveTab("overview")}>
                     Back to dashboard
                   </button>
@@ -4332,10 +4331,26 @@ export default function DashboardClient() {
           pointer-events: none;
         }
 
+        .archive-run-feedback-slot {
+          width: min(280px, 100%);
+          min-height: 76px;
+          flex: 0 0 min(280px, 100%);
+          display: flex;
+          align-items: stretch;
+        }
+
+        .archive-run-feedback-placeholder {
+          display: block;
+          width: 100%;
+          min-height: 76px;
+        }
+
         .archive-run-progress {
           display: grid;
           gap: 8px;
-          width: min(240px, 100%);
+          width: 100%;
+          min-height: 76px;
+          box-sizing: border-box;
           padding: 10px 13px;
           border: 1px solid var(--admin-border, rgba(148, 163, 184, 0.2));
           border-radius: 12px;
@@ -4364,16 +4379,18 @@ export default function DashboardClient() {
         }
 
         .archive-run-feedback {
-          position: relative;
-          display: inline-flex;
+          display: flex;
           align-items: center;
-          min-height: 38px;
+          width: 100%;
+          min-height: 76px;
+          box-sizing: border-box;
           padding: 8px 12px;
           border: 1px solid;
           border-radius: 10px;
-          font-size: 0.82rem;
+          font-size: 0.76rem;
           font-weight: 750;
-          cursor: help;
+          line-height: 1.35;
+          overflow-wrap: anywhere;
         }
 
         .archive-run-feedback.success {
@@ -4386,35 +4403,6 @@ export default function DashboardClient() {
           border-color: rgba(248, 113, 113, 0.35);
           background: rgba(220, 38, 38, 0.12);
           color: #fca5a5;
-        }
-
-        .archive-run-feedback::after {
-          position: absolute;
-          z-index: 20;
-          top: calc(100% + 8px);
-          right: 0;
-          width: max-content;
-          max-width: min(360px, 80vw);
-          padding: 9px 12px;
-          border-radius: 8px;
-          background: #0f172a;
-          color: #fff;
-          content: attr(data-tooltip);
-          font-size: 0.78rem;
-          font-weight: 600;
-          line-height: 1.45;
-          white-space: normal;
-          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-          opacity: 0;
-          pointer-events: none;
-          transform: translateY(-3px);
-          transition: opacity 0.15s ease, transform 0.15s ease;
-        }
-
-        .archive-run-feedback:hover::after,
-        .archive-run-feedback:focus-visible::after {
-          opacity: 1;
-          transform: translateY(0);
         }
 
         @keyframes archive-progress-slide {
