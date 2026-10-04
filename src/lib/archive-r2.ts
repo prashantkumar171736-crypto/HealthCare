@@ -367,6 +367,183 @@ function buildAnalyticsSummary(rows: Record<string, unknown>[]) {
   };
 }
 
+type WorkbookBreakdown = Array<[string, number]>;
+type WorkbookPalette = ReturnType<typeof getCategoryPalette>;
+
+interface WorkbookReportSummary {
+  totalRecords: number;
+  metrics: Array<{ key: string; value: number }>;
+  sections: Array<{
+    title: string;
+    label: string;
+    startRow: number;
+    startCol: number;
+    values: WorkbookBreakdown;
+    color: string;
+  }>;
+  details: Array<[string, string, number, string]>;
+}
+
+function getRowText(row: Record<string, unknown>, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = row[key];
+    if (value !== null && value !== undefined && String(value).trim()) return String(value).trim();
+  }
+  return "";
+}
+
+function countBreakdown(rows: Record<string, unknown>[], getLabel: (row: Record<string, unknown>) => string): WorkbookBreakdown {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    const label = getLabel(row) || "Unknown";
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((left, right) => right[1] - left[1]);
+}
+
+function buildWorkbookReportSummary(
+  rows: Record<string, unknown>[],
+  category: ArchiveCategory,
+  palette: WorkbookPalette,
+): WorkbookReportSummary {
+  const totalRecords = rows.length;
+  const sectionSlots = [
+    { startRow: 8, startCol: 1 },
+    { startRow: 8, startCol: 8 },
+    { startRow: 20, startCol: 1 },
+    { startRow: 20, startCol: 8 },
+    { startRow: 31, startCol: 1 },
+    { startRow: 31, startCol: 8 },
+  ];
+  const makeSections = (sections: Array<{ title: string; label: string; values: WorkbookBreakdown }>) =>
+    sections.map((section, index) => ({
+      ...section,
+      ...sectionSlots[index],
+      color: palette.metricColors[index % palette.metricColors.length],
+    }));
+
+  if (category === "ip-security") {
+    const isLoginAttempt = (row: Record<string, unknown>) =>
+      row.attempts !== undefined || Boolean(row.lockedUntil || row.windowStartedAt);
+    const isBlocked = (row: Record<string, unknown>) => {
+      const status = getRowText(row, "status").toLowerCase();
+      return status ? status === "blocked" : Boolean(row.blockedAt);
+    };
+    const attemptsFor = (row: Record<string, unknown>) => Number(row.attemptCount ?? row.attempts ?? 0);
+    const uniqueIps = new Set(rows.map((row) => getRowText(row, "ip", "ipKey")).filter(Boolean));
+    const countries = new Set(rows.map((row) => getRowText(row, "country")).filter(Boolean));
+    const blockCount = rows.filter(isBlocked).length;
+    const loginAttemptCount = rows.filter(isLoginAttempt).length;
+    const totalAttempts = rows.reduce((total, row) => {
+      const attempts = attemptsFor(row);
+      return total + (Number.isFinite(attempts) ? attempts : 0);
+    }, 0);
+    const sections = makeSections([
+      { title: "IP Records by Country", label: "Country", values: countBreakdown(rows, (row) => getRowText(row, "country")) },
+      { title: "Block Status", label: "Status", values: countBreakdown(rows, (row) => getRowText(row, "status") || (isBlocked(row) ? "Blocked" : isLoginAttempt(row) ? "Login Attempt" : "Unknown")) },
+      { title: "Block Reasons", label: "Reason", values: countBreakdown(rows, (row) => getRowText(row, "reason") || (isLoginAttempt(row) ? "Failed Login" : "Not Specified")) },
+      { title: "Security Record Type", label: "Record Type", values: countBreakdown(rows, (row) => isBlocked(row) ? "Blocked IP" : isLoginAttempt(row) ? "Login Attempt" : "Security Record") },
+      { title: "Attempts per Record", label: "Attempts", values: countBreakdown(rows, (row) => {
+        const attempts = row.attemptCount ?? row.attempts;
+        return attempts === undefined ? "Not Recorded" : String(attempts);
+      }) },
+      { title: "Expiry State", label: "Expiry", values: countBreakdown(rows, (row) => {
+        const expiresAt = getRowText(row, "expiresAt", "lockedUntil");
+        if (!expiresAt) return "Not Recorded";
+        const expiryTime = new Date(expiresAt).getTime();
+        return Number.isNaN(expiryTime) ? "Unknown" : expiryTime > Date.now() ? "Active" : "Expired";
+      }) },
+    ]);
+
+    return {
+      totalRecords,
+      metrics: [
+        { key: "TOTAL RECORDS", value: totalRecords },
+        { key: "UNIQUE IP ADDRESSES", value: uniqueIps.size },
+        { key: "COUNTRIES", value: countries.size },
+        { key: "BLOCKED IP RECORDS", value: blockCount },
+        { key: "LOGIN ATTEMPT RECORDS", value: loginAttemptCount },
+        { key: "RECORDED ATTEMPTS", value: totalAttempts },
+      ],
+      sections,
+      details: sections.map((section) => [section.label, "All", section.values.length, ""]),
+    };
+  }
+
+  if (category === "server-logs") {
+    const level = (row: Record<string, unknown>) => getRowText(row, "Level", "level").toLowerCase() || "unknown";
+    const status = (row: Record<string, unknown>) => getRowText(row, "Status", "statusCode", "status");
+    const source = (row: Record<string, unknown>) => getRowText(row, "Source", "source");
+    const errorType = (row: Record<string, unknown>) => {
+      const error = getRowText(row, "Error", "errorName", "errorMessage");
+      return error ? error.split(":", 1)[0].trim() : "No Error";
+    };
+    const errors = rows.filter((row) => level(row) === "error").length;
+    const warnings = rows.filter((row) => level(row) === "warn" || level(row) === "warning").length;
+    const infos = rows.filter((row) => level(row) === "info").length;
+    const uniqueSources = new Set(rows.map(source).filter(Boolean));
+    const httpFailures = rows.filter((row) => {
+      const code = Number(status(row));
+      return Number.isFinite(code) && code >= 400;
+    }).length;
+    const sections = makeSections([
+      { title: "Logs by Level", label: "Level", values: countBreakdown(rows, level) },
+      { title: "Logs by Source", label: "Source", values: countBreakdown(rows, (row) => source(row)) },
+      { title: "Logs by Method", label: "Method", values: countBreakdown(rows, (row) => getRowText(row, "Method", "method")) },
+      { title: "HTTP Status Codes", label: "Status", values: countBreakdown(rows, status) },
+      { title: "Logs by Path", label: "Path", values: countBreakdown(rows, (row) => getRowText(row, "Path", "path")) },
+      { title: "Errors by Type", label: "Error Type", values: countBreakdown(rows, errorType) },
+    ]);
+
+    return {
+      totalRecords,
+      metrics: [
+        { key: "TOTAL LOG ENTRIES", value: totalRecords },
+        { key: "ERROR LOGS", value: errors },
+        { key: "WARNING LOGS", value: warnings },
+        { key: "INFO LOGS", value: infos },
+        { key: "UNIQUE SOURCES", value: uniqueSources.size },
+        { key: "HTTP FAILURES", value: httpFailures },
+      ],
+      sections,
+      details: sections.map((section) => [section.label, "All", section.values.length, ""]),
+    };
+  }
+
+  const stats = buildAnalyticsSummary(rows);
+  const sections = makeSections([
+    { title: "Visits by Country", label: "Country", values: stats.countryBreakdown },
+    { title: "Device Type", label: "Device", values: stats.deviceBreakdown },
+    { title: "Browser Share", label: "Browser", values: stats.browserBreakdown },
+    { title: "Operating System", label: "OS", values: stats.osBreakdown },
+    { title: "Top Pages", label: "Top Pages", values: stats.pageBreakdown },
+    { title: "Time of Day (IST)", label: "Time of Day", values: stats.timeBreakdown },
+  ]);
+
+  return {
+    totalRecords,
+    metrics: [
+      { key: "TOTAL RECORDS", value: stats.totalRecords },
+      { key: "UNIQUE SESSIONS", value: stats.uniqueSessions },
+      { key: "COUNTRIES", value: stats.countries },
+      { key: "CITIES", value: stats.cities },
+      { key: "BOT HITS", value: stats.botHits },
+      { key: "ADMIN CONSOLE HITS", value: stats.adminHits },
+    ],
+    sections,
+    details: [
+      ["Country", "All", stats.countryBreakdown.length, ""],
+      ["Region / State", "All", stats.regionBreakdown.length, ""],
+      ["City", "All", stats.cityBreakdown.length, ""],
+      ["Page Path", "All", stats.pageBreakdown.length, ""],
+      ["Referrer", "All", stats.referrerBreakdown.length, ""],
+      ["Browser", "All", stats.browserBreakdown.length, ""],
+      ["Device Type", "All", stats.deviceBreakdown.length, ""],
+      ["Operating System", "All", stats.osBreakdown.length, ""],
+    ],
+  };
+}
+
 export function buildArchiveWorkbook(
   rows: Record<string, unknown>[],
   sheetName: string,
@@ -416,15 +593,11 @@ export function buildArchiveWorkbook(
     }
   }
 
-  const summaryStats = buildAnalyticsSummary(rows);
-  const metricCards = [
-    { key: "TOTAL RECORDS", value: summaryStats.totalRecords, color: palette.metricColors[0] },
-    { key: "UNIQUE SESSIONS", value: summaryStats.uniqueSessions, color: palette.metricColors[1] },
-    { key: "COUNTRIES", value: summaryStats.countries, color: palette.metricColors[2] },
-    { key: "CITIES", value: summaryStats.cities, color: palette.metricColors[3] },
-    { key: "BOT HITS", value: summaryStats.botHits, color: palette.metricColors[4] },
-    { key: "ADMIN CONSOLE HITS", value: summaryStats.adminHits, color: palette.metricColors[5] },
-  ];
+  const reportSummary = buildWorkbookReportSummary(rows, summary.category, palette);
+  const metricCards = reportSummary.metrics.map((metric, index) => ({
+    ...metric,
+    color: palette.metricColors[index % palette.metricColors.length],
+  }));
 
   const widths = [13, 15, 14, 18, 12, 12, 14, 18, 15, 14, 18, 14];
   analyticsSheet.columns = widths.map((width) => ({ width }));
@@ -443,7 +616,7 @@ export function buildArchiveWorkbook(
   analyticsSheet.getRow(1).height = 28;
 
   analyticsSheet.mergeCells("A2:K2");
-  analyticsSheet.getCell("A2").value = `Window: ${formatArchiveDateTime(new Date(summary.generatedAt.getTime() - summary.retentionDays * 24 * 60 * 60 * 1000))} - ${formatArchiveDateTime(summary.generatedAt)} | Records: ${summaryStats.totalRecords}`;
+  analyticsSheet.getCell("A2").value = `Window: ${formatArchiveDateTime(new Date(summary.generatedAt.getTime() - summary.retentionDays * 24 * 60 * 60 * 1000))} - ${formatArchiveDateTime(summary.generatedAt)} | Records: ${reportSummary.totalRecords}`;
   analyticsSheet.getCell("A2").font = { italic: true, color: { argb: palette.muted }, size: 9 };
   analyticsSheet.getCell("A2").alignment = { horizontal: "center" };
   analyticsSheet.getCell("A2").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF9FAFB" } };
@@ -467,16 +640,7 @@ export function buildArchiveWorkbook(
 
   analyticsSheet.getRow(7).height = 8;
 
-  const sectionDefinitions = [
-    { title: "Visits by Country", startRow: 8, startCol: 1, endRow: 18, endCol: 6 },
-    { title: "Device Type", startRow: 8, startCol: 8, endRow: 18, endCol: 11 },
-    { title: "Browser Share", startRow: 20, startCol: 1, endRow: 29, endCol: 6 },
-    { title: "Operating System", startRow: 20, startCol: 8, endRow: 29, endCol: 11 },
-    { title: "Top Pages", startRow: 31, startCol: 1, endRow: 40, endCol: 6 },
-    { title: "Time of Day (IST)", startRow: 31, startCol: 8, endRow: 40, endCol: 11 },
-  ];
-
-  for (const section of sectionDefinitions) {
+  for (const section of reportSummary.sections) {
     const titleCell = analyticsSheet.getCell(section.startRow, section.startCol);
     titleCell.value = section.title;
     titleCell.font = { bold: true, size: 12, color: { argb: palette.titleColor } };
@@ -490,7 +654,7 @@ export function buildArchiveWorkbook(
     };
   }
 
-  const writeMiniTable = (startRow: number, startCol: number, label: string, values: Array<[string, number]>, color: string) => {
+  const writeMiniTable = (startRow: number, startCol: number, label: string, values: WorkbookBreakdown, color: string) => {
     const heading = analyticsSheet.getCell(startRow, startCol);
     heading.value = label;
     heading.font = { bold: true, size: 10, color: { argb: "FF111827" } };
@@ -504,30 +668,16 @@ export function buildArchiveWorkbook(
       const pctCell = analyticsSheet.getCell(startRow + 1 + i, startCol + 2);
       labelCell.value = item[0];
       countCell.value = item[1];
-      pctCell.value = `${((item[1] / Math.max(1, summaryStats.totalRecords)) * 100).toFixed(1)}%`;
+      pctCell.value = `${((item[1] / Math.max(1, reportSummary.totalRecords)) * 100).toFixed(1)}%`;
       applyWorkbookCellStyle(labelCell, { fill: color, fontColor: "FFFFFFFF", bold: false, align: "left", border: true, borderColor: palette.border, fontSize: 8 });
       applyWorkbookCellStyle(countCell, { fill: "FFFFFFFF", fontColor: "FF111827", bold: false, align: "center", border: true, borderColor: palette.border, fontSize: 8 });
       applyWorkbookCellStyle(pctCell, { fill: "FFEBF8FF", fontColor: "FF111827", bold: false, align: "center", border: true, borderColor: palette.border, fontSize: 8 });
     }
   };
 
-  writeMiniTable(10, 1, "Country", summaryStats.countryBreakdown.slice(0, 5), "FF2563EB");
-  writeMiniTable(10, 8, "Device", summaryStats.deviceBreakdown.slice(0, 5), "FF0F766E");
-  writeMiniTable(22, 1, "Browser", summaryStats.browserBreakdown.slice(0, 5), "FF7C3AED");
-  writeMiniTable(22, 8, "OS", summaryStats.osBreakdown.slice(0, 5), "FF10B981");
-  writeMiniTable(33, 1, "Top Pages", summaryStats.pageBreakdown.slice(0, 5), "FFEA580C");
-  writeMiniTable(33, 8, "Time of Day", summaryStats.timeBreakdown.slice(0, 5), "FF14B8A6");
-
-  const detailedRows: Array<[string, string, number, string]> = [
-    ["Country", "All", summaryStats.countryBreakdown.length, ""],
-    ["Region / State", "All", summaryStats.regionBreakdown.length, ""],
-    ["City", "All", summaryStats.cityBreakdown.length, ""],
-    ["Page Path", "All", summaryStats.pageBreakdown.length, ""],
-    ["Referrer", "All", summaryStats.referrerBreakdown.length, ""],
-    ["Browser", "All", summaryStats.browserBreakdown.length, ""],
-    ["Device Type", "All", summaryStats.deviceBreakdown.length, ""],
-    ["Operating System", "All", summaryStats.osBreakdown.length, ""],
-  ];
+  for (const section of reportSummary.sections) {
+    writeMiniTable(section.startRow + 2, section.startCol, section.label, section.values, section.color);
+  }
 
   const detailHeader = analyticsSheet.getRow(44);
   detailHeader.getCell(1).value = "DETAILS GROUPED BY";
@@ -535,8 +685,8 @@ export function buildArchiveWorkbook(
   detailHeader.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE5E7EB" } };
 
   const startRow = 45;
-  for (let i = 0; i < detailedRows.length; i += 1) {
-    const [label, group, count, value] = detailedRows[i];
+  for (let i = 0; i < reportSummary.details.length; i += 1) {
+    const [label, group, count, value] = reportSummary.details[i];
     const row = analyticsSheet.getRow(startRow + i);
     row.getCell(1).value = label;
     row.getCell(2).value = group;

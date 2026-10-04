@@ -116,3 +116,116 @@ test("buildArchiveWorkbook exports an analytics workbook with the reference repo
     assert.equal(categoryLogs.getCell("J2").numFmt, "yyyy-mm-dd hh:mm:ss");
   }
 });
+
+test("IP security summary uses IP block and login-attempt fields", () => {
+  const rows = [
+    {
+      _id: "block-1",
+      ip: "203.0.113.10",
+      ipKey: "fingerprint-1",
+      country: "India",
+      status: "blocked",
+      reason: "failed_admin_login",
+      blockedAt: new Date("2026-10-04T08:00:00.000Z"),
+      expiresAt: new Date("2026-10-05T08:00:00.000Z"),
+      attemptCount: 5,
+    },
+    {
+      _id: "attempt-1",
+      ip: "203.0.113.10",
+      ipKey: "fingerprint-1",
+      country: "India",
+      attempts: 2,
+      lockedUntil: new Date("2026-10-04T09:00:00.000Z"),
+      expiresAt: new Date("2026-10-05T09:00:00.000Z"),
+      createdAt: new Date("2026-10-04T08:30:00.000Z"),
+      windowStartedAt: new Date("2026-10-04T08:00:00.000Z"),
+    },
+  ];
+
+  const workbook = buildArchiveWorkbook(rows, "ip-security", {
+    category: "ip-security",
+    recordsCount: rows.length,
+    retentionDays: 7,
+    generatedAt: new Date("2026-10-04T09:00:00.000Z"),
+  });
+  const report = workbook.getWorksheet("Detailed Logs Summary Report");
+
+  assert.ok(report);
+  assert.equal(report.getCell("A5").value, "TOTAL RECORDS");
+  assert.equal(report.getCell("A6").value, 2);
+  assert.equal(report.getCell("C5").value, "UNIQUE IP ADDRESSES");
+  assert.equal(report.getCell("C6").value, 1);
+  assert.equal(report.getCell("G5").value, "BLOCKED IP RECORDS");
+  assert.equal(report.getCell("G6").value, 1);
+  assert.equal(report.getCell("I5").value, "LOGIN ATTEMPT RECORDS");
+  assert.equal(report.getCell("I6").value, 1);
+  assert.equal(report.getCell("K5").value, "RECORDED ATTEMPTS");
+  assert.equal(report.getCell("K6").value, 7);
+  assert.equal(report.getCell("A8").value, "IP Records by Country");
+  assert.equal(report.getCell("A10").value, "Country");
+  assert.equal(report.getCell("A11").value, "India");
+  assert.equal(report.getCell("B11").value, 2);
+});
+
+test("server logs summary uses level, source, method, status, path, and error fields", () => {
+  const rows = [
+    {
+      Time: "2026-10-04 14:35:09",
+      Level: "warn",
+      Source: "admin.login",
+      Method: "POST",
+      Path: "/api/admin/login",
+      Status: 429,
+      Message: "Admin sign-in rejected by active network lock",
+      Error: "",
+    },
+    {
+      Time: "2026-10-04 14:36:09",
+      Level: "error",
+      Source: "admin.archive",
+      Method: "GET",
+      Path: "/api/admin/archive",
+      Status: 500,
+      Message: "Archive status fetch failed",
+      Error: "MongoServerSelectionError: connection timed out",
+    },
+    {
+      Time: "2026-10-04 14:37:09",
+      Level: "info",
+      Source: "health.check",
+      Method: "GET",
+      Path: "/api/health",
+      Status: 200,
+      Message: "Health check passed",
+      Error: "",
+    },
+  ];
+
+  const workbook = buildArchiveWorkbook(rows, "server-logs", {
+    category: "server-logs",
+    recordsCount: rows.length,
+    retentionDays: 1,
+    generatedAt: new Date("2026-10-04T09:00:00.000Z"),
+  });
+  const report = workbook.getWorksheet("Detailed Logs Summary Report");
+
+  assert.ok(report);
+  assert.equal(report.getCell("A5").value, "TOTAL LOG ENTRIES");
+  assert.equal(report.getCell("A6").value, 3);
+  assert.equal(report.getCell("C5").value, "ERROR LOGS");
+  assert.equal(report.getCell("C6").value, 1);
+  assert.equal(report.getCell("E5").value, "WARNING LOGS");
+  assert.equal(report.getCell("E6").value, 1);
+  assert.equal(report.getCell("G5").value, "INFO LOGS");
+  assert.equal(report.getCell("G6").value, 1);
+  assert.equal(report.getCell("I5").value, "UNIQUE SOURCES");
+  assert.equal(report.getCell("I6").value, 3);
+  assert.equal(report.getCell("K5").value, "HTTP FAILURES");
+  assert.equal(report.getCell("K6").value, 2);
+  assert.equal(report.getCell("A8").value, "Logs by Level");
+  assert.equal(report.getCell("A10").value, "Level");
+  assert.equal(report.getCell("A11").value, "warn");
+  assert.equal(report.getCell("H8").value, "Logs by Source");
+  assert.equal(report.getCell("H11").value, "admin.login");
+});
