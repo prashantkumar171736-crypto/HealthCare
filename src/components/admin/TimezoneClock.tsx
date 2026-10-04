@@ -209,7 +209,10 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, countryLab
           border: 1px solid var(--admin-border, #e2e8f0);
           border-radius: 12px;
           background: var(--admin-card-bg, var(--surface, #ffffff));
-          color: var(--admin-text-primary, var(--text-main, #0f172a));
+          --clock-rose-text: color-mix(in srgb, #fb7185 72%, var(--admin-text-primary, #0f172a));
+          --clock-rose-strong: color-mix(in srgb, #f43f5e 76%, var(--admin-text-primary, #0f172a));
+          --clock-rose-surface: color-mix(in srgb, #fb7185 18%, var(--admin-card-bg, #ffffff));
+          color: var(--clock-rose-text);
           text-align: left;
         }
 
@@ -295,7 +298,7 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, countryLab
 
         .timezone-clock-label {
           overflow: hidden;
-          color: color-mix(in srgb, var(--admin-accent, #0d9488) 68%, var(--admin-text-primary, #0f172a));
+          color: var(--clock-rose-text);
           font-size: 13px;
           font-style: italic;
           font-weight: 800;
@@ -305,7 +308,7 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, countryLab
 
         .timezone-clock-country {
           flex: 0 0 auto;
-          color: var(--admin-text-primary, #0f172a);
+          color: var(--clock-rose-strong);
           font-size: 13px;
           font-style: italic;
           font-weight: 900;
@@ -325,14 +328,15 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, countryLab
         }
 
         .timezone-clock-phase.is-day {
-          background: color-mix(in srgb, #f59e0b 20%, var(--admin-card-bg, #ffffff));
-          color: color-mix(in srgb, #92400e 68%, var(--admin-text-primary, #0f172a));
+          background: var(--clock-rose-surface);
+          border: 1px solid color-mix(in srgb, #fb7185 34%, transparent);
+          color: var(--clock-rose-strong);
         }
 
         .timezone-clock-phase.is-night {
-          background: color-mix(in srgb, var(--admin-accent, #0d9488) 20%, var(--admin-card-bg, #ffffff));
-          color: color-mix(in srgb, var(--admin-accent, #0d9488) 70%, var(--admin-text-primary, #0f172a));
-          border: 1px solid color-mix(in srgb, var(--admin-accent, #0d9488) 34%, transparent);
+          background: var(--clock-rose-surface);
+          color: var(--clock-rose-strong);
+          border: 1px solid color-mix(in srgb, #f43f5e 38%, transparent);
         }
 
         .timezone-clock-phase svg {
@@ -348,7 +352,7 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, countryLab
         .timezone-clock-time {
           margin: 1px 0;
           font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-          color: var(--admin-text-primary, #0f172a);
+          color: var(--clock-rose-strong);
           font-size: 23px;
           font-variant-numeric: tabular-nums;
           font-weight: 700;
@@ -357,7 +361,7 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, countryLab
         }
 
         .timezone-clock-details {
-          color: color-mix(in srgb, var(--admin-accent, #0d9488) 60%, var(--admin-text-primary, #0f172a));
+          color: var(--clock-rose-text);
           font-size: 12px;
           font-variant-numeric: tabular-nums;
           font-style: italic;
