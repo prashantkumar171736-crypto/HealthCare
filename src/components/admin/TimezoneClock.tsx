@@ -8,6 +8,7 @@ interface TimezoneClockProps {
   label: string;
   timeZone: string;
   offsetLabel: string;
+  countryLabel?: string;
   previewHour?: number;
 }
 
@@ -94,7 +95,7 @@ function PhaseIcon({ phase }: { phase: ClockPhase }) {
   );
 }
 
-export default function TimezoneClock({ label, timeZone, offsetLabel, previewHour }: TimezoneClockProps) {
+export default function TimezoneClock({ label, timeZone, offsetLabel, countryLabel, previewHour }: TimezoneClockProps) {
   const reactId = useId();
   const maskId = `clock-moon-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const [snapshot, setSnapshot] = useState<ClockSnapshot | null>(null);
@@ -184,7 +185,10 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, previewHou
 
       <div className="timezone-clock-content">
         <div className="timezone-clock-heading">
-          <span className="timezone-clock-label">{label}</span>
+          <div className="timezone-clock-title">
+            {countryLabel && <span className="timezone-clock-country">{countryLabel}</span>}
+            <span className="timezone-clock-label">{label}</span>
+          </div>
           <span className={`timezone-clock-phase ${phase === "Night" ? "is-night" : "is-day"}`}>
             <PhaseIcon phase={phase} />
             {phase}
@@ -200,7 +204,7 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, previewHou
       <style jsx>{`
         .timezone-clock {
           width: 100%;
-          max-width: 260px;
+          max-width: 300px;
           overflow: hidden;
           border: 1px solid var(--admin-border, #e2e8f0);
           border-radius: 12px;
@@ -211,7 +215,7 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, previewHou
 
         .timezone-clock-scene {
           width: 100%;
-          height: 60px;
+          height: 68px;
           overflow: hidden;
         }
 
@@ -282,12 +286,29 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, previewHou
           gap: 6px;
         }
 
+        .timezone-clock-title {
+          display: flex;
+          min-width: 0;
+          align-items: baseline;
+          gap: 6px;
+        }
+
         .timezone-clock-label {
           overflow: hidden;
-          color: var(--admin-text-secondary, var(--text-muted, #475569));
-          font-size: 11px;
-          font-weight: 700;
+          color: color-mix(in srgb, var(--admin-accent, #0d9488) 68%, var(--admin-text-primary, #0f172a));
+          font-size: 13px;
+          font-style: italic;
+          font-weight: 800;
           text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .timezone-clock-country {
+          flex: 0 0 auto;
+          color: var(--admin-text-primary, #0f172a);
+          font-size: 13px;
+          font-style: italic;
+          font-weight: 900;
           white-space: nowrap;
         }
 
@@ -297,25 +318,26 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, previewHou
           align-items: center;
           gap: 3px;
           border-radius: 999px;
-          padding: 2px 6px;
-          font-size: 10px;
-          font-weight: 700;
+          padding: 4px 8px;
+          font-size: 12px;
+          font-weight: 800;
           line-height: 1.25;
         }
 
         .timezone-clock-phase.is-day {
-          background: rgba(245, 158, 11, 0.16);
-          color: #92400e;
+          background: color-mix(in srgb, #f59e0b 20%, var(--admin-card-bg, #ffffff));
+          color: color-mix(in srgb, #92400e 68%, var(--admin-text-primary, #0f172a));
         }
 
         .timezone-clock-phase.is-night {
-          background: color-mix(in srgb, var(--admin-accent, #0d9488) 16%, transparent);
-          color: var(--admin-accent, #0d9488);
+          background: color-mix(in srgb, var(--admin-accent, #0d9488) 20%, var(--admin-card-bg, #ffffff));
+          color: color-mix(in srgb, var(--admin-accent, #0d9488) 70%, var(--admin-text-primary, #0f172a));
+          border: 1px solid color-mix(in srgb, var(--admin-accent, #0d9488) 34%, transparent);
         }
 
         .timezone-clock-phase svg {
-          width: 12px;
-          height: 12px;
+          width: 14px;
+          height: 14px;
           fill: none;
           stroke: currentColor;
           stroke-linecap: round;
@@ -326,7 +348,8 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, previewHou
         .timezone-clock-time {
           margin: 1px 0;
           font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-          font-size: 21px;
+          color: var(--admin-text-primary, #0f172a);
+          font-size: 23px;
           font-variant-numeric: tabular-nums;
           font-weight: 700;
           letter-spacing: 0;
@@ -334,9 +357,11 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, previewHou
         }
 
         .timezone-clock-details {
-          color: var(--admin-text-secondary, var(--text-muted, #475569));
-          font-size: 10px;
+          color: color-mix(in srgb, var(--admin-accent, #0d9488) 60%, var(--admin-text-primary, #0f172a));
+          font-size: 12px;
           font-variant-numeric: tabular-nums;
+          font-style: italic;
+          font-weight: 800;
           line-height: 1.25;
         }
 
@@ -365,7 +390,7 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, previewHou
           }
 
           .timezone-clock-time {
-            font-size: 18px;
+            font-size: 20px;
           }
         }
 

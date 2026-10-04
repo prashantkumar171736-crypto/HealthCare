@@ -1115,14 +1115,14 @@ export default function DashboardClient() {
       <main className="admin-content-pane">
         <header className="content-header">
           <div className="header-clock header-clock-left">
-            <TimezoneClock label="India (IST)" timeZone="Asia/Kolkata" offsetLabel="UTC+05:30" />
+            <TimezoneClock label="INDIA" timeZone="Asia/Kolkata" offsetLabel="UTC+05:30" />
           </div>
           <div className="header-meta">
             <h1>Analytics Security Console</h1>
             <p>Real-time site reachability, geolocation metrics, and traffic aggregation.</p>
           </div>
           <div className="header-clock header-clock-right">
-            <TimezoneClock label="UTC 0 (GMT)" timeZone="UTC" offsetLabel="UTC+00:00" />
+            <TimezoneClock countryLabel="ICELAND" label="UTC 0 (GMT)" timeZone="UTC" offsetLabel="UTC+00:00" />
           </div>
           <div className="header-actions">
             <button onClick={() => fetchStats()} className="btn-refresh">
@@ -5208,7 +5208,7 @@ export default function DashboardClient() {
 
         .content-header {
           display: grid;
-          grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(220px, 260px);
+          grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(240px, 300px);
           grid-template-areas: "clock-left meta clock-right" "actions actions actions";
           align-items: start;
           gap: 0.75rem 1rem;
@@ -5223,7 +5223,7 @@ export default function DashboardClient() {
 
         .header-clock {
           width: 100%;
-          max-width: 260px;
+          max-width: 300px;
         }
 
         .header-meta {
