@@ -2,6 +2,31 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { buildArchiveWorkbook } from "../src/lib/archive-r2";
+import { logServer } from "../src/lib/server-logger";
+
+test("logServer skips persistence when SERVER_LOGGING_ENABLED is false", async () => {
+  const previousLoggingSetting = process.env.SERVER_LOGGING_ENABLED;
+  const previousMongoUri = process.env.MONGODB_URI;
+  const previousConsoleError = console.error;
+  let persistenceErrors = 0;
+
+  process.env.SERVER_LOGGING_ENABLED = "false";
+  delete process.env.MONGODB_URI;
+  console.error = () => {
+    persistenceErrors += 1;
+  };
+
+  try {
+    await logServer({ level: "error", message: "Test log", source: "test" });
+    assert.equal(persistenceErrors, 0);
+  } finally {
+    console.error = previousConsoleError;
+    if (previousLoggingSetting === undefined) delete process.env.SERVER_LOGGING_ENABLED;
+    else process.env.SERVER_LOGGING_ENABLED = previousLoggingSetting;
+    if (previousMongoUri === undefined) delete process.env.MONGODB_URI;
+    else process.env.MONGODB_URI = previousMongoUri;
+  }
+});
 
 test("buildArchiveWorkbook exports an analytics workbook with the reference report design", async () => {
   const rows = [

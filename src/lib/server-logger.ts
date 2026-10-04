@@ -79,6 +79,8 @@ async function persistServerLog(document: Record<string, unknown>): Promise<void
 }
 
 export async function logServer(input: ServerLogInput): Promise<void> {
+  if (process.env.SERVER_LOGGING_ENABLED?.trim().toLowerCase() === "false") return;
+
   const errorFields = getErrorFields(input.error);
   const sessionId = input.sessionId?.trim();
   const document = {
