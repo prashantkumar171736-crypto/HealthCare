@@ -361,8 +361,8 @@ export function buildArchiveWorkbook(
   const workbook = new ExcelJS.Workbook();
   const palette = getCategoryPalette(sheetName);
 
-  const analyticsSheet = workbook.addWorksheet("Analytics Report");
-  const detailSheet = workbook.addWorksheet("Detailed Summary Report");
+  const analyticsSheet = workbook.addWorksheet("Detailed Logs Summary Report");
+  const detailSheet = workbook.addWorksheet("Logs Report");
 
   const firstRow = rows[0] ?? {};
   const rawKeys = Object.keys(firstRow).length > 0 ? Object.keys(firstRow) : ["ID", "message"];
@@ -399,7 +399,7 @@ export function buildArchiveWorkbook(
   analyticsSheet.columns = widths.map((width) => ({ width }));
 
   analyticsSheet.mergeCells("A1:K1");
-  analyticsSheet.getCell("A1").value = "ANALYTICS ARCHIVE - DETAILED SUMMARY";
+  analyticsSheet.getCell("A1").value = "DETAILED LOGS SUMMARY REPORT";
   analyticsSheet.getCell("A1").font = { bold: true, color: { argb: "FFFFFFFF" }, size: 18 };
   analyticsSheet.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: palette.headerFill } };
   analyticsSheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };

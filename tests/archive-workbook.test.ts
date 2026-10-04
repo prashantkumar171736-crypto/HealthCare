@@ -50,17 +50,22 @@ test("buildArchiveWorkbook exports an analytics workbook with the reference repo
     generatedAt: new Date("2026-10-03T03:30:00.000Z"),
   });
 
-  const analyticsSheet = workbook.getWorksheet("Analytics Report");
-  const detailedSheet = workbook.getWorksheet("Detailed Summary Report");
+  const analyticsSheet = workbook.getWorksheet("Detailed Logs Summary Report");
+  const detailedSheet = workbook.getWorksheet("Logs Report");
 
   assert.deepEqual(
     workbook.worksheets.map((sheet) => sheet.name),
-    ["Analytics Report", "Detailed Summary Report"],
-    "Workbook should contain exactly the two report sheets shown in the reference design",
+    ["Detailed Logs Summary Report", "Logs Report"],
+    "Workbook should contain the detailed summary followed by the raw logs",
   );
   assert.ok(analyticsSheet, "Analytics worksheet should exist");
   assert.ok(detailedSheet, "Detailed Summary worksheet should exist");
-  assert.equal(analyticsSheet.getCell("A1").value, "ANALYTICS ARCHIVE - DETAILED SUMMARY");
+  assert.equal(analyticsSheet.getCell("A1").value, "DETAILED LOGS SUMMARY REPORT");
   assert.match(String(analyticsSheet.getCell("A2").value ?? ""), /Window:/);
   assert.equal(detailedSheet.getCell("A1").value, "ID");
+  assert.equal(analyticsSheet.getCell("A5").value, "TOTAL RECORDS");
+  assert.equal(analyticsSheet.getCell("A6").value, rows.length);
+  assert.equal(detailedSheet.getCell("A2").value, "1");
+  assert.equal(detailedSheet.getCell("B2").value, "/about");
+  assert.equal(detailedSheet.rowCount, rows.length + 1);
 });
