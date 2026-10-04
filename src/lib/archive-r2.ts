@@ -242,6 +242,44 @@ function getPageCategory(path: unknown): string {
   return "Public Page";
 }
 
+function getCategoryPalette(category: string) {
+  const normalized = category.toLowerCase();
+
+  if (normalized.includes("ip")) {
+    return {
+      headerFill: "FF2E2A5F",
+      subHeaderFill: "FF3A3C74",
+      metricColors: ["FF2F80ED", "FF27AE60", "FFFFA726", "FFDC2626", "FF8B5CF6", "FF14B8A6"],
+      panelFill: "FFF7F7FB",
+      border: "FFD1D5DB",
+      titleColor: "FF0F172A",
+      muted: "FF6B7280",
+    };
+  }
+
+  if (normalized.includes("server") || normalized.includes("log")) {
+    return {
+      headerFill: "FF273C71",
+      subHeaderFill: "FF415E9A",
+      metricColors: ["FF0EA5E9", "FF10B981", "FFF59E0B", "FFEF4444", "FF8B5CF6", "FF14B8A6"],
+      panelFill: "FFF8FAFC",
+      border: "FFD8DEE9",
+      titleColor: "FF111827",
+      muted: "FF6B7280",
+    };
+  }
+
+  return {
+    headerFill: "FF2B2C6F",
+    subHeaderFill: "FF3E3D8C",
+    metricColors: ["FF2563EB", "FF16A34A", "FFFF8A00", "FFDC2626", "FF7C3AED", "FF0891B2"],
+    panelFill: "FFF3F4F6",
+    border: "FFD9D9D9",
+    titleColor: "FF111827",
+    muted: "FF6B7280",
+  };
+}
+
 function buildAnalyticsSummary(rows: Record<string, unknown>[]) {
   const countryMap = new Map<string, number>();
   const regionMap = new Map<string, number>();
@@ -321,6 +359,7 @@ export function buildArchiveWorkbook(
   summary: ArchiveWorkbookSummary,
 ): ExcelJS.Workbook {
   const workbook = new ExcelJS.Workbook();
+  const palette = getCategoryPalette(sheetName);
 
   const analyticsSheet = workbook.addWorksheet("Analytics Report");
   const detailSheet = workbook.addWorksheet("Detailed Summary Report");
@@ -348,35 +387,38 @@ export function buildArchiveWorkbook(
 
   const summaryStats = buildAnalyticsSummary(rows);
   const metricCards = [
-    { key: "TOTAL RECORDS", value: summaryStats.totalRecords, color: "FF1D4ED8" },
-    { key: "UNIQUE SESSIONS", value: summaryStats.uniqueSessions, color: "FF16A34A" },
-    { key: "COUNTRIES", value: summaryStats.countries, color: "FFFF8A00" },
-    { key: "CITIES", value: summaryStats.cities, color: "FFDC2626" },
-    { key: "BOT HITS", value: summaryStats.botHits, color: "FF7C3AED" },
-    { key: "ADMIN CONSOLE HITS", value: summaryStats.adminHits, color: "FF0891B2" },
+    { key: "TOTAL RECORDS", value: summaryStats.totalRecords, color: palette.metricColors[0] },
+    { key: "UNIQUE SESSIONS", value: summaryStats.uniqueSessions, color: palette.metricColors[1] },
+    { key: "COUNTRIES", value: summaryStats.countries, color: palette.metricColors[2] },
+    { key: "CITIES", value: summaryStats.cities, color: palette.metricColors[3] },
+    { key: "BOT HITS", value: summaryStats.botHits, color: palette.metricColors[4] },
+    { key: "ADMIN CONSOLE HITS", value: summaryStats.adminHits, color: palette.metricColors[5] },
   ];
+
+  const widths = [13, 15, 14, 18, 12, 12, 14, 18, 15, 14, 18, 14];
+  analyticsSheet.columns = widths.map((width) => ({ width }));
 
   analyticsSheet.mergeCells("A1:K1");
   analyticsSheet.getCell("A1").value = "ANALYTICS ARCHIVE - DETAILED SUMMARY";
   analyticsSheet.getCell("A1").font = { bold: true, color: { argb: "FFFFFFFF" }, size: 18 };
-  analyticsSheet.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F2D6C" } };
+  analyticsSheet.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: palette.headerFill } };
   analyticsSheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
   analyticsSheet.getCell("A1").border = {
-    top: { style: "thin", color: { argb: "FF1F2D6C" } },
-    left: { style: "thin", color: { argb: "FF1F2D6C" } },
-    bottom: { style: "thin", color: { argb: "FF1F2D6C" } },
-    right: { style: "thin", color: { argb: "FF1F2D6C" } },
+    top: { style: "thin", color: { argb: palette.headerFill } },
+    left: { style: "thin", color: { argb: palette.headerFill } },
+    bottom: { style: "thin", color: { argb: palette.headerFill } },
+    right: { style: "thin", color: { argb: palette.headerFill } },
   };
   analyticsSheet.getRow(1).height = 28;
 
   analyticsSheet.mergeCells("A2:K2");
   analyticsSheet.getCell("A2").value = `Window: ${formatArchiveDateTime(new Date(summary.generatedAt.getTime() - summary.retentionDays * 24 * 60 * 60 * 1000))} - ${formatArchiveDateTime(summary.generatedAt)} | Records: ${summaryStats.totalRecords}`;
-  analyticsSheet.getCell("A2").font = { italic: true, color: { argb: "FF7A7A7A" }, size: 9 };
+  analyticsSheet.getCell("A2").font = { italic: true, color: { argb: palette.muted }, size: 9 };
   analyticsSheet.getCell("A2").alignment = { horizontal: "center" };
+  analyticsSheet.getCell("A2").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF9FAFB" } };
+  analyticsSheet.getRow(2).height = 18;
 
-  const cardStartRows = [5, 5, 5, 5, 5, 5];
   const cardStartCols = [1, 3, 5, 7, 9, 11];
-
   for (let i = 0; i < metricCards.length; i += 1) {
     const colIndex = cardStartCols[i];
     const titleCell = analyticsSheet.getCell(5, colIndex);
@@ -386,37 +428,44 @@ export function buildArchiveWorkbook(
     analyticsSheet.mergeCells(6, colIndex, 6, colIndex + cardWidth - 1);
     titleCell.value = metricCards[i].key;
     valueCell.value = metricCards[i].value;
-    applyWorkbookCellStyle(titleCell, { fill: metricCards[i].color, fontColor: "FFFFFFFF", bold: true, align: "center", border: true, fontSize: 8 });
-    applyWorkbookCellStyle(valueCell, { fill: "FFFFFFFF", fontColor: "FF1F2937", bold: true, align: "center", border: true, fontSize: 14 });
+    applyWorkbookCellStyle(titleCell, { fill: metricCards[i].color, fontColor: "FFFFFFFF", bold: true, align: "center", border: true, borderColor: palette.border, fontSize: 8 });
+    applyWorkbookCellStyle(valueCell, { fill: "FFFFFFFF", fontColor: "FF111827", bold: true, align: "center", border: true, borderColor: palette.border, fontSize: 14 });
     analyticsSheet.getRow(5).height = 20;
-    analyticsSheet.getRow(6).height = 26;
+    analyticsSheet.getRow(6).height = 28;
   }
 
-  for (let col = 1; col <= 12; col += 1) {
-    analyticsSheet.getColumn(col).width = 14;
-  }
+  analyticsSheet.getRow(7).height = 8;
 
-  const templateRows = [
-    { title: "Visits by Country", start: "A9", end: "F18" },
-    { title: "Device Type", start: "H9", end: "K18" },
-    { title: "Browser Share", start: "A20", end: "F29" },
-    { title: "Operating System", start: "H20", end: "K29" },
-    { title: "Top Pages", start: "A31", end: "F40" },
-    { title: "Time of Day (IST)", start: "H31", end: "K40" },
+  const sectionDefinitions = [
+    { title: "Visits by Country", startRow: 8, startCol: 1, endRow: 18, endCol: 6 },
+    { title: "Device Type", startRow: 8, startCol: 8, endRow: 18, endCol: 11 },
+    { title: "Browser Share", startRow: 20, startCol: 1, endRow: 29, endCol: 6 },
+    { title: "Operating System", startRow: 20, startCol: 8, endRow: 29, endCol: 11 },
+    { title: "Top Pages", startRow: 31, startCol: 1, endRow: 40, endCol: 6 },
+    { title: "Time of Day (IST)", startRow: 31, startCol: 8, endRow: 40, endCol: 11 },
   ];
 
-  for (let i = 0; i < templateRows.length; i += 1) {
-    const section = templateRows[i];
-    analyticsSheet.getCell(section.start).value = section.title;
-    analyticsSheet.getCell(section.start).font = { bold: true, size: 12, color: { argb: "FF111827" } };
-    analyticsSheet.getCell(section.start).alignment = { horizontal: "left" };
-    analyticsSheet.getCell(section.start).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F4F6" } };
+  for (const section of sectionDefinitions) {
+    const titleCell = analyticsSheet.getCell(section.startRow, section.startCol);
+    titleCell.value = section.title;
+    titleCell.font = { bold: true, size: 12, color: { argb: palette.titleColor } };
+    titleCell.alignment = { horizontal: "left", vertical: "middle" };
+    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: palette.panelFill } };
+    titleCell.border = {
+      top: { style: "thin", color: { argb: palette.border } },
+      left: { style: "thin", color: { argb: palette.border } },
+      bottom: { style: "thin", color: { argb: palette.border } },
+      right: { style: "thin", color: { argb: palette.border } },
+    };
   }
 
   const writeMiniTable = (startRow: number, startCol: number, label: string, values: Array<[string, number]>, color: string) => {
     const heading = analyticsSheet.getCell(startRow, startCol);
     heading.value = label;
-    applyWorkbookCellStyle(heading, { fill: "FFF3F4F6", fontColor: "FF111827", bold: true, align: "left", border: false, fontSize: 10 });
+    heading.font = { bold: true, size: 10, color: { argb: "FF111827" } };
+    heading.fill = { type: "pattern", pattern: "solid", fgColor: { argb: palette.panelFill } };
+    heading.alignment = { horizontal: "left" };
+
     for (let i = 0; i < Math.min(values.length, 5); i += 1) {
       const item = values[i];
       const labelCell = analyticsSheet.getCell(startRow + 1 + i, startCol);
@@ -425,9 +474,9 @@ export function buildArchiveWorkbook(
       labelCell.value = item[0];
       countCell.value = item[1];
       pctCell.value = `${((item[1] / Math.max(1, summaryStats.totalRecords)) * 100).toFixed(1)}%`;
-      applyWorkbookCellStyle(labelCell, { fill: color, fontColor: "FFFFFFFF", bold: false, align: "left", border: true, fontSize: 8 });
-      applyWorkbookCellStyle(countCell, { fill: "FFFFFFFF", fontColor: "FF111827", bold: false, align: "center", border: true, fontSize: 8 });
-      applyWorkbookCellStyle(pctCell, { fill: "FFEBF8FF", fontColor: "FF111827", bold: false, align: "center", border: true, fontSize: 8 });
+      applyWorkbookCellStyle(labelCell, { fill: color, fontColor: "FFFFFFFF", bold: false, align: "left", border: true, borderColor: palette.border, fontSize: 8 });
+      applyWorkbookCellStyle(countCell, { fill: "FFFFFFFF", fontColor: "FF111827", bold: false, align: "center", border: true, borderColor: palette.border, fontSize: 8 });
+      applyWorkbookCellStyle(pctCell, { fill: "FFEBF8FF", fontColor: "FF111827", bold: false, align: "center", border: true, borderColor: palette.border, fontSize: 8 });
     }
   };
 
@@ -462,10 +511,10 @@ export function buildArchiveWorkbook(
     row.getCell(2).value = group;
     row.getCell(3).value = count;
     row.getCell(4).value = value || "";
-    applyWorkbookCellStyle(row.getCell(1), { fill: "FFFFFFFF", fontColor: "FF111827", bold: false, align: "left", border: true, fontSize: 8 });
-    applyWorkbookCellStyle(row.getCell(2), { fill: "FFFFFFFF", fontColor: "FF111827", bold: false, align: "left", border: true, fontSize: 8 });
-    applyWorkbookCellStyle(row.getCell(3), { fill: "FFEEF2FF", fontColor: "FF111827", bold: true, align: "center", border: true, fontSize: 8 });
-    applyWorkbookCellStyle(row.getCell(4), { fill: "FFFFFFFF", fontColor: "FF111827", bold: false, align: "left", border: true, fontSize: 8 });
+    applyWorkbookCellStyle(row.getCell(1), { fill: "FFFFFFFF", fontColor: "FF111827", bold: false, align: "left", border: true, borderColor: palette.border, fontSize: 8 });
+    applyWorkbookCellStyle(row.getCell(2), { fill: "FFFFFFFF", fontColor: "FF111827", bold: false, align: "left", border: true, borderColor: palette.border, fontSize: 8 });
+    applyWorkbookCellStyle(row.getCell(3), { fill: "FFEEF2FF", fontColor: "FF111827", bold: true, align: "center", border: true, borderColor: palette.border, fontSize: 8 });
+    applyWorkbookCellStyle(row.getCell(4), { fill: "FFFFFFFF", fontColor: "FF111827", bold: false, align: "left", border: true, borderColor: palette.border, fontSize: 8 });
   }
 
   return workbook;
