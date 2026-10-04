@@ -10,6 +10,7 @@ import ThemeSettings, { AdminTheme, AdminThemeBridge, DEFAULT_THEME, hexToRgb, l
 import { useLanguage } from "@/context/LanguageContext";
 import { LANG_MAP } from "@/lib/detectLanguage";
 import { ARCHIVE_CATEGORY_OPTIONS, ARCHIVE_RETENTION_OPTIONS, type ArchiveCategorySelection } from "@/lib/archive-config";
+import TimezoneClock from "@/components/admin/TimezoneClock";
 
 const LS_THEME_KEY = "admin_panel_theme";
 
@@ -1113,9 +1114,15 @@ export default function DashboardClient() {
       {/* Main Panel Content */}
       <main className="admin-content-pane">
         <header className="content-header">
+          <div className="header-clock header-clock-left">
+            <TimezoneClock label="India (IST)" timeZone="Asia/Kolkata" offsetLabel="UTC+05:30" />
+          </div>
           <div className="header-meta">
             <h1>Analytics Security Console</h1>
             <p>Real-time site reachability, geolocation metrics, and traffic aggregation.</p>
+          </div>
+          <div className="header-clock header-clock-right">
+            <TimezoneClock label="UTC 0 (GMT)" timeZone="UTC" offsetLabel="UTC+00:00" />
           </div>
           <div className="header-actions">
             <button onClick={() => fetchStats()} className="btn-refresh">
@@ -5200,18 +5207,27 @@ export default function DashboardClient() {
         }
 
         .content-header {
-          position: relative;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
+          display: grid;
+          grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(220px, 260px);
+          grid-template-areas: "clock-left meta clock-right" "actions actions actions";
+          align-items: start;
+          gap: 0.75rem 1rem;
           text-align: center;
           margin-bottom: 2rem;
           border-bottom: 1px solid var(--admin-border, rgba(255, 255, 255, 0.08));
           padding-bottom: 1.5rem;
         }
 
+        .header-clock-left { grid-area: clock-left; justify-self: start; }
+        .header-clock-right { grid-area: clock-right; justify-self: end; }
+
+        .header-clock {
+          width: 100%;
+          max-width: 260px;
+        }
+
         .header-meta {
+          grid-area: meta;
           width: 100%;
           text-align: center;
           margin-bottom: 0.75rem;
@@ -5235,9 +5251,21 @@ export default function DashboardClient() {
         }
 
         .header-actions {
+          grid-area: actions;
           display: flex;
           gap: 0.75rem;
           justify-content: center;
+          flex-wrap: wrap;
+        }
+
+        @media (max-width: 1100px) {
+          .content-header {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            grid-template-areas: "meta meta" "clock-left clock-right" "actions actions";
+          }
+
+          .header-clock-left { justify-self: start; }
+          .header-clock-right { justify-self: end; }
         }
 
         .btn-refresh, .btn-danger {
