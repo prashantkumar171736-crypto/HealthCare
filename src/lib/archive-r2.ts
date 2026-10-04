@@ -133,18 +133,201 @@ function getSummaryCounts(rows: Record<string, unknown>[]) {
   };
 }
 
+function applyWorkbookCellStyle(
+  cell: ExcelJS.Cell,
+  options: {
+    fill?: string;
+    fontColor?: string;
+    bold?: boolean;
+    align?: "center" | "left" | "right";
+    valign?: "middle" | "top";
+    border?: boolean;
+    borderColor?: string;
+    fontSize?: number;
+  } = {},
+) {
+  const {
+    fill,
+    fontColor = "FFFFFF",
+    bold = false,
+    align = "left",
+    valign = "middle",
+    border = true,
+    borderColor = "D9D9D9",
+    fontSize = 10,
+  } = options;
+
+  cell.font = {
+    bold,
+    color: { argb: fontColor },
+    size: fontSize,
+  };
+  cell.alignment = { vertical: valign, horizontal: align };
+  cell.border = border ? {
+    top: { style: "thin", color: { argb: borderColor } },
+    left: { style: "thin", color: { argb: borderColor } },
+    bottom: { style: "thin", color: { argb: borderColor } },
+    right: { style: "thin", color: { argb: borderColor } },
+  } : undefined;
+  if (fill) {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: fill },
+    };
+  }
+}
+
+function getBrowserName(userAgent: unknown): string {
+  if (typeof userAgent !== "string") return "Unknown";
+  const ua = userAgent.toLowerCase();
+  if (/edg|chrome/.test(ua)) return "Chrome";
+  if (/firefox/.test(ua)) return "Firefox";
+  if (/safari/.test(ua) && !/chrome|android/.test(ua)) return "Safari";
+  if (/opr|opera/.test(ua)) return "Opera";
+  if (/msie|trident/.test(ua)) return "IE";
+  return "Other";
+}
+
+function getDeviceKind(userAgent: unknown): string {
+  if (typeof userAgent !== "string") return "Unknown";
+  const ua = userAgent.toLowerCase();
+  if (/ipad|tablet|playbook|silk/.test(ua) || (/android/.test(ua) && !/mobile/.test(ua))) return "Tablet";
+  if (/mobi|android|iphone|ipod|iemobile|opera mini/.test(ua)) return "Mobile";
+  return "Desktop";
+}
+
+function getOperatingSystem(userAgent: unknown): string {
+  if (typeof userAgent !== "string") return "Unknown";
+  const ua = userAgent.toLowerCase();
+  if (/windows/.test(ua)) return "Windows";
+  if (/android/.test(ua)) return "Android";
+  if (/iphone|ipad|ipod/.test(ua)) return "iOS";
+  if (/mac/.test(ua)) return "macOS";
+  if (/linux/.test(ua)) return "Linux";
+  return "Other";
+}
+
+function getTimeOfDayBucket(timestamp: unknown): string {
+  if (!(timestamp instanceof Date)) {
+    const value = timestamp ? new Date(String(timestamp)) : null;
+    if (value && !Number.isNaN(value.getTime())) {
+      return getTimeOfDayBucket(value);
+    }
+    return "Unknown";
+  }
+  const hour = timestamp.getHours();
+  if (hour >= 0 && hour < 6) return "Night (00-06)";
+  if (hour < 12) return "Morning (06-12)";
+  if (hour < 18) return "Afternoon (12-18)";
+  if (hour < 22) return "Evening (18-22)";
+  return "Late Night (22-24)";
+}
+
+function getPageCategory(path: unknown): string {
+  const value = typeof path === "string" ? path : "";
+  if (!value) return "Direct";
+  if (/\/admin\//i.test(value) || value.includes("/admin")) return "Admin Console";
+  if (/\/api\//i.test(value)) return "API";
+  if (/\/diseases\//i.test(value)) return "Disease Detail";
+  if (/\/diseases/i.test(value)) return "Disease Index";
+  if (/\/health-library/i.test(value)) return "Health Library";
+  if (/\/health-tips/i.test(value)) return "Health Tips";
+  if (/\/faq/i.test(value)) return "FAQ";
+  if (/\/feedback/i.test(value)) return "Feedback";
+  if (/\/donate/i.test(value)) return "Donation";
+  if (/\/privacy-policy/i.test(value)) return "Privacy Policy";
+  return "Public Page";
+}
+
+function buildAnalyticsSummary(rows: Record<string, unknown>[]) {
+  const countryMap = new Map<string, number>();
+  const regionMap = new Map<string, number>();
+  const cityMap = new Map<string, number>();
+  const browserMap = new Map<string, number>();
+  const deviceMap = new Map<string, number>();
+  const osMap = new Map<string, number>();
+  const pageMap = new Map<string, number>();
+  const referrerMap = new Map<string, number>();
+  const timeMap = new Map<string, number>();
+  const sessionSet = new Set<string>();
+  let botHits = 0;
+  let adminHits = 0;
+
+  for (const row of rows) {
+    const country = String(row.country ?? "Unknown").trim() || "Unknown";
+    const region = String(row.region ?? "Unknown").trim() || "Unknown";
+    const city = String(row.city ?? "Unknown").trim() || "Unknown";
+    const path = String(row.path ?? "").trim() || "Direct";
+    const referrer = String(row.referrer ?? "Direct").trim() || "Direct";
+    const userAgent = String(row.userAgent ?? "Unknown");
+    const sessionId = String(row.sessionId ?? "").trim();
+    const browserName = getBrowserName(userAgent);
+    const deviceName = getDeviceKind(userAgent);
+    const osName = getOperatingSystem(userAgent);
+    const timeBucket = getTimeOfDayBucket(row.timestamp ?? new Date());
+
+    if (sessionId) sessionSet.add(sessionId);
+
+    countryMap.set(country, (countryMap.get(country) ?? 0) + 1);
+    regionMap.set(`${country} / ${region}`, (regionMap.get(`${country} / ${region}`) ?? 0) + 1);
+    cityMap.set(city, (cityMap.get(city) ?? 0) + 1);
+    browserMap.set(browserName, (browserMap.get(browserName) ?? 0) + 1);
+    deviceMap.set(deviceName, (deviceMap.get(deviceName) ?? 0) + 1);
+    osMap.set(osName, (osMap.get(osName) ?? 0) + 1);
+    pageMap.set(path, (pageMap.get(path) ?? 0) + 1);
+    referrerMap.set(referrer, (referrerMap.get(referrer) ?? 0) + 1);
+    timeMap.set(timeBucket, (timeMap.get(timeBucket) ?? 0) + 1);
+
+    const ua = userAgent.toLowerCase();
+    if (/bot|crawler|spider|bingpreview|headless|slurp|semrush|duckduckbot|googlebot|ahrefs/.test(ua)) {
+      botHits += 1;
+    }
+    if (/\/admin\//i.test(path) || path.toLowerCase().includes("admin")) {
+      adminHits += 1;
+    }
+  }
+
+  const totalRecords = rows.length;
+  const uniqueSessions = sessionSet.size || 0;
+  const allCountries = countryMap.size || 0;
+  const allCities = cityMap.size || 0;
+
+  return {
+    totalRecords,
+    uniqueSessions,
+    countries: allCountries,
+    cities: allCities,
+    botHits,
+    adminHits,
+    countryBreakdown: [...countryMap.entries()].sort((a, b) => b[1] - a[1]),
+    regionBreakdown: [...regionMap.entries()].sort((a, b) => b[1] - a[1]),
+    cityBreakdown: [...cityMap.entries()].sort((a, b) => b[1] - a[1]),
+    browserBreakdown: [...browserMap.entries()].sort((a, b) => b[1] - a[1]),
+    deviceBreakdown: [...deviceMap.entries()].sort((a, b) => b[1] - a[1]),
+    osBreakdown: [...osMap.entries()].sort((a, b) => b[1] - a[1]),
+    pageBreakdown: [...pageMap.entries()].sort((a, b) => b[1] - a[1]),
+    referrerBreakdown: [...referrerMap.entries()].sort((a, b) => b[1] - a[1]),
+    timeBreakdown: [...timeMap.entries()].sort((a, b) => b[1] - a[1]),
+    pageTypeBreakdown: [...new Map([...pageMap.entries()].map(([path, count]) => [getPageCategory(path), (new Map([...pageMap.entries()].map(([p, c]) => [getPageCategory(p), 0]))).get(getPageCategory(path)) ?? 0]))].slice(0),
+  };
+}
+
 export function buildArchiveWorkbook(
   rows: Record<string, unknown>[],
   sheetName: string,
   summary: ArchiveWorkbookSummary,
 ): ExcelJS.Workbook {
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet(sheetName);
+
+  const detailSheet = workbook.addWorksheet("Detailed Summary");
+  const analyticsSheet = workbook.addWorksheet(sheetName || "Analytics");
 
   const firstRow = rows[0] ?? {};
-  const keys = Object.keys(firstRow).length > 0 ? Object.keys(firstRow) : ["ID", "message"];
+  const rawKeys = Object.keys(firstRow).length > 0 ? Object.keys(firstRow) : ["ID", "message"];
+  const keys = rawKeys.map((key) => (key === "_id" ? "ID" : key));
 
-  sheet.columns = keys.map((key) => ({
+  detailSheet.columns = keys.map((key) => ({
     header: key,
     key,
     width: Math.max(18, key.length + 8),
@@ -153,12 +336,135 @@ export function buildArchiveWorkbook(
   for (const row of rows) {
     const normalized: Record<string, unknown> = {};
     for (const key of keys) {
-      normalized[key] = safeValue((row as Record<string, unknown>)[key]);
+      const rawKey = key === "ID" ? "_id" : key;
+      normalized[key] = safeValue((row as Record<string, unknown>)[rawKey] ?? (row as Record<string, unknown>)[key]);
     }
-    sheet.addRow(normalized);
+    detailSheet.addRow(normalized);
   }
 
-  sheet.getRow(1).font = { bold: true };
+  detailSheet.getRow(1).font = { bold: true };
+
+  const summaryStats = buildAnalyticsSummary(rows);
+  const metricCards = [
+    { key: "TOTAL RECORDS", value: summaryStats.totalRecords, color: "FF1D4ED8" },
+    { key: "UNIQUE SESSIONS", value: summaryStats.uniqueSessions, color: "FF16A34A" },
+    { key: "COUNTRIES", value: summaryStats.countries, color: "FFFF8A00" },
+    { key: "CITIES", value: summaryStats.cities, color: "FFDC2626" },
+    { key: "BOT HITS", value: summaryStats.botHits, color: "FF7C3AED" },
+    { key: "ADMIN CONSOLE HITS", value: summaryStats.adminHits, color: "FF0891B2" },
+  ];
+
+  analyticsSheet.mergeCells("A1:K1");
+  analyticsSheet.getCell("A1").value = "ANALYTICS ARCHIVE - DETAILED SUMMARY";
+  analyticsSheet.getCell("A1").font = { bold: true, color: { argb: "FFFFFFFF" }, size: 18 };
+  analyticsSheet.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F2D6C" } };
+  analyticsSheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
+  analyticsSheet.getCell("A1").border = {
+    top: { style: "thin", color: { argb: "FF1F2D6C" } },
+    left: { style: "thin", color: { argb: "FF1F2D6C" } },
+    bottom: { style: "thin", color: { argb: "FF1F2D6C" } },
+    right: { style: "thin", color: { argb: "FF1F2D6C" } },
+  };
+  analyticsSheet.getRow(1).height = 28;
+
+  analyticsSheet.mergeCells("A2:K2");
+  analyticsSheet.getCell("A2").value = `Window: ${formatArchiveDateTime(new Date(summary.generatedAt.getTime() - summary.retentionDays * 24 * 60 * 60 * 1000))} - ${formatArchiveDateTime(summary.generatedAt)} | Records: ${summaryStats.totalRecords}`;
+  analyticsSheet.getCell("A2").font = { italic: true, color: { argb: "FF7A7A7A" }, size: 9 };
+  analyticsSheet.getCell("A2").alignment = { horizontal: "center" };
+
+  const cardStartRows = [5, 5, 5, 5, 5, 5];
+  const cardStartCols = [1, 3, 5, 7, 9, 11];
+
+  for (let i = 0; i < metricCards.length; i += 1) {
+    const colIndex = cardStartCols[i];
+    const titleCell = analyticsSheet.getCell(5, colIndex);
+    const valueCell = analyticsSheet.getCell(6, colIndex);
+    const cardWidth = 2;
+    analyticsSheet.mergeCells(5, colIndex, 5, colIndex + cardWidth - 1);
+    analyticsSheet.mergeCells(6, colIndex, 6, colIndex + cardWidth - 1);
+    titleCell.value = metricCards[i].key;
+    valueCell.value = metricCards[i].value;
+    applyWorkbookCellStyle(titleCell, { fill: metricCards[i].color, fontColor: "FFFFFFFF", bold: true, align: "center", border: true, fontSize: 8 });
+    applyWorkbookCellStyle(valueCell, { fill: "FFFFFFFF", fontColor: "FF1F2937", bold: true, align: "center", border: true, fontSize: 14 });
+    analyticsSheet.getRow(5).height = 20;
+    analyticsSheet.getRow(6).height = 26;
+  }
+
+  for (let col = 1; col <= 12; col += 1) {
+    analyticsSheet.getColumn(col).width = 14;
+  }
+
+  const templateRows = [
+    { title: "Visits by Country", start: "A9", end: "F18" },
+    { title: "Device Type", start: "H9", end: "K18" },
+    { title: "Browser Share", start: "A20", end: "F29" },
+    { title: "Operating System", start: "H20", end: "K29" },
+    { title: "Top Pages", start: "A31", end: "F40" },
+    { title: "Time of Day (IST)", start: "H31", end: "K40" },
+  ];
+
+  for (let i = 0; i < templateRows.length; i += 1) {
+    const section = templateRows[i];
+    analyticsSheet.getCell(section.start).value = section.title;
+    analyticsSheet.getCell(section.start).font = { bold: true, size: 12, color: { argb: "FF111827" } };
+    analyticsSheet.getCell(section.start).alignment = { horizontal: "left" };
+    analyticsSheet.getCell(section.start).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F4F6" } };
+  }
+
+  const writeMiniTable = (startRow: number, startCol: number, label: string, values: Array<[string, number]>, color: string) => {
+    const heading = analyticsSheet.getCell(startRow, startCol);
+    heading.value = label;
+    applyWorkbookCellStyle(heading, { fill: "FFF3F4F6", fontColor: "FF111827", bold: true, align: "left", border: false, fontSize: 10 });
+    for (let i = 0; i < Math.min(values.length, 5); i += 1) {
+      const item = values[i];
+      const labelCell = analyticsSheet.getCell(startRow + 1 + i, startCol);
+      const countCell = analyticsSheet.getCell(startRow + 1 + i, startCol + 1);
+      const pctCell = analyticsSheet.getCell(startRow + 1 + i, startCol + 2);
+      labelCell.value = item[0];
+      countCell.value = item[1];
+      pctCell.value = `${((item[1] / Math.max(1, summaryStats.totalRecords)) * 100).toFixed(1)}%`;
+      applyWorkbookCellStyle(labelCell, { fill: color, fontColor: "FFFFFFFF", bold: false, align: "left", border: true, fontSize: 8 });
+      applyWorkbookCellStyle(countCell, { fill: "FFFFFFFF", fontColor: "FF111827", bold: false, align: "center", border: true, fontSize: 8 });
+      applyWorkbookCellStyle(pctCell, { fill: "FFEBF8FF", fontColor: "FF111827", bold: false, align: "center", border: true, fontSize: 8 });
+    }
+  };
+
+  writeMiniTable(10, 1, "Country", summaryStats.countryBreakdown.slice(0, 5), "FF2563EB");
+  writeMiniTable(10, 8, "Device", summaryStats.deviceBreakdown.slice(0, 5), "FF0F766E");
+  writeMiniTable(22, 1, "Browser", summaryStats.browserBreakdown.slice(0, 5), "FF7C3AED");
+  writeMiniTable(22, 8, "OS", summaryStats.osBreakdown.slice(0, 5), "FF10B981");
+  writeMiniTable(33, 1, "Top Pages", summaryStats.pageBreakdown.slice(0, 5), "FFEA580C");
+  writeMiniTable(33, 8, "Time of Day", summaryStats.timeBreakdown.slice(0, 5), "FF14B8A6");
+
+  const detailedRows: Array<[string, string, number, string]> = [
+    ["Country", "All", summaryStats.countryBreakdown.length, ""],
+    ["Region / State", "All", summaryStats.regionBreakdown.length, ""],
+    ["City", "All", summaryStats.cityBreakdown.length, ""],
+    ["Page Path", "All", summaryStats.pageBreakdown.length, ""],
+    ["Referrer", "All", summaryStats.referrerBreakdown.length, ""],
+    ["Browser", "All", summaryStats.browserBreakdown.length, ""],
+    ["Device Type", "All", summaryStats.deviceBreakdown.length, ""],
+    ["Operating System", "All", summaryStats.osBreakdown.length, ""],
+  ];
+
+  const detailHeader = analyticsSheet.getRow(44);
+  detailHeader.getCell(1).value = "DETAILS GROUPED BY";
+  detailHeader.getCell(1).font = { bold: true, color: { argb: "FF111827" }, size: 12 };
+  detailHeader.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE5E7EB" } };
+
+  const startRow = 45;
+  for (let i = 0; i < detailedRows.length; i += 1) {
+    const [label, group, count, value] = detailedRows[i];
+    const row = analyticsSheet.getRow(startRow + i);
+    row.getCell(1).value = label;
+    row.getCell(2).value = group;
+    row.getCell(3).value = count;
+    row.getCell(4).value = value || "";
+    applyWorkbookCellStyle(row.getCell(1), { fill: "FFFFFFFF", fontColor: "FF111827", bold: false, align: "left", border: true, fontSize: 8 });
+    applyWorkbookCellStyle(row.getCell(2), { fill: "FFFFFFFF", fontColor: "FF111827", bold: false, align: "left", border: true, fontSize: 8 });
+    applyWorkbookCellStyle(row.getCell(3), { fill: "FFEEF2FF", fontColor: "FF111827", bold: true, align: "center", border: true, fontSize: 8 });
+    applyWorkbookCellStyle(row.getCell(4), { fill: "FFFFFFFF", fontColor: "FF111827", bold: false, align: "left", border: true, fontSize: 8 });
+  }
 
   const summarySheet = workbook.addWorksheet("Summary");
   summarySheet.columns = [
