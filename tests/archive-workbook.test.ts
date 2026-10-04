@@ -68,4 +68,26 @@ test("buildArchiveWorkbook exports an analytics workbook with the reference repo
   assert.equal(detailedSheet.getCell("A2").value, "1");
   assert.equal(detailedSheet.getCell("B2").value, "/about");
   assert.equal(detailedSheet.rowCount, rows.length + 1);
+
+  const idHeader = detailedSheet.getCell("A1");
+  assert.equal(idHeader.fill.type, "pattern");
+  if (idHeader.fill.type === "pattern") {
+    assert.equal(idHeader.fill.fgColor.argb, "FF2563EB");
+  }
+  assert.equal(detailedSheet.getCell("J2").value instanceof Date, true);
+  assert.equal(detailedSheet.getCell("J2").numFmt, "yyyy-mm-dd hh:mm:ss");
+
+  for (const category of ["analytics", "ip-security", "server-logs"] as const) {
+    const categoryWorkbook = buildArchiveWorkbook(rows, category, {
+      category,
+      recordsCount: rows.length,
+      retentionDays: 7,
+      generatedAt: new Date("2026-10-03T03:30:00.000Z"),
+    });
+    const categoryLogs = categoryWorkbook.getWorksheet("Logs Report");
+    assert.ok(categoryLogs);
+    assert.equal(categoryLogs.getCell("A1").fill.type, "pattern");
+    assert.equal(categoryLogs.getCell("J2").value instanceof Date, true);
+    assert.equal(categoryLogs.getCell("J2").numFmt, "yyyy-mm-dd hh:mm:ss");
+  }
 });

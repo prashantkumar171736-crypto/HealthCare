@@ -72,6 +72,18 @@ function safeValue(value: unknown): string {
   }
 }
 
+function formatLogValue(key: string, value: unknown): string | number | boolean | Date {
+  if (value === null || value === undefined) return "";
+
+  if (/(?:timestamp|date)$/i.test(key) || /(?:At|Until)$/.test(key)) {
+    const date = value instanceof Date ? value : new Date(String(value));
+    if (!Number.isNaN(date.getTime())) return date;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  return safeValue(value);
+}
+
 function formatArchiveDateTime(value: Date): string {
   return new Intl.DateTimeFormat("en-IN", {
     dateStyle: "medium",
@@ -374,16 +386,33 @@ export function buildArchiveWorkbook(
     width: Math.max(18, key.length + 8),
   }));
 
+  detailSheet.getRow(1).height = 24;
+  for (let columnIndex = 1; columnIndex <= keys.length; columnIndex += 1) {
+    const headerCell = detailSheet.getRow(1).getCell(columnIndex);
+    applyWorkbookCellStyle(headerCell, {
+      fill: palette.metricColors[(columnIndex - 1) % palette.metricColors.length],
+      fontColor: "FFFFFFFF",
+      bold: true,
+      align: "center",
+      border: true,
+      borderColor: palette.border,
+      fontSize: 10,
+    });
+  }
+
   for (const row of rows) {
     const normalized: Record<string, unknown> = {};
     for (const key of keys) {
       const rawKey = key === "ID" ? "_id" : key;
-      normalized[key] = safeValue((row as Record<string, unknown>)[rawKey] ?? (row as Record<string, unknown>)[key]);
+      normalized[key] = formatLogValue(key, (row as Record<string, unknown>)[rawKey] ?? (row as Record<string, unknown>)[key]);
     }
-    detailSheet.addRow(normalized);
+    const dataRow = detailSheet.addRow(normalized);
+    for (let columnIndex = 1; columnIndex <= keys.length; columnIndex += 1) {
+      if (/(?:timestamp|date)$/i.test(keys[columnIndex - 1]) || /(?:At|Until)$/.test(keys[columnIndex - 1])) {
+        dataRow.getCell(columnIndex).numFmt = "yyyy-mm-dd hh:mm:ss";
+      }
+    }
   }
-
-  detailSheet.getRow(1).font = { bold: true };
 
   const summaryStats = buildAnalyticsSummary(rows);
   const metricCards = [
