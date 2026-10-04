@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
 import { validateSession } from "@/lib/admin-auth";
+import { logServer } from "@/lib/server-logger";
 
 export const runtime = "nodejs";
 
@@ -64,6 +65,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error("GET /api/feedback/settings error:", error);
+    void logServer({ level: "error", message: "Feedback settings fetch failed", source: "feedback.settings", path: "/api/feedback/settings", method: "GET", statusCode: 500, error });
     return NextResponse.json({ error: "Failed to load settings" }, { status: 500 });
   }
 }
@@ -110,6 +112,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error("POST /api/feedback/settings error:", error);
+    void logServer({ level: "error", message: "Feedback settings update failed", source: "feedback.settings", path: "/api/feedback/settings", method: "POST", statusCode: 500, error });
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

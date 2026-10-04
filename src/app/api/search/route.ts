@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { logServer } from "@/lib/server-logger";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -105,6 +106,7 @@ export async function GET(request: Request) {
     return NextResponse.json(results);
   } catch (error) {
     console.error("Search API Error:", error);
+    void logServer({ level: "error", message: "Search request failed", source: "search", path: "/api/search", method: "GET", statusCode: 500, error });
     return NextResponse.json({ error: "Failed to perform search" }, { status: 500 });
   }
 }

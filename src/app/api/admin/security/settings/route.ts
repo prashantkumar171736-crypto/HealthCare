@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import crypto from "crypto";
 import { getDb } from "@/lib/db";
 import { validateSession } from "@/lib/admin-auth";
+import { logServer } from "@/lib/server-logger";
 import {
   ensureAdminSecurityIndexes,
   clearEmailLoginSettingsCache,
@@ -43,7 +44,8 @@ export async function GET() {
       maskedDestination: otp.maskedDestination,
       ipRateLimitConfigured: Boolean(process.env.IP_RATE_LIMIT_SECRET),
     }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
-  } catch {
+  } catch (error) {
+    void logServer({ level: "error", message: "Admin security settings fetch failed", source: "admin.security.settings", path: "/api/admin/security/settings", method: "GET", statusCode: 503, error });
     return NextResponse.json({ error: "Unable to load security settings." }, { status: 503 });
   }
 }
@@ -71,6 +73,7 @@ export async function POST(request: Request) {
     } catch (error) {
       const emailError = error as { code?: string; responseCode?: number };
       console.error("Admin email test failed:", { code: emailError?.code, responseCode: emailError?.responseCode });
+      void logServer({ level: "error", message: "Admin email delivery test failed", source: "admin.security.settings.email-test", path: "/api/admin/security/settings", method: "POST", statusCode: 502, error });
       return NextResponse.json({ error: `Test email failed. ${getAdminEmailErrorMessage(error)}` }, { status: 502 });
     }
   }
@@ -119,7 +122,8 @@ export async function POST(request: Request) {
       );
     }
     return NextResponse.json({ success: true, otpEnabled: body.otpEnabled });
-  } catch {
+  } catch (error) {
+    void logServer({ level: "error", message: "Admin security settings update failed", source: "admin.security.settings", path: "/api/admin/security/settings", method: "POST", statusCode: 503, error });
     return NextResponse.json({ error: "Unable to save security settings." }, { status: 503 });
   }
 }

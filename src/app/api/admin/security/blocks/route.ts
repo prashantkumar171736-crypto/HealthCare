@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { getDb } from "@/lib/db";
 import { validateSession } from "@/lib/admin-auth";
 import { ensureAdminSecurityIndexes } from "@/lib/admin-security";
+import { logServer } from "@/lib/server-logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,7 +44,8 @@ export async function GET() {
       expiresAt: block.expiresAt,
       status: block.status || "blocked",
     })) }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
-  } catch {
+  } catch (error) {
+    void logServer({ level: "error", message: "Admin blocked IP list fetch failed", source: "admin.security.blocks", path: "/api/admin/security/blocks", method: "GET", statusCode: 503, error });
     return NextResponse.json({ error: "Unable to load blocked IPs." }, { status: 503 });
   }
 }
@@ -97,7 +99,8 @@ export async function DELETE(request: Request) {
     if (!block) return NextResponse.json({ error: "Block not found." }, { status: 404 });
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (error) {
+    void logServer({ level: "error", message: "Admin IP unblock request failed", source: "admin.security.blocks", path: "/api/admin/security/blocks", method: "DELETE", statusCode: 503, error });
     return NextResponse.json({ error: "Unable to remove IP block." }, { status: 503 });
   }
 }

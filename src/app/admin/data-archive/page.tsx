@@ -20,13 +20,14 @@ interface ArchiveStatus {
   files: ArchiveFileItem[];
   totalFiles: number;
   filesError?: string;
+  serverLogCount: number;
   lastResults: ArchiveRunResult[];
 }
 
 interface ArchiveRunResult {
   jobId: string;
   category: string;
-  status: "success" | "failed" | "processing" | "pending";
+  status: "success" | "failed" | "no_data" | "processing" | "pending";
   fileName: string;
   fileSizeBytes: number | null;
   recordsCount: number;
@@ -79,12 +80,20 @@ function formatFileSize(size: number | null | undefined): string {
 function getArchiveStatusLabel(status: ArchiveRunResult["status"]): string {
   if (status === "success") return "Completed";
   if (status === "failed") return "Failed";
+  if (status === "no_data") return "No data";
   return status === "processing" ? "Processing" : "Pending";
 }
 
 function getArchiveRunFeedback(results: ArchiveRunResult[], bucketName: string): ArchiveRunFeedback {
   const failedCategories = results.filter((result) => result.status === "failed");
   if (results.length > 0 && failedCategories.length === 0) {
+    const emptyCategories = results.filter((result) => result.status === "no_data").map((result) => result.category);
+    if (emptyCategories.length > 0) {
+      return {
+        status: "success",
+        message: `Export uploaded, but no records were found for: ${emptyCategories.join(", ")}.`,
+      };
+    }
     return {
       status: "success",
       message: `Export file generated and uploaded on R2 ${bucketName} Bucket successfully.`,
@@ -226,7 +235,7 @@ export default function DataArchivePage() {
       value: `Last ${ARCHIVE_RETENTION_OPTIONS.find((option) => option.days === (status?.retentionDays ?? 30))?.label ?? "30 days"}`,
     },
     { label: "IP security", value: "Blocked and failed-attempt history" },
-    { label: "Server logs", value: "Exported only when durable logs are captured" },
+    { label: "Server logs", value: `${(status?.serverLogCount ?? 0).toLocaleString()} documents stored` },
     { label: "Format", value: "Excel (.xlsx)" },
     { label: "Bucket", value: status?.bucketName || "healthcare-ip-security" },
   ];
@@ -376,7 +385,7 @@ export default function DataArchivePage() {
                                 <tr key={result.jobId}>
                                   <td className="archive-run-id">{result.jobId}</td>
                                   <td>
-                                    {result.fileName && result.status === "success" ? (
+                                    {result.fileName && (result.status === "success" || result.status === "no_data") ? (
                                       <a href={`/api/admin/archive?file=${encodeURIComponent(result.fileName)}`} download>
                                         {result.fileName}
                                       </a>
@@ -950,6 +959,7 @@ export default function DataArchivePage() {
         .archive-run-status { font-weight: 800; white-space: nowrap; }
         .archive-run-status.success { color: #047857; }
         .archive-run-status.failed { color: #b91c1c; }
+        .archive-run-status.no_data { color: #a16207; }
         .archive-run-status.processing { color: #b45309; }
         .archive-run-status.pending { color: #64748b; }
         .archive-run-error { display: block; max-width: 280px; color: #b91c1c; font-size: 0.76rem; }

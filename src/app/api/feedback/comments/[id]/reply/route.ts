@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { ObjectId } from "mongodb";
 import { randomUUID } from "crypto";
+import { logServer } from "@/lib/server-logger";
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ success: true, reply }, { status: 201 });
   } catch (error) {
     console.error("POST /api/feedback/comments/[id]/reply error:", error);
+    void logServer({ level: "error", message: "Feedback reply request failed", source: "feedback.comments.reply", path: "/api/feedback/comments/[id]/reply", method: "POST", statusCode: 500, error });
     return NextResponse.json(
       { error: "Failed to post reply" },
       { status: 500 }

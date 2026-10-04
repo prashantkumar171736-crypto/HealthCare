@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 import { validateSession } from "@/lib/admin-auth";
+import { logServer } from "@/lib/server-logger";
 import { ARCHIVE_CATEGORY_OPTIONS, ARCHIVE_RETENTION_OPTIONS, type ArchiveCategorySelection } from "@/lib/archive-config";
 import {
   clearArchiveJob,
@@ -72,6 +73,7 @@ export async function GET(request: Request) {
     return NextResponse.json(summary, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     console.error("Archive status fetch failed:", error);
+    void logServer({ level: "error", message: "Archive status fetch failed", source: "admin.archive", path: "/api/admin/archive", method: "GET", statusCode: 500, error });
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to load archive status." }, { status: 500 });
   }
 }
@@ -111,6 +113,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: !hasFailures, ...result }, { status: hasFailures ? 502 : 200 });
   } catch (error) {
     console.error("Archive export failed:", error);
+    void logServer({ level: "error", message: "Archive export failed", source: "admin.archive", path: "/api/admin/archive", method: "POST", statusCode: 500, error });
     return NextResponse.json({ error: error instanceof Error ? error.message : "Archive export failed." }, { status: 500 });
   }
 }
@@ -157,6 +160,7 @@ export async function PATCH(request: Request) {
     });
   } catch (error) {
     console.error("Archive settings update failed:", error);
+    void logServer({ level: "error", message: "Archive settings update failed", source: "admin.archive", path: "/api/admin/archive", method: "PATCH", statusCode: 500, error });
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to save archive settings." }, { status: 500 });
   }
 }
@@ -182,6 +186,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Archive job clear failed:", error);
+    void logServer({ level: "error", message: "Archive job clear failed", source: "admin.archive", path: "/api/admin/archive", method: "DELETE", statusCode: 500, error });
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to clear the archive entry." }, { status: 500 });
   }
 }

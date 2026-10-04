@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
 import { validateSession } from "@/lib/admin-auth";
+import { logServer } from "@/lib/server-logger";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,7 @@ export async function GET() {
       }
     });
   } catch (err: any) {
+    void logServer({ level: "error", message: "Admin donation settings request failed", source: "admin.donation-settings", path: "/api/admin/donation-settings", method: "GET", statusCode: 500, error: err });
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -65,6 +67,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, message: "Donation settings updated successfully." });
   } catch (err: any) {
+    void logServer({ level: "error", message: "Admin donation settings request failed", source: "admin.donation-settings", path: "/api/admin/donation-settings", method: "POST", statusCode: 500, error: err });
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

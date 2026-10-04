@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { revokeSession } from "@/lib/admin-auth";
 import { getAdminLoginPath } from "@/lib/admin-login-path";
+import { logServer } from "@/lib/server-logger";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(url);
   } catch (err) {
     console.error("Admin logout error:", err);
+    void logServer({ level: "error", message: "Admin logout failed", source: "admin.logout", path: "/api/admin/logout", method: "GET", statusCode: 500, error: err });
     return NextResponse.json({ error: "Failed to logout" }, { status: 500 });
   }
 }
@@ -47,6 +49,7 @@ export async function POST() {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Admin logout error:", err);
+    void logServer({ level: "error", message: "Admin logout failed", source: "admin.logout", path: "/api/admin/logout", method: "POST", statusCode: 500, error: err });
     return NextResponse.json({ error: "Failed to logout" }, { status: 500 });
   }
 }

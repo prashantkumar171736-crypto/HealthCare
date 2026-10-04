@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { randomUUID } from "crypto";
 import { runAutoClean } from "../settings/route";
+import { logServer } from "@/lib/server-logger";
 
 export async function GET() {
   try {
@@ -22,6 +23,7 @@ export async function GET() {
     return NextResponse.json({ comments });
   } catch (error) {
     console.error("GET /api/feedback/comments error:", error);
+    void logServer({ level: "error", message: "Feedback comments fetch failed", source: "feedback.comments", path: "/api/feedback/comments", method: "GET", statusCode: 500, error });
     return NextResponse.json(
       { error: "Failed to fetch comments" },
       { status: 500 }
@@ -65,6 +67,7 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error("POST /api/feedback/comments error:", error);
+    void logServer({ level: "error", message: "Feedback comment creation failed", source: "feedback.comments", path: "/api/feedback/comments", method: "POST", statusCode: 500, error });
     return NextResponse.json(
       { error: "Failed to post comment" },
       { status: 500 }

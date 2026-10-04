@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { validateSession } from "@/lib/admin-auth";
 import { uploadToR2 } from "@/lib/r2";
+import { logServer } from "@/lib/server-logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url }, { status: 200 });
   } catch (err: any) {
     console.error("R2 upload error:", err);
+    void logServer({ level: "error", message: "Admin upload failed", source: "admin.upload", path: "/api/admin/upload", method: "POST", statusCode: 500, error: err });
     return NextResponse.json({ error: "Upload failed: " + (err.message || err) }, { status: 500 });
   }
 }

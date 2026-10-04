@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
 import { validateSession } from "@/lib/admin-auth";
+import { logServer } from "@/lib/server-logger";
 import {
   clearEmailLoginSettingsCache,
   ensureAdminSecurityIndexes,
@@ -43,7 +44,8 @@ export async function GET() {
       emailProvider: otp.provider,
       maskedDestination: otp.maskedDestination,
     }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
-  } catch {
+  } catch (error) {
+    void logServer({ level: "error", message: "Admin email settings fetch failed", source: "admin.security.email-settings", path: "/api/admin/security/email-settings", method: "GET", statusCode: 503, error });
     return NextResponse.json({ error: "Unable to load email login settings." }, { status: 503 });
   }
 }
@@ -100,7 +102,8 @@ export async function PUT(request: Request) {
     }
     clearEmailLoginSettingsCache();
     return NextResponse.json({ success: true, ...settings });
-  } catch {
+  } catch (error) {
+    void logServer({ level: "error", message: "Admin email settings update failed", source: "admin.security.email-settings", path: "/api/admin/security/email-settings", method: "PUT", statusCode: 503, error });
     return NextResponse.json({ error: "Unable to save email login settings." }, { status: 503 });
   }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { normalizeCountryName, normalizeRegionName } from "@/lib/geo";
 import crypto from "crypto";
+import { logServer } from "@/lib/server-logger";
 
 export const runtime = "nodejs";
 
@@ -74,6 +75,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Analytics tracking API error:", err);
+    void logServer({ level: "error", message: "Analytics tracking request failed", source: "track", path: "/api/track", method: "POST", statusCode: 500, error: err });
     return NextResponse.json({ error: "Failed to track view" }, { status: 500 });
   }
 }

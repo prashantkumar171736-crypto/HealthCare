@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { logServer } from "@/lib/server-logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ export async function GET() {
     });
   } catch (err: any) {
     console.error("Failed to fetch public donation settings:", err);
+    void logServer({ level: "error", message: "Public donation settings request failed", source: "donation-settings", path: "/api/donation-settings", method: "GET", statusCode: 500, error: err });
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

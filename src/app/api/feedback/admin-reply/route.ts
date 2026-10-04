@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { cookies } from "next/headers";
 import { validateSession } from "@/lib/admin-auth";
 import { randomUUID } from "crypto";
+import { logServer } from "@/lib/server-logger";
 
 export const runtime = "nodejs";
 
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, reply }, { status: 201 });
   } catch (error) {
     console.error("POST /api/feedback/admin-reply error:", error);
+    void logServer({ level: "error", message: "Admin feedback reply request failed", source: "feedback.admin-reply", path: "/api/feedback/admin-reply", method: "POST", statusCode: 500, error });
     return NextResponse.json({ error: "Failed to post admin reply" }, { status: 500 });
   }
 }
@@ -129,6 +131,7 @@ export async function DELETE(req: NextRequest) {
     }
   } catch (error) {
     console.error("DELETE /api/feedback/admin-reply error:", error);
+    void logServer({ level: "error", message: "Admin feedback reply deletion failed", source: "feedback.admin-reply", path: "/api/feedback/admin-reply", method: "DELETE", statusCode: 500, error });
     return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
 import { validateSession } from "@/lib/admin-auth";
 import { ensureAdminSecurityIndexes } from "@/lib/admin-security";
+import { logServer } from "@/lib/server-logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -162,7 +163,8 @@ export async function GET(request: Request) {
       pageSize,
       totalPages,
     }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
-  } catch {
+  } catch (error) {
+    void logServer({ level: "error", message: "Admin IP block history fetch failed", source: "admin.security.ip-list", path: "/api/admin/security/ip-list", method: "GET", statusCode: 503, error });
     return NextResponse.json({ error: "Unable to load IP block history." }, { status: 503 });
   }
 }

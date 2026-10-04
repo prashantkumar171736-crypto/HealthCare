@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
 import { validateSession } from "@/lib/admin-auth";
+import { logServer } from "@/lib/server-logger";
 import { normalizeCountryName, normalizeRegionName } from "@/lib/geo";
 import type { Document } from "mongodb";
 import os from "os";
@@ -214,6 +215,7 @@ export async function GET(request: Request) {
         // from analytics queries so a stats failure does not break dashboard loading.
         db.command({ dbStats: 1 }).catch((error) => {
           console.error("MongoDB dbStats failed:", error);
+          void logServer({ level: "error", message: "Admin dashboard database stats failed", source: "admin.stats.db-stats", path: "/api/admin/stats", method: "GET", statusCode: 500, error });
           return null;
         }),
       ]);
@@ -388,6 +390,7 @@ export async function GET(request: Request) {
     } catch (err: any) {
       if (timeoutHandle) clearTimeout(timeoutHandle);
       console.error("Admin stats error:", err);
+    void logServer({ level: "error", message: "Admin dashboard stats request failed", source: "admin.stats", path: "/api/admin/stats", method: "GET", statusCode: 500, error: err });
       return NextResponse.json(
         { error: `Dashboard error: ${err?.message || String(err)}` },
         { status: 500, headers: { "Content-Type": "application/json" } }
@@ -413,6 +416,7 @@ export async function DELETE() {
     return NextResponse.json({ success: true, message: "Analytics database cleared successfully." });
   } catch (err) {
     console.error("Failed to clear analytics:", err);
+    void logServer({ level: "error", message: "Admin analytics clear failed", source: "admin.stats", path: "/api/admin/stats", method: "DELETE", statusCode: 500, error: err });
     return NextResponse.json({ error: "Failed to clear database" }, { status: 500 });
   }
 }

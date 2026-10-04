@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { validateSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
+import { logServer } from "@/lib/server-logger";
 import os from "os";
 
 export const runtime = "nodejs";
@@ -52,6 +53,7 @@ export async function GET() {
       status: "OK",
     };
   } catch (e: any) {
+    void logServer({ level: "error", message: "Admin debug OS check failed", source: "admin.debug.os-check", path: "/api/admin/debug", method: "GET", error: e });
     results.osCheck = { status: "FAILED", error: e?.message };
   }
 
@@ -75,6 +77,7 @@ export async function GET() {
       };
     }
   } catch (e: any) {
+    void logServer({ level: "error", message: "Admin debug database check failed", source: "admin.debug.database-check", path: "/api/admin/debug", method: "GET", statusCode: 503, error: e });
     results.dbCheck = { status: "FAILED", error: e?.message };
   }
 

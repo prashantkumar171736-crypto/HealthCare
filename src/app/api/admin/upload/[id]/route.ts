@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { ObjectId } from "mongodb";
+import { logServer } from "@/lib/server-logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +38,7 @@ export async function GET(
     });
   } catch (err) {
     console.error("Image serve error:", err);
+    void logServer({ level: "error", message: "Admin image retrieval failed", source: "admin.upload.image", path: "/api/admin/upload/[id]", method: "GET", statusCode: 500, error: err });
     return NextResponse.json({ error: "Failed to retrieve image" }, { status: 500 });
   }
 }

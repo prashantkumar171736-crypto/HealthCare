@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
 import { validateSession } from "@/lib/admin-auth";
+import { logServer } from "@/lib/server-logger";
 import {
   clearIpBlockSettingsCache,
   DEFAULT_IP_BLOCK_SETTINGS,
@@ -38,7 +39,8 @@ export async function GET() {
     await ensureAdminSecurityIndexes(context.db);
     const settings = await getIpBlockSettings(context.db);
     return NextResponse.json(settings, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
-  } catch {
+  } catch (error) {
+    void logServer({ level: "error", message: "Admin IP settings fetch failed", source: "admin.security-settings", path: "/api/admin/security-settings", method: "GET", statusCode: 503, error });
     return NextResponse.json({ error: "Unable to load IP settings." }, { status: 503 });
   }
 }
@@ -79,7 +81,8 @@ export async function PUT(request: Request) {
     await context.db.collection("settings").updateOne({ key: value.key }, { $set: value }, { upsert: true });
     clearIpBlockSettingsCache();
     return NextResponse.json({ success: true, ...DEFAULT_IP_BLOCK_SETTINGS, ...value });
-  } catch {
+  } catch (error) {
+    void logServer({ level: "error", message: "Admin IP settings update failed", source: "admin.security-settings", path: "/api/admin/security-settings", method: "POST", statusCode: 503, error });
     return NextResponse.json({ error: "Unable to save IP settings." }, { status: 503 });
   }
 }

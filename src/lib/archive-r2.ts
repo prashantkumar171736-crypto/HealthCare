@@ -10,11 +10,13 @@ import {
 import { NodeHttpHandler } from "@smithy/node-http-handler";
 import ExcelJS from "exceljs";
 import { getDb } from "@/lib/db";
+import { logServer } from "@/lib/server-logger";
 import { ARCHIVE_CATEGORY_OPTIONS, ARCHIVE_RETENTION_OPTIONS, type ArchiveCategorySelection } from "@/lib/archive-config";
 
 export const ARCHIVE_BUCKET_NAME = process.env.R2_SECURITY_BUCKET_NAME || process.env.R2_IP_SECURITY_BUCKET_NAME || "healthcare-ip-security";
 export const ARCHIVE_PUBLIC_URL = process.env.R2_SECURITY_PUBLIC_URL || process.env.R2_IP_SECURITY_PUBLIC_URL || "";
 export const ARCHIVE_RETENTION_DAYS = Number(process.env.ARCHIVE_RETENTION_DAYS || "30");
+const SERVER_LOG_EXPORT_LIMIT = 50_000;
 
 const ARCHIVE_ACCOUNT_ID = process.env.R2_SECURITY_ACCOUNT_ID || process.env.R2_IP_SECURITY_ACCOUNT_ID;
 const ARCHIVE_ACCESS_KEY_ID = process.env.R2_SECURITY_ACCESS_KEY_ID || process.env.R2_IP_SECURITY_ACCESS_KEY_ID;
@@ -604,8 +606,44 @@ async function getIpSecurityArchiveRows(startAt: Date, endAt: Date): Promise<Rec
   return [...blockRows, ...attemptRows];
 }
 
-async function getServerLogsArchiveRows(): Promise<Record<string, unknown>[]> {
-  return [];
+async function getServerLogsArchiveRows(startAt: Date, endAt: Date): Promise<Record<string, unknown>[]> {
+  const db = await getDb();
+  const cursor = db.collection("server_logs")
+    .find({ createdAt: { $gte: startAt, $lte: endAt } })
+    .sort({ createdAt: -1 })
+    .limit(SERVER_LOG_EXPORT_LIMIT);
+  const rows: Record<string, unknown>[] = [];
+  const timeFormatter = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+
+  try {
+    for await (const log of cursor) {
+      const createdAt = log.createdAt instanceof Date ? log.createdAt : new Date(log.createdAt);
+      const error = [log.errorName, log.errorMessage].filter(Boolean).join(": ");
+      rows.push({
+        Time: Number.isNaN(createdAt.getTime()) ? "" : timeFormatter.format(createdAt),
+        Level: log.level ?? "",
+        Source: log.source ?? "",
+        Method: log.method ?? "",
+        Path: log.path ?? "",
+        Status: log.statusCode ?? "",
+        Message: log.message ?? "",
+        Error: error,
+      });
+    }
+  } finally {
+    await cursor.close();
+  }
+
+  return rows;
 }
 
 async function getArchiveRowsForCategory(category: ArchiveCategory, startAt: Date, endAt: Date): Promise<Record<string, unknown>[]> {
@@ -615,7 +653,7 @@ async function getArchiveRowsForCategory(category: ArchiveCategory, startAt: Dat
     case "ip-security":
       return getIpSecurityArchiveRows(startAt, endAt);
     case "server-logs":
-      return getServerLogsArchiveRows();
+      return getServerLogsArchiveRows(startAt, endAt);
     default:
       return [];
   }
@@ -720,7 +758,7 @@ export async function recordArchiveJob(
   jobType: ArchiveCategory,
   startedAt: Date,
   completedAt: Date,
-  status: "success" | "failed",
+  status: "success" | "failed" | "no_data",
   recordsCount: number,
   fileName: string,
   bucketName: string,
@@ -761,7 +799,7 @@ export async function runArchiveExport(category: ArchiveCategory | "all" = "all"
   const results: Array<{
     jobId: string;
     category: ArchiveCategory;
-    status: "success" | "failed";
+    status: "success" | "failed" | "no_data";
     fileName?: string;
     publicUrl?: string;
     fileSizeBytes: number | null;
@@ -790,12 +828,13 @@ export async function runArchiveExport(category: ArchiveCategory | "all" = "all"
       const buffer = await workbook.xlsx.writeBuffer();
       const archiveFile = await uploadArchiveFile(item, Buffer.from(buffer), fileName);
       const completedAt = new Date();
+      const jobStatus = item === "server-logs" && rows.length === 0 ? "no_data" : "success";
       const jobId = await recordArchiveJob(
         runId,
         item,
         startedAt,
         completedAt,
-        "success",
+        jobStatus,
         rows.length,
         archiveFile.fileName,
         ARCHIVE_BUCKET_NAME,
@@ -805,7 +844,7 @@ export async function runArchiveExport(category: ArchiveCategory | "all" = "all"
       results.push({
         jobId,
         category: item,
-        status: "success",
+        status: jobStatus,
         fileName: archiveFile.fileName,
         publicUrl: archiveFile.publicUrl,
         fileSizeBytes: Buffer.byteLength(buffer),
@@ -814,6 +853,16 @@ export async function runArchiveExport(category: ArchiveCategory | "all" = "all"
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown archive export error.";
+      void logServer({
+        level: "error",
+        message: "Archive category export failed",
+        source: `archive.export.${item}`,
+        path: "/api/admin/archive",
+        method: "POST",
+        statusCode: 500,
+        error,
+        meta: { category: item, recordsCount: rows.length },
+      });
       const failedAt = new Date();
       const fileName = formatArchiveFileName(item);
       const jobId = await recordArchiveJob(runId, item, startedAt, failedAt, "failed", rows.length, fileName, ARCHIVE_BUCKET_NAME, message);
@@ -870,6 +919,7 @@ export async function getArchiveSummary() {
   const db = await getDb();
   const archiveSettings = await db.collection("settings").findOne({ key: ARCHIVE_SETTINGS_KEY });
   const archiveJobs = await db.collection("archive_jobs").find({}).sort({ startedAt: -1 }).toArray();
+  const serverLogCount = await db.collection("server_logs").countDocuments({});
   const latestJob = archiveJobs[0];
   const latestRunAt = archiveSettings?.lastRunAt ?? latestJob?.startedAt ?? null;
   const [filesResult, settings] = await Promise.allSettled([listArchiveFiles(), getArchiveSettings()]);
@@ -889,11 +939,14 @@ export async function getArchiveSummary() {
     nextRun: "Manual only",
     files: files.slice(0, 20),
     totalFiles: files.length,
+    serverLogCount,
     filesError,
     lastResults: archiveJobs.map((job) => ({
       jobId: job._id.toString(),
       category: job.jobType,
-      status: job.status,
+      status: job.jobType === "server-logs" && job.recordsCount === 0 && job.status === "success"
+        ? "no_data"
+        : job.status,
       fileName: job.fileName,
       fileSizeBytes: typeof job.fileSizeBytes === "number"
         ? job.fileSizeBytes

@@ -72,7 +72,7 @@ test("buildArchiveWorkbook exports an analytics workbook with the reference repo
   const idHeader = detailedSheet.getCell("A1");
   assert.equal(idHeader.fill.type, "pattern");
   if (idHeader.fill.type === "pattern") {
-    assert.equal(idHeader.fill.fgColor.argb, "FF2563EB");
+    assert.equal(idHeader.fill.fgColor?.argb, "FF2563EB");
   }
   assert.equal(detailedSheet.getCell("J2").value instanceof Date, true);
   assert.equal(detailedSheet.getCell("J2").numFmt, "yyyy-mm-dd hh:mm:ss");

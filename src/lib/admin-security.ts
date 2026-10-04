@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { isIP } from "node:net";
 import type { Db } from "mongodb";
+import { logServer } from "@/lib/server-logger";
 
 export const DEFAULT_IP_BLOCK_SETTINGS = {
   maxFailedAttempts: 5,
@@ -311,7 +312,7 @@ export async function recordFailedLogin(
   const lockedUntil = attempt?.lockedUntil instanceof Date ? attempt.lockedUntil : null;
 
   if (createIpBlock && attempts >= settings.maxFailedAttempts && lockedUntil) {
-    await db.collection("admin_ip_blocks").updateOne(
+    const blockResult = await db.collection("admin_ip_blocks").updateOne(
       { ipKey, expiresAt: lockedUntil },
       {
         $setOnInsert: {
@@ -327,6 +328,17 @@ export async function recordFailedLogin(
       },
       { upsert: true }
     );
+    if (blockResult.upsertedCount > 0) {
+      void logServer({
+        level: "warn",
+        message: "Admin sign-in network blocked after repeated failures",
+        source: "admin.security.ip-block",
+        path: "/api/admin/login",
+        method: "POST",
+        statusCode: 429,
+        meta: { attempts },
+      });
+    }
   }
 
   return { attempts, lockedUntil };

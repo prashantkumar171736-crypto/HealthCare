@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
 import { validateSession } from "@/lib/admin-auth";
+import { logServer } from "@/lib/server-logger";
 
 export const runtime = "nodejs";
 export const maxDuration = 30; // Extend Vercel function timeout
@@ -260,6 +261,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ range, buckets });
   } catch (err: any) {
     console.error("Traffic API error:", err);
+    void logServer({ level: "error", message: "Admin traffic request failed", source: "admin.traffic", path: "/api/admin/traffic", method: "GET", statusCode: 500, error: err });
     return NextResponse.json({ error: `Failed to fetch traffic data: ${err.message}` }, { status: 500 });
   }
 }

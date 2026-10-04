@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { ObjectId } from "mongodb";
+import { logServer } from "@/lib/server-logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,6 +70,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ items });
   } catch (err: any) {
+    void logServer({ level: "error", message: "Admin content request failed", source: "admin.content", path: "/api/admin/content", method: "GET", statusCode: 500, error: err });
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -140,6 +142,7 @@ export async function POST(req: NextRequest) {
     const result = await db.collection(collection).insertOne(doc);
     return NextResponse.json({ message: "Content created successfully", id: result.insertedId.toString(), item: doc }, { status: 201 });
   } catch (err: any) {
+    void logServer({ level: "error", message: "Admin content request failed", source: "admin.content", path: "/api/admin/content", method: "POST", statusCode: 500, error: err });
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -220,6 +223,7 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ message: "Content updated successfully", item: updateDoc });
   } catch (err: any) {
+    void logServer({ level: "error", message: "Admin content request failed", source: "admin.content", path: "/api/admin/content", method: "PUT", statusCode: 500, error: err });
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -246,6 +250,7 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ message: "Content deleted successfully" });
   } catch (err: any) {
+    void logServer({ level: "error", message: "Admin content request failed", source: "admin.content", path: "/api/admin/content", method: "DELETE", statusCode: 500, error: err });
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import crypto from "crypto";
 import { getDb } from "@/lib/db";
+import { logServer } from "@/lib/server-logger";
 import { normalizeCountryName } from "@/lib/geo";
 import { createAdminSession, SESSION_TTL_SECONDS } from "@/lib/admin-auth";
 import {
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
 
   const trustedIp = getTrustedClientIp(request) || (process.env.NODE_ENV === "development" ? "127.0.0.1" : null);
   if (!trustedIp) {
+    void logServer({ level: "error", message: "Admin login request could not resolve a trusted client network", source: "admin.login", path: "/api/admin/login", method: "POST", statusCode: 503 });
     return NextResponse.json({ error: "Unable to verify the client network. Please retry." }, { status: 503 });
   }
 
@@ -90,6 +92,7 @@ export async function POST(request: Request) {
 
     if (!db) {
       console.error("Login: DB connection returned null.");
+      void logServer({ level: "error", message: "Admin login database connection timed out", source: "admin.login", path: "/api/admin/login", method: "POST", statusCode: 503 });
       return NextResponse.json(
         { error: "Database service temporarily unavailable. Please try again shortly." },
         { status: 503 }
@@ -99,6 +102,7 @@ export async function POST(request: Request) {
 
     await ensureAdminSecurityIndexes(db);
     if (!process.env.IP_RATE_LIMIT_SECRET) {
+      void logServer({ level: "error", message: "Admin login IP rate-limit secret is not configured", source: "admin.login", path: "/api/admin/login", method: "POST", statusCode: 503 });
       return NextResponse.json({ error: "IP_RATE_LIMIT_SECRET must be configured." }, { status: 503 });
     }
     const ipKey = getIpKey(trustedIp);
@@ -109,6 +113,14 @@ export async function POST(request: Request) {
     const lockedUntil = activeBlock?.expiresAt || activeLock?.lockedUntil;
     if (lockedUntil instanceof Date && lockedUntil > new Date()) {
       const retryAfter = Math.max(1, Math.ceil((lockedUntil.getTime() - Date.now()) / 1000));
+      void logServer({
+        level: "warn",
+        message: "Admin sign-in rejected by active network lock",
+        source: "admin.login",
+        path: "/api/admin/login",
+        method: "POST",
+        statusCode: 429,
+      });
       return NextResponse.json(
         { error: "This network is temporarily blocked from admin sign-in." },
         { status: 429, headers: { "Retry-After": String(retryAfter), "X-RateLimit-Limit": "5" } }
@@ -124,6 +136,7 @@ export async function POST(request: Request) {
     const securitySettings = await getEmailLoginSettings(db);
     const otpConfiguration = getOtpConfiguration();
     if (securitySettings.requireOtp && !otpConfiguration.configured) {
+      void logServer({ level: "error", message: "Admin login OTP provider is not configured", source: "admin.login", path: "/api/admin/login", method: "POST", statusCode: 503 });
       return NextResponse.json({ error: "Email OTP is enabled but its email-provider or admin-email configuration is incomplete." }, { status: 503 });
     }
 
@@ -218,6 +231,16 @@ export async function POST(request: Request) {
             await cooldowns.deleteOne({ adminId: admin._id });
             const emailError = mailError as { code?: string; responseCode?: number };
             console.error("Admin OTP email delivery failed:", { code: emailError?.code, responseCode: emailError?.responseCode });
+            void logServer({
+              level: "error",
+              message: "Admin OTP email delivery failed",
+              source: "admin.login.otp-email",
+              path: "/api/admin/login",
+              method: "POST",
+              statusCode: 503,
+              error: mailError,
+              meta: { providerCode: emailError?.code, responseCode: emailError?.responseCode },
+            });
             return NextResponse.json({
               error: `Could not send the verification email. No admin session was created. ${getAdminEmailErrorMessage(mailError)}`,
             }, { status: 503 });
@@ -230,6 +253,15 @@ export async function POST(request: Request) {
             );
           } catch (cooldownError) {
             console.error("Admin OTP cooldown update failed after delivery:", cooldownError);
+            void logServer({
+              level: "error",
+              message: "Admin OTP cooldown update failed",
+              source: "admin.login.otp-cooldown",
+              path: "/api/admin/login",
+              method: "POST",
+              statusCode: 500,
+              error: cooldownError,
+            });
           }
 
           return NextResponse.json({
@@ -243,6 +275,15 @@ export async function POST(request: Request) {
     }
   } catch (dbErr) {
     console.error("Login: DB error during authentication:", dbErr);
+    void logServer({
+      level: "error",
+      message: "Admin login authentication database operation failed",
+      source: "admin.login",
+      path: "/api/admin/login",
+      method: "POST",
+      statusCode: 503,
+      error: dbErr,
+    });
     return NextResponse.json(
       { error: "Authentication service temporarily unavailable. Please try again shortly." },
       { status: 503 }
@@ -272,6 +313,15 @@ export async function POST(request: Request) {
   const now = new Date();
   const country = normalizeCountryName(request.headers.get("x-vercel-ip-country"));
   await recordFailedLogin(db, ipKey, country, true, trustedIp, now);
+  void logServer({
+    level: "warn",
+    message: "Admin sign-in rejected due to invalid credentials",
+    source: "admin.login",
+    path: "/api/admin/login",
+    method: "POST",
+    statusCode: 401,
+    meta: { reason: "invalid_credentials" },
+  });
 
   await new Promise((resolve) => setTimeout(resolve, crypto.randomInt(50, 151)));
 

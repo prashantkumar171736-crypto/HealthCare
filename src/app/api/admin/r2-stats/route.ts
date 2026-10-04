@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { validateSession } from "@/lib/admin-auth";
+import { logServer } from "@/lib/server-logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,6 +74,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Admin R2 stats error:", error);
+    void logServer({ level: "error", message: "Admin R2 stats request failed", source: "admin.r2-stats", path: "/api/admin/r2-stats", method: "GET", statusCode: 503, error });
     return NextResponse.json(
       {
         status: "Offline",

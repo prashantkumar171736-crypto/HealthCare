@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { ObjectId } from "mongodb";
+import { logServer } from "@/lib/server-logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export async function GET() {
 
     return NextResponse.json({ posts });
   } catch (err: any) {
+    void logServer({ level: "error", message: "Admin posts request failed", source: "admin.posts", path: "/api/admin/posts", method: "GET", statusCode: 500, error: err });
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -92,6 +94,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (err: any) {
+    void logServer({ level: "error", message: "Admin posts request failed", source: "admin.posts", path: "/api/admin/posts", method: "POST", statusCode: 500, error: err });
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -143,6 +146,7 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ message: "Post updated successfully", category, slug });
   } catch (err: any) {
+    void logServer({ level: "error", message: "Admin posts request failed", source: "admin.posts", path: "/api/admin/posts", method: "PUT", statusCode: 500, error: err });
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -171,6 +175,7 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ message: "Post deleted successfully" });
   } catch (err: any) {
+    void logServer({ level: "error", message: "Admin posts request failed", source: "admin.posts", path: "/api/admin/posts", method: "DELETE", statusCode: 500, error: err });
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
