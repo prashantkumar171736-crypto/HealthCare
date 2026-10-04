@@ -163,12 +163,14 @@ function applyWorkbookCellStyle(
     size: fontSize,
   };
   cell.alignment = { vertical: valign, horizontal: align };
-  cell.border = border ? {
-    top: { style: "thin", color: { argb: borderColor } },
-    left: { style: "thin", color: { argb: borderColor } },
-    bottom: { style: "thin", color: { argb: borderColor } },
-    right: { style: "thin", color: { argb: borderColor } },
-  } : undefined;
+  if (border) {
+    cell.border = {
+      top: { style: "thin", color: { argb: borderColor } },
+      left: { style: "thin", color: { argb: borderColor } },
+      bottom: { style: "thin", color: { argb: borderColor } },
+      right: { style: "thin", color: { argb: borderColor } },
+    };
+  }
   if (fill) {
     cell.fill = {
       type: "pattern",
