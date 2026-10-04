@@ -352,7 +352,7 @@ export default function TimezoneClock({ label, timeZone, offsetLabel, countryLab
         .timezone-clock-time {
           margin: 1px 0;
           font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-          color: var(--clock-rose-strong);
+          color: var(--clock-rose-text);
           font-size: 23px;
           font-variant-numeric: tabular-nums;
           font-weight: 700;
