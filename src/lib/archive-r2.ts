@@ -322,8 +322,8 @@ export function buildArchiveWorkbook(
 ): ExcelJS.Workbook {
   const workbook = new ExcelJS.Workbook();
 
-  const detailSheet = workbook.addWorksheet("Detailed Summary");
-  const analyticsSheet = workbook.addWorksheet(sheetName || "Analytics");
+  const analyticsSheet = workbook.addWorksheet("Analytics Report");
+  const detailSheet = workbook.addWorksheet("Detailed Summary Report");
 
   const firstRow = rows[0] ?? {};
   const rawKeys = Object.keys(firstRow).length > 0 ? Object.keys(firstRow) : ["ID", "message"];
@@ -467,33 +467,6 @@ export function buildArchiveWorkbook(
     applyWorkbookCellStyle(row.getCell(3), { fill: "FFEEF2FF", fontColor: "FF111827", bold: true, align: "center", border: true, fontSize: 8 });
     applyWorkbookCellStyle(row.getCell(4), { fill: "FFFFFFFF", fontColor: "FF111827", bold: false, align: "left", border: true, fontSize: 8 });
   }
-
-  const summarySheet = workbook.addWorksheet("Summary");
-  summarySheet.columns = [
-    { header: "Categories", key: "category", width: 20 },
-    { header: "Records Archived", key: "recordsCount", width: 20 },
-    { header: "Retention Window", key: "retentionWindow", width: 24 },
-    { header: "Export Generated (IST)", key: "generatedAt", width: 30 },
-    { header: "Country Count", key: "countries", width: 40 },
-    { header: "Language (Browser Preferred)", key: "languages", width: 40 },
-    { header: "Device Type", key: "devices", width: 32 },
-  ];
-  const counts = getSummaryCounts(rows);
-  summarySheet.addRow({
-    category: summary.category,
-    recordsCount: summary.recordsCount,
-    retentionWindow: `Last ${summary.retentionDays} ${summary.retentionDays === 1 ? "day" : "days"}`,
-    generatedAt: formatArchiveDateTime(summary.generatedAt),
-    countries: counts.countries,
-    languages: counts.languages,
-    devices: counts.devices,
-  });
-  summarySheet.getRow(1).font = { bold: true };
-  summarySheet.views = [{ state: "frozen", ySplit: 1 }];
-  summarySheet.autoFilter = {
-    from: "A1",
-    to: `G${summarySheet.rowCount}`,
-  };
 
   return workbook;
 }

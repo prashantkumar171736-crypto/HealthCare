@@ -50,9 +50,14 @@ test("buildArchiveWorkbook exports an analytics workbook with the reference repo
     generatedAt: new Date("2026-10-03T03:30:00.000Z"),
   });
 
-  const analyticsSheet = workbook.getWorksheet("analytics");
-  const detailedSheet = workbook.getWorksheet("Detailed Summary");
+  const analyticsSheet = workbook.getWorksheet("Analytics Report");
+  const detailedSheet = workbook.getWorksheet("Detailed Summary Report");
 
+  assert.deepEqual(
+    workbook.worksheets.map((sheet) => sheet.name),
+    ["Analytics Report", "Detailed Summary Report"],
+    "Workbook should contain exactly the two report sheets shown in the reference design",
+  );
   assert.ok(analyticsSheet, "Analytics worksheet should exist");
   assert.ok(detailedSheet, "Detailed Summary worksheet should exist");
   assert.equal(analyticsSheet.getCell("A1").value, "ANALYTICS ARCHIVE - DETAILED SUMMARY");
