@@ -305,15 +305,6 @@ export default function DiseaseDetailClient({
             )}
           </section>
 
-          {/* References Footer */}
-          <div style={{ marginTop: "3rem", paddingTop: "1.5rem", borderTop: "1px solid var(--border)" }}>
-            <h4 style={{ fontSize: "1rem", color: "var(--text-muted)", marginBottom: "0.5rem" }}>Sources and References:</h4>
-            <ul style={{ paddingLeft: "1.25rem", fontSize: "0.85rem", color: "var(--text-light)" }}>
-              {disease.references &&
-                disease.references.map((ref, idx) => <li key={idx}>{ref}</li>)}
-            </ul>
-          </div>
-
           {/* Social Share Block */}
           <div className="share-block">
             <span style={{ fontWeight: "700", color: "var(--text-muted)" }}>Share Article:</span>
