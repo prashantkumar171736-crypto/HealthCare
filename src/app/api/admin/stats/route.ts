@@ -72,10 +72,11 @@ export async function GET(request: Request) {
       const { searchParams } = new URL(request.url);
       const period = searchParams.get("period") || "monthly";
       const logLimitParam = searchParams.get("logLimit") || "50";
-      const limitNum = Math.min(
-        logLimitParam === "all" ? 50 : (parseInt(logLimitParam, 10) || 50),
-        50 // Hard cap at 50 on Vercel
-      );
+      const logLimitNum = Number(logLimitParam);
+      const limitNum = logLimitParam === "all" ? null : logLimitNum;
+      if (limitNum !== null && ![50, 100, 250, 500, 1000].includes(limitNum)) {
+        return NextResponse.json({ error: "logLimit must be 50, 100, 250, 500, 1000, or all." }, { status: 400 });
+      }
 
       const now = new Date();
 
@@ -205,8 +206,11 @@ export async function GET(request: Request) {
         // Period aggregation (already date-filtered above)
         periodAggregationPromise,
 
-        // Recent logs — capped at 50
-        analytics.find({}).sort({ timestamp: -1 }).limit(limitNum).toArray().catch(() => []),
+        // Keep the selected latest-log window without limiting the dashboard stats.
+        (limitNum === null
+          ? analytics.find({}).sort({ timestamp: -1 })
+          : analytics.find({}).sort({ timestamp: -1 }).limit(limitNum)
+        ).toArray().catch(() => []),
 
         // DB ping
         db.command({ ping: 1 }).then(() => Date.now() - startPing).catch(() => 0),

@@ -132,6 +132,13 @@ function formatArchiveFileSize(size: number | null | undefined): string {
   return `${(size / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+function logPageItems(current: number, total: number): Array<number | "ellipsis"> {
+  if (total <= 5) return Array.from({ length: total }, (_, index) => index + 1);
+  if (current <= 3) return [1, 2, 3, 4, "ellipsis", total];
+  if (current >= total - 2) return [1, "ellipsis", total - 3, total - 2, total - 1, total];
+  return [1, "ellipsis", current - 1, current, current + 1, "ellipsis", total];
+}
+
 function getArchiveStatusLabel(status: ArchiveRunResult["status"]): string {
   if (status === "success") return "Completed";
   if (status === "failed") return "Failed";
@@ -270,6 +277,8 @@ export default function DashboardClient() {
 
   // Live Server Request Log filters & controls
   const [logLimit, setLogLimit] = useState<string>("50");
+  const [logPage, setLogPage] = useState(1);
+  const [logPageSize, setLogPageSize] = useState(50);
   const [sortField, setSortField] = useState<"timestamp" | "visitorId" | "country" | "state" | "geo" | "path" | "referrer" | "userAgent">("timestamp");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [quickSearchOpen, setQuickSearchOpen] = useState(false);
@@ -1821,6 +1830,11 @@ export default function DashboardClient() {
             }
             return sortOrder === "asc" ? comparison : -comparison;
           });
+          const totalLogPages = Math.ceil(sortedLogs.length / logPageSize);
+          const currentLogPage = Math.min(logPage, totalLogPages || 1);
+          const firstLogRow = sortedLogs.length ? (currentLogPage - 1) * logPageSize + 1 : 0;
+          const lastLogRow = Math.min(currentLogPage * logPageSize, sortedLogs.length);
+          const visibleLogs = sortedLogs.slice(firstLogRow - 1, lastLogRow);
 
           return (
             <div className="panel-card full-panel logs-panel">
@@ -1830,7 +1844,7 @@ export default function DashboardClient() {
                   <h2 className="panel-title-inline">Live Server Request Log</h2>
                   <select
                     value={logLimit}
-                    onChange={(e) => setLogLimit(e.target.value)}
+                    onChange={(e) => { setLogLimit(e.target.value); setLogPage(1); }}
                     className="limit-dropdown"
                   >
                     <option value="50">(Latest 50 Visits)</option>
@@ -2027,7 +2041,7 @@ export default function DashboardClient() {
                   </thead>
                   <tbody>
                     {sortedLogs.length > 0 ? (
-                      sortedLogs.map((log) => (
+                      visibleLogs.map((log) => (
                         <tr key={log.id}>
                           <td className="time-col">
                             {new Date(log.timestamp).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}<br />
@@ -2063,6 +2077,21 @@ export default function DashboardClient() {
                   </tbody>
                 </table>
               </div>
+              <footer className="security-pagination">
+                <label className="security-toolbar-group">Rows per page
+                  <select value={logPageSize} onChange={(event) => { setLogPageSize(Number(event.target.value)); setLogPage(1); }}>
+                    {[50, 100, 250, 500].map((size) => <option key={size} value={size}>{size}</option>)}
+                  </select>
+                </label>
+                <div className="security-page-numbers" aria-label="Request log pages">
+                  <button className="security-page-button" type="button" aria-label="Previous page" disabled={currentLogPage <= 1} onClick={() => setLogPage((page) => Math.max(1, page - 1))}>‹</button>
+                  {logPageItems(currentLogPage, totalLogPages).map((item, index) => item === "ellipsis"
+                    ? <span key={`ellipsis-${index}`} aria-hidden="true">…</span>
+                    : <button key={item} className={`security-page-button ${currentLogPage === item ? "active" : ""}`} type="button" aria-current={currentLogPage === item ? "page" : undefined} onClick={() => setLogPage(item)}>{item}</button>)}
+                  <button className="security-page-button" type="button" aria-label="Next page" disabled={currentLogPage >= totalLogPages} onClick={() => setLogPage((page) => Math.min(totalLogPages, page + 1))}>›</button>
+                </div>
+                <span>Showing {firstLogRow}–{lastLogRow} of {sortedLogs.length}</span>
+              </footer>
             </div>
           );
         })()}
@@ -6182,6 +6211,48 @@ export default function DashboardClient() {
         .logs-panel {
           display: flex;
           flex-direction: column;
+        }
+
+        .logs-panel .security-pagination {
+          margin-top: 0.75rem;
+          color: var(--admin-text-secondary, #9ca3af);
+          font-size: 0.8rem;
+        }
+
+        .logs-panel .security-toolbar-group {
+          flex: 0 1 auto;
+          justify-content: flex-start;
+          white-space: nowrap;
+        }
+
+        .logs-panel .security-toolbar-group select,
+        .logs-panel .security-page-button {
+          min-height: 30px;
+          padding: 4px 9px;
+          border: 1px solid var(--admin-border, rgba(255, 255, 255, 0.12));
+          border-radius: 6px;
+          background: var(--admin-bg, #0b0f19);
+          color: var(--admin-text-primary, #ffffff);
+        }
+
+        .logs-panel .security-page-numbers {
+          display: flex;
+          align-items: center;
+          gap: 0.3rem;
+        }
+
+        .logs-panel .security-page-button {
+          cursor: pointer;
+        }
+
+        .logs-panel .security-page-button.active {
+          border-color: var(--admin-accent, #00c896);
+          color: var(--admin-accent, #00c896);
+        }
+
+        .logs-panel .security-page-button:disabled {
+          cursor: not-allowed;
+          opacity: 0.45;
         }
 
         .logs-header-bar {
