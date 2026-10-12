@@ -228,7 +228,9 @@ export default function MiniRichEditor({
 
   const exec = (cmd: string, val?: string) => {
     editorRef.current?.focus();
+    restoreSelection();
     document.execCommand(cmd, false, val);
+    saveSelection();
     notifyChange();
     updateActiveFormats();
     updateStats();
@@ -674,6 +676,7 @@ graph TD
 
   const applyFontSize = (size: string) => {
     editorRef.current?.focus();
+    restoreSelection();
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
       const range = sel.getRangeAt(0);
@@ -692,6 +695,7 @@ graph TD
         el.parentNode?.replaceChild(span, el);
       });
     }
+    saveSelection();
     notifyChange();
   };
 
@@ -788,9 +792,7 @@ graph TD
               if (!v) return;
               if (v === "p") exec("formatBlock", "<p>");
               else if (v === "h7") {
-                editorRef.current?.focus();
-                document.execCommand("insertHTML", false, `<div style="font-size:0.75rem;font-weight:700;line-height:1.4;margin:0.75rem 0 0.4rem;"><br></div>`);
-                notifyChange();
+                exec("insertHTML", `<div style="font-size:0.75rem;font-weight:700;line-height:1.4;margin:0.75rem 0 0.4rem;"><br></div>`);
               }
               else exec("formatBlock", `<${v}>`);
               e.target.value = "";
@@ -1404,15 +1406,16 @@ graph TD
                 type="button"
                 onClick={() => {
                   // Restore the saved selection and apply the color
+                  editorRef.current?.focus();
                   const sel = window.getSelection();
                   sel?.removeAllRanges();
                   if (colorSelectionRef.current) sel?.addRange(colorSelectionRef.current);
-                  editorRef.current?.focus();
                   if (colorPickerOpen === "text") {
                     document.execCommand("foreColor", false, pendingColor);
                   } else {
                     document.execCommand("hiliteColor", false, pendingColor);
                   }
+                  saveSelection();
                   notifyChange();
                   setColorPickerOpen(null);
                 }}

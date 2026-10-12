@@ -339,7 +339,9 @@ export default function PostEditor() {
   // ── editor helper functions ───────────────────────────────────────────────
   const exec = (cmd: string, value?: string) => {
     editorRef.current?.focus();
+    restoreSelection();
     document.execCommand(cmd, false, value);
+    saveSelection();
     updateActiveFormats();
     updateStats();
   };
@@ -1496,6 +1498,8 @@ graph TD
                   border: "1px solid rgba(255,255,255,0.08)",
                   borderBottom: "none",
                   borderRadius: "10px 10px 0 0",
+                }} onMouseDown={(event) => {
+                  if ((event.target as HTMLElement).closest("button")) event.preventDefault();
                 }}>
                   {/* Row 1: History, Formatting, Font, Size, Colors */}
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px" }}>
@@ -1535,8 +1539,7 @@ graph TD
                         if (!v) return;
                         if (v === "p") exec("formatBlock", "p");
                         else if (v === "h7") {
-                          editorRef.current?.focus();
-                          document.execCommand("insertHTML", false, `<div style="font-size:0.75rem;font-weight:700;line-height:1.4;margin:0.75rem 0 0.4rem;"><br></div>`);
+                          exec("insertHTML", `<div style="font-size:0.75rem;font-weight:700;line-height:1.4;margin:0.75rem 0 0.4rem;"><br></div>`);
                         }
                         else exec("formatBlock", v);
                         e.target.value = "";
@@ -2210,12 +2213,13 @@ graph TD
               </button>
               <button type="button"
                 onClick={() => {
+                  editorRef.current?.focus();
                   const sel = window.getSelection();
                   sel?.removeAllRanges();
                   if (colorSelectionRef.current) sel?.addRange(colorSelectionRef.current);
-                  editorRef.current?.focus();
                   if (colorPickerOpen === "text") document.execCommand("foreColor", false, pendingColor);
                   else document.execCommand("hiliteColor", false, pendingColor);
+                  saveSelection();
                   setColorPickerOpen(null);
                 }}
                 style={{ padding: "8px 20px", border: "none", borderRadius: "8px", background: "#2563eb", color: "#fff", cursor: "pointer", fontSize: "13px", fontWeight: 700 }}>
