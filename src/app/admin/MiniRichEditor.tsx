@@ -193,8 +193,9 @@ export default function MiniRichEditor({
 
   // When external value changes (loading edit data), update if not focused
   useEffect(() => {
-    if (editorRef.current && !isFocused) {
-      editorRef.current.innerHTML = value || "";
+    const nextValue = value || "";
+    if (editorRef.current && !isFocused && editorRef.current.innerHTML !== nextValue) {
+      editorRef.current.innerHTML = nextValue;
       updateStats();
     }
   }, [value, isFocused]);
@@ -1105,7 +1106,7 @@ graph TD
             ref={ctxMenuRef}
             className="rich-ctx-menu"
             style={{ top: ctxMenuPos.top, left: ctxMenuPos.left }}
-            onMouseDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
           >
             <div className="ctx-header">
               <span>🛠️ Text Formatting Tools</span>

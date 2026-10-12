@@ -1714,7 +1714,7 @@ graph TD
                       ref={ctxMenuRef}
                       className="rich-ctx-menu"
                       style={{ top: ctxMenuPos.top, left: ctxMenuPos.left }}
-                      onMouseDown={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                     >
                       <div className="ctx-header">
                         <span>🛠️ Text Formatting Tools</span>
